@@ -1,0 +1,1730 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#15181C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="鉅誠盤點">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href='data:application/manifest+json,{"name":"鉅誠驗屋 設備盤點","short_name":"鉅誠盤點","display":"standalone","background_color":"%23E9EBEE","theme_color":"%2315181C","start_url":"."}'>
+<title>鉅誠驗屋 · 設備盤點系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#15181C; --paper:#E9EBEE; --card:#FFF; --line:#D3D7DC; --line2:#E6E9ED;
+  --amber:#FFB020; --amber-d:#8A5A00; --ok:#2C7A5C; --ok-bg:#E8F3EE;
+  --alert:#CE3524; --alert-bg:#FBEAE7; --muted:#6C737D;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --tc:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;overflow-x:hidden}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--tc);background:var(--paper);color:var(--ink);font-size:16px;line-height:1.5;padding-bottom:78px}
+body.norole{padding-bottom:0}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+header.top{position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;padding:11px 14px 9px;
+  border-bottom:3px solid var(--amber);display:flex;align-items:center;gap:10px}
+header.top h1{margin:0;font-size:14.5px;font-weight:900;letter-spacing:.05em}
+header.top .sub{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#98A0AA;margin-top:2px}
+header.top .sw{margin-left:auto;background:none;border:1px solid #4A525C;color:#C7CCD2;border-radius:3px;
+  padding:6px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.wrap{max-width:560px;margin:0 auto;padding:14px 14px 26px}
+.wide{max-width:860px}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ink);display:grid;
+  padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{border:0;background:none;color:#8E96A0;padding:10px 1px 11px;font-family:var(--tc);
+  font-size:10px;font-weight:700;cursor:pointer;border-top:3px solid transparent}
+nav.tabs button .ic{display:block;font-size:15px;margin-bottom:1px}
+nav.tabs button[aria-selected="true"]{color:#fff;border-top-color:var(--amber)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:3px;margin-bottom:12px}
+.card .hd{padding:11px 14px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:8px}
+.card .hd h2{margin:0;font-size:14px;font-weight:900;letter-spacing:.04em}
+.card .bd{padding:14px}
+.note{background:#FFF7E6;border:1px solid #F0D9A0;border-radius:3px;padding:10px 12px;font-size:12.5px;color:#6B5417;margin-bottom:12px}
+.note b{color:#4A3A0C}
+
+label.f{display:block;margin-bottom:13px}
+label.f .lbl{display:block;margin-bottom:6px}
+input[type=text],input[type=number],select,textarea{width:100%;font-family:var(--tc);font-size:16px;
+  padding:11px 12px;border:1px solid var(--line);border-radius:3px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-family:var(--mono);font-size:17px;font-weight:600;min-width:52px;height:48px;border:1px solid var(--line);
+  background:#fff;border-radius:3px;cursor:pointer;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:var(--tc);font-weight:700;
+  font-size:15px;padding:13px 18px;border-radius:3px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+.btn.amber{background:var(--amber);border-color:var(--amber);color:#241A00}
+.btn.ghost{background:#fff;color:var(--ink)}
+.btn.sm{padding:8px 12px;font-size:13px}
+.btn.tiny{padding:5px 9px;font-size:11.5px;font-weight:500}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.block{display:flex;width:100%}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* 角色選擇 */
+.gate{max-width:420px;margin:0 auto;padding:34px 18px}
+.gate h2{font-size:19px;font-weight:900;margin:0 0 4px}
+.gate p{color:var(--muted);font-size:13.5px;margin:0 0 22px}
+.role{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-left:4px solid var(--ink);
+  border-radius:3px;padding:16px 16px;margin-bottom:11px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
+.role.amber{border-left-color:var(--amber)}
+.role b{display:block;font-size:16.5px;font-weight:900;margin-bottom:3px}
+.role span{font-size:13px;color:var(--muted)}
+
+/* 進度 */
+.tape{display:flex;gap:2px;padding:10px 14px 0}
+.tape i{flex:1;height:6px;background:#C9CDD3;border-radius:1px}
+.tape i.done{background:var(--amber)} .tape i.flag{background:var(--alert)} .tape i.cur{box-shadow:0 0 0 2px var(--ink)}
+.tapecap{display:flex;justify-content:space-between;padding:6px 14px 9px}
+.pkgnav{display:flex;gap:6px;overflow-x:auto;padding:0 14px 10px;scrollbar-width:none}
+.pkgnav::-webkit-scrollbar{display:none}
+.pkgnav button{white-space:nowrap;font-family:var(--tc);font-size:13px;font-weight:700;padding:8px 12px;
+  border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer;color:var(--ink)}
+.pkgnav button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pkgnav button .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:5px;vertical-align:middle}
+.pkgnav button .dot.ok{background:var(--amber)} .pkgnav button .dot.bad{background:var(--alert)}
+
+/* 盤點列 */
+.row{border-bottom:1px solid var(--line2);padding:10px 12px;display:flex;align-items:center;gap:10px}
+.row:last-child{border-bottom:0}
+.shotbtn{width:62px;height:62px;flex:0 0 62px;border:1px dashed var(--line);border-radius:3px;background:#F7F8FA;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative}
+.shotbtn.has{border-style:solid;border-color:var(--ok)}
+.shotbtn img{width:100%;height:100%;object-fit:cover}
+.shotbtn .cam{font-size:20px;color:var(--muted)}
+.shotbtn .redo{position:absolute;right:0;bottom:0;background:rgba(21,24,28,.82);color:#fff;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;padding:2px 4px}
+.row .info{flex:1;min-width:0}
+.row .nm{font-size:15px;font-weight:500;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.row .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+.tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;padding:2px 5px;border-radius:2px;border:1px solid var(--line);color:var(--muted)}
+.tag.v{border-color:var(--amber-d);color:var(--amber-d);background:#FFF6E3}
+.tag.c{border-color:#9AA2AC;color:#5C636D;background:#F1F3F5}
+.stat{font-family:var(--tc);font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;
+  border-radius:3px;padding:9px 8px;min-width:70px;cursor:pointer;color:var(--muted)}
+.stat.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.stat.bad{background:var(--alert-bg);border-color:var(--alert);color:var(--alert)}
+.stat:disabled{opacity:.4}
+.panel{background:#FBFCFD;border-top:1px solid var(--line2);padding:12px 14px 14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.seg button{padding:11px 4px;font-family:var(--tc);font-size:14px;font-weight:700;border:1px solid var(--line);
+  background:#fff;border-radius:3px;cursor:pointer;color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--alert);border-color:var(--alert);color:#fff}
+.step{display:flex;align-items:center;gap:8px}
+.step button{width:46px;height:46px;font-size:22px;border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer;font-family:var(--mono)}
+.step input{width:76px;text-align:center;font-family:var(--mono);font-size:19px;font-weight:600}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+tr:nth-of-type(even) td{background:#FBFCFD}
+tr.warn td,tr.warn:nth-of-type(even) td{background:#FDF1EF}
+tr.edit td{background:#FFFBF0!important;padding:16px 14px}
+th{background:#F7F8FA;white-space:nowrap;padding:9px 12px}
+th.n{text-align:right}
+td{padding:10px 12px}
+td.n{font-size:14px}
+.tw{overflow-x:auto}
+.c-name{line-height:1.35}
+.c-num{font-weight:700}
+.c-act{text-align:right;white-space:nowrap}
+.c-act .btn{margin-left:4px}
+.c-loc{font-size:12.5px;letter-spacing:.04em;color:#3A424C}
+.c-loc.un{color:var(--muted)}
+th.c-loc{color:var(--muted);background:#F7F8FA}
+.stats{display:flex;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line2);padding:18px 16px 20px}
+.stats>div{flex:1 1 132px;padding:16px 16px 18px;border:1px solid var(--line2);border-radius:3px;background:#FBFCFD}
+.stats>div .lbl{line-height:1.5}
+.stats .fig{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;line-height:1.1;margin-top:10px}
+.foot{padding:11px 14px;border-top:1px solid var(--line2);background:#FBFCFD}
+.prev{border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:3px;
+  padding:12px 14px;margin-bottom:14px;background:#FFFDF7}
+.prevrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:6px 0;font-size:13.5px;border-bottom:1px dashed var(--line2)}
+.prevrow:last-child{border-bottom:0}
+.prevrow b{font-size:15px;white-space:nowrap}
+.err{color:var(--alert);font-size:12.5px;font-weight:700;margin-top:7px}
+.bar{height:5px;background:var(--line2);border-radius:2px;overflow:hidden;margin-top:4px;min-width:64px}
+.bar i{display:block;height:100%;background:var(--ok)} .bar i.low{background:var(--alert)}
+.pill{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:2px 6px;border-radius:2px}
+.pill.in{background:var(--ok-bg);color:var(--ok)} .pill.out{background:#EEF1F4;color:#4A525C}
+
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}
+.vcard{border:1px solid var(--line);border-radius:3px;background:#fff;padding:11px 12px;border-left:4px solid var(--ok)}
+.vcard.amber{border-left-color:var(--amber)} .vcard.red{border-left-color:var(--alert)}
+.vcard .id{font-family:var(--mono);font-size:25px;font-weight:600;line-height:1}
+.vcard .st{font-size:12.5px;font-weight:700;margin-top:5px}
+.vcard .who{font-size:11.5px;color:var(--muted);margin-top:3px}
+.thumbs{display:flex;gap:4px;flex-wrap:wrap;padding:10px 14px}
+.thumbs img{width:52px;height:52px;object-fit:cover;border-radius:2px;border:1px solid var(--line)}
+.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:26px 10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;z-index:99;background:var(--ink);color:#fff;
+  padding:12px 18px;border-radius:3px;font-size:14px;font-weight:700;border-left:4px solid var(--amber);max-width:88%}
+.rechd{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border:0;border-bottom:1px solid var(--line2);
+  padding:12px 14px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
+.rechd .caret{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
+.pkgblk{border-top:1px solid var(--line2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:7px;padding:4px 14px 12px}
+.cell{border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#fff;cursor:pointer}
+.cell.bad{border-color:var(--alert);border-width:2px}
+.cell img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.cell .nopic{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  background:#F1F3F5;color:var(--muted);font-size:11px}
+.cell .cap{font-size:11.5px;font-weight:500;padding:4px 5px 0;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell .cap2{font-family:var(--mono);font-size:10px;color:var(--muted);padding:1px 5px 5px}
+.cell.bad .cap2{color:var(--alert);font-weight:600}
+.lb{position:fixed;inset:0;z-index:80;background:rgba(10,12,15,.9);display:flex;align-items:center;
+  justify-content:center;padding:16px}
+.lbbox{background:#fff;border-radius:3px;max-width:520px;width:100%;max-height:88vh;overflow:auto}
+.lbbox img{width:100%;display:block;background:#000}
+.lbinfo{padding:12px 14px}
+.lbbar{display:flex;gap:8px;padding:0 14px 14px;justify-content:space-between}
+.req{color:var(--alert);font-size:12px;font-weight:700}
+.pkgshot{display:flex;gap:12px;padding:12px;border-bottom:1px solid var(--line2);align-items:flex-start}
+.bigshot{width:96px;height:96px;flex:0 0 96px;border:1px dashed var(--line);border-radius:3px;background:#F7F8FA;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative}
+.bigshot.has{border-style:solid;border-color:var(--ok)}
+.bigshot img{width:100%;height:100%;object-fit:cover}
+.bigshot .cam{font-size:26px;color:var(--muted);line-height:1}
+.bigshot .ct{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:700}
+.bigshot .redo{position:absolute;right:0;bottom:0;background:rgba(21,24,28,.82);color:#fff;
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;padding:2px 5px}
+.pkgtip{flex:1;min-width:0;font-size:13px}
+.hide{display:none!important}
+</style>
+
+<header class="top" id="hdr"></header>
+<main id="app"></main>
+<nav class="tabs hide" id="nav"></nav>
+
+<script>
+/* ===================== 資料來源：全部來自雲端 ===================== */
+const RW=()=>(S&&S.rows)?S.rows:[];
+const PKGS=()=>(S&&S.pkgs)?S.pkgs:[];
+const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
+const ITEMS=()=>(S&&S.items)?S.items:[];
+const ALLSKU=()=>ITEMS().map(i=>i.sku);
+const itemOf=k=>ITEMS().find(i=>i.sku===k);
+const cur=k=>k;
+const needOf=k=>{const i=itemOf(k);return i?i.std:0;};
+const priceOf=()=>null;
+const pkgName=id=>{const p=PKGS().find(x=>x.id===id);return p?p.name:"";};
+const NEEDM=()=>{const m={};RW().forEach(r=>{m[r.sku]=(m[r.sku]||0)+r.std;});return m;};
+const LOCS=["未設定"].concat(Array.from({length:18},(_,i)=>String(i+1)))
+  .concat(["貨架上方","陽台","廁所浴缸"]).concat("ABCDEFGHIJ".split(""));
+const REGION="北區";
+
+/* ===================== 雲端連線層 ===================== */
+const SB_URL="https://tekawiwxutfpkyufooet.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2F3aXd4dXRmcGt5dWZvb2V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMjE2OTIsImV4cCI6MjEwMjY5NzY5Mn0.cA0pXAW0K4EpErrSL2HqrndcQc07u_n0brHHh1ms1_A";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+
+async function rpc(fn,args){
+  const res=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,
+    {method:"POST",headers:H,body:JSON.stringify(args||{})});
+  const txt=await res.text();
+  if(!res.ok){
+    let msg=txt; try{const j=JSON.parse(txt); msg=j.message||j.hint||txt;}catch(e){}
+    throw new Error(msg);
+  }
+  return txt?JSON.parse(txt):null;
+}
+async function uploadPhoto(path,dataUrl){
+  const blob=await (await fetch(dataUrl)).blob();
+  const res=await fetch(`${SB_URL}/storage/v1/object/count-photos/${encodeURI(path)}`,
+    {method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
+      "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
+  if(!res.ok) throw new Error("照片上傳失敗："+(await res.text()));
+  return path;
+}
+async function signUrls(paths){
+  const list=[...new Set(paths.filter(Boolean))];
+  if(!list.length) return {};
+  try{
+    const res=await fetch(`${SB_URL}/storage/v1/object/sign/count-photos`,
+      {method:"POST",headers:H,body:JSON.stringify({paths:list,expiresIn:3600})});
+    if(!res.ok) return {};
+    const arr=await res.json(), map={};
+    arr.forEach(x=>{const u=x.signedURL||x.signedUrl; if(u) map[x.path]=SB_URL+"/storage/v1"+u;});
+    return map;
+  }catch(e){ return {}; }
+}
+const save=async()=>{};          // 資料即時寫入雲端，不再需要本機儲存
+function prune(){}               // 照片保留由資料庫處理
+
+/* ---- 伺服器資料 → 畫面用的資料結構 ---- */
+function blankState(){
+  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],
+          items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg"};
+}
+function applyConfig(cfg){
+  S=S||blankState();
+  S.photoMode=cfg.photo_mode||"pkg";
+  S.pkgs=(cfg.packages||[]).map(p=>({id:p.id,name:p.name}));
+  S.vehicles=cfg.vehicles||[];
+  S.rows=(cfg.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
+    name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
+    valuable:!!r.valuable,consum:!!r.consumable}));
+}
+async function applyState(st,urls){
+  S=blankState();
+  S.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
+  KEEP=(st.settings&&st.settings.keep_sets)||4;
+  S.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base}));
+  (st.items||[]).forEach(i=>{S.warehouse[i.name]=i.warehouse;S.safety[i.name]=i.safety;});
+  S.pkgs=(st.packages||[]).map(p=>({id:p.id,name:p.name}));
+  S.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
+    name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
+    valuable:!!r.valuable,consum:!!r.consumable}));
+  S.vehicles=(st.vehicles||[]).map(v=>v.code);
+  S.vehicleIds={}; (st.vehicles||[]).forEach(v=>S.vehicleIds[v.code]=v.id);
+  S.vehicleUsed={}; (st.vehicles||[]).forEach(v=>S.vehicleUsed[v.code]=v.used);
+  S.onCar=st.vehicle_stock||{};
+  S.vehicles.forEach(v=>{S.onCar[v]=S.onCar[v]||{};});
+  S.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
+  const U=urls||{};
+  S.records=(st.sheets||[]).map(x=>({
+    id:x.id,vehicle:x.vehicle,person:x.person,date:x.date,time:x.time,
+    okCount:x.ok_count,fixed:x.fixed,pruned:x.pruned,ts:new Date(x.created_at).getTime(),
+    lines:(x.lines||[]).map(l=>({sku:l.name,name:l.name,pkg:l.pkg,std:l.std,actual:l.actual,
+      type:l.status,diff:l.status==="損壞"?-l.actual:l.actual-l.std,
+      note:l.note||"",photo:U[l.photo]||null})),
+    photoLines:(x.photo_lines||[]).map(l=>({name:l.name,pkg:l.pkg,std:l.std,actual:l.actual,
+      type:l.status,photo:U[l.photo]||null})),
+    pkgPhotos:Object.fromEntries((x.pkg_photos||[]).map(p=>[p.pkg,U[p.photo]||null]))
+  }));
+  S.moves=(st.moves||[]).map(m=>({id:m.id,date:m.date,type:m.type,sku:m.item,qty:m.qty,
+    reason:m.reason,person:m.person,note:m.note,vehicle:m.vehicle||"",
+    fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,car:m.reason==="遺失或損壞"?1:0}));
+  S.manual=(st.manual||[]).map(x=>({id:x.id,vehicle:x.vehicle,sku:x.item,qty:x.qty,note:x.note}));
+}
+async function reload(){
+  const st=await rpc("mgr_state",{p_token:token,p_days:400});
+  const paths=[];
+  (st.sheets||[]).forEach(x=>{
+    (x.pkg_photos||[]).forEach(p=>paths.push(p.photo));
+    (x.photo_lines||[]).forEach(l=>paths.push(l.photo));
+    (x.lines||[]).forEach(l=>{if(l.photo)paths.push(l.photo);});
+  });
+  await applyState(st,await signUrls(paths));
+}
+async function guard(fn,okMsg){
+  try{ await fn(); if(okMsg)toast(okMsg); }
+  catch(e){ toast(e.message||"操作失敗"); }
+}
+/* ===================== 狀態 ===================== */
+let S=null, role=null, tab="count", curPkg=null, draft=null, toastT=null;
+let token=null, KEEP=4, busy=false;
+let me=null, gate="pick", setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
+let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"",loss:"遺失"};
+let rs={vehicle:"",sku:"",qty:1,note:""};
+let nItem={name:"",qty:0,safe:1,loc:"未設定"};
+let editSku=null, editRow=null, openRec=null, lightbox=null;
+let nVeh={code:"",preload:false};
+const today=()=>new Date().toISOString().slice(0,10);
+const nowHM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
+const dayDiff=d=>Math.round((new Date(today())-new Date(d))/864e5);
+
+async function boot(){
+  S=blankState();
+  render();
+  try{
+    const cfg=await rpc("field_config");
+    applyConfig(cfg);
+    curPkg=(S.pkgs[0]||{}).id;
+    S.opCount=await rpc("op_count");
+    render();
+  }catch(e){
+    document.getElementById("app").innerHTML=
+      `<div class="wrap"><div class="card"><div class="bd">
+        <div style="font-weight:900;font-size:15px;margin-bottom:8px">連線失敗</div>
+        <div class="lbl" style="line-height:1.7">${e.message}</div>
+        <button class="btn block" style="margin-top:14px" onclick="location.reload()">重新載入</button>
+      </div></div></div>`;
+  }
+}
+function toast(m){document.querySelectorAll(".toast").forEach(t=>t.remove());
+  const e=document.createElement("div");e.className="toast";e.textContent=m;document.body.appendChild(e);
+  clearTimeout(toastT);toastT=setTimeout(()=>e.remove(),2600);}
+
+/* ===================== 角色入口 ===================== */
+function viewGate(){
+  if(!S||!S.pkgs) return `<div class="gate"><p>載入中…</p></div>`;
+  if(gate==="pickAdmin") return viewPickAdmin();
+  if(gate==="setup") return viewSetup();
+  return `<div class="gate">
+    <h2>選擇使用身分</h2>
+    <p>${S.rows.length} 項標配 · ${S.vehicles.length} 台車</p>
+    <button class="role amber" onclick="setRole('field')">
+      <b>盤點人員</b><span>逐項拍照記錄，送出當日盤點單</span></button>
+    <button class="role" onclick="gotoAdmin()">
+      <b>設備管理人</b><span>庫存、出入庫、待補料與盤點結果</span></button>
+  </div>`;
+}
+function setRole(r){ role=r; tab=r==="field"?"count":"restock"; draft=null;
+  curPkg=(S.pkgs[0]||{}).id; window.scrollTo(0,0); render(); }
+async function gotoAdmin(){
+  await guard(async()=>{
+    S.opCount=await rpc("op_count");
+    S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+    gate=S.opCount>0?"pickAdmin":"setup";
+    setup={name:"",pin:"",pin2:""}; login={id:"",pin:""};
+    render();
+  });
+}
+function viewPickAdmin(){
+  const who=(S.admins||[]).find(a=>a.id===login.id);
+  return `<div class="gate">
+    <h2>設備管理登入</h2>
+    <p>選擇你的名字，輸入自己的 PIN 碼</p>
+    <div class="lbl" style="margin-bottom:7px">操作者</div>
+    <div class="chips" style="margin-bottom:16px">${(S.admins||[]).map(a=>
+      `<button class="chip" style="min-width:auto;padding:0 15px;font-family:var(--tc);font-size:15px;font-weight:700"
+        aria-pressed="${login.id===a.id}" onclick="pickAdmin('${a.id}')">${a.name}</button>`).join("")}</div>
+    <label class="f"><span class="lbl">PIN 碼（4 位數）</span>
+      <input type="password" inputmode="numeric" maxlength="4" class="num"
+        style="font-size:22px;letter-spacing:.5em;text-align:center"
+        value="${login.pin}" placeholder="••••" oninput="login.pin=this.value"></label>
+    <button class="btn block" ${who?"":"disabled"} onclick="asAdmin()">
+      ${busy?"驗證中…":who?`以 ${who.name} 的身分進入`:"請先選擇操作者"}</button>
+    <button class="btn ghost block" style="margin-top:12px" onclick="gate='pick';render()">返回</button>
+    <div class="lbl" style="margin-top:14px;line-height:1.6">
+      需要新增操作者？請由已有帳號的人登入後，到「設定」分頁新增</div>
+  </div>`;
+}
+function viewSetup(){
+  return `<div class="gate">
+    <h2>建立第一位操作者</h2>
+    <p>系統還沒有任何操作者。建立後，之後要再新增人員必須先登入，在「設定」分頁裡新增。</p>
+    <label class="f"><span class="lbl">姓名</span>
+      <input type="text" value="${setup.name}" placeholder="例：冠揚" oninput="setup.name=this.value"></label>
+    <div class="g2">
+      <label class="f"><span class="lbl">設定 4 位數 PIN</span>
+        <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+          value="${setup.pin}" placeholder="••••" oninput="setup.pin=this.value"></label>
+      <label class="f"><span class="lbl">再輸入一次</span>
+        <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+          value="${setup.pin2}" placeholder="••••" oninput="setup.pin2=this.value"></label></div>
+    <button class="btn block" onclick="addAdmin()">建立</button>
+    <button class="btn ghost block" style="margin-top:10px" onclick="gate='pick';render()">返回</button>
+  </div>`;
+}
+function pickAdmin(id){ login.id=id; login.pin=""; render(); }
+async function asAdmin(){
+  if(busy)return;
+  const a=(S.admins||[]).find(x=>x.id===login.id);
+  if(!a)return toast("請選擇操作者");
+  busy=true; render();
+  try{
+    const res=await rpc("op_login",{p_id:login.id,p_pin:login.pin});
+    const row=Array.isArray(res)?res[0]:res;
+    token=row.token; me={id:row.operator_id,name:row.name};
+    await reload();
+    role="admin"; tab="restock"; gate="pick"; login={id:"",pin:""}; mv.person=me.name;
+    window.scrollTo(0,0);
+  }catch(e){ toast(e.message||"登入失敗"); }
+  busy=false; render();
+}
+async function addAdmin(){
+  const n=(setup.name||"").trim();
+  if(!n)return toast("請填姓名");
+  if(!/^[0-9]{4}$/.test(setup.pin))return toast("PIN 請設 4 位數字");
+  if(setup.pin!==setup.pin2)return toast("兩次輸入的 PIN 不一致");
+  await guard(async()=>{
+    if(token){ await rpc("op_add",{p_token:token,p_name:n,p_pin:setup.pin}); await reload(); }
+    else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin});
+           S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+           gate="pickAdmin"; }
+    setup={name:"",pin:"",pin2:""}; render();
+  },"已建立操作者");
+}
+async function delAdmin(id){
+  if(me&&me.id===id)return toast("不能刪除目前使用中的自己");
+  if(!confirm("刪除這位操作者？既有紀錄上的名字會保留。"))return;
+  await guard(async()=>{ await rpc("op_delete",{p_token:token,p_id:id}); await reload(); render(); },"已刪除");
+}
+async function setPhotoMode(m){
+  if(S.photoMode===m)return;
+  await guard(async()=>{
+    await rpc("mgr_settings",{p_token:token,p_photo_mode:m,p_keep_sets:null});
+    await reload(); render();
+  },m==="item"?`已改為每項一張（每車 ${RW().length} 張）`:`已改為每包一張（每車 ${PKGS().length} 張）`);
+}
+async function resetPin(id){
+  const v=prompt("設定新的 PIN 碼（4 位數字）");
+  if(v===null)return;
+  if(!/^[0-9]{4}$/.test(v))return toast("PIN 請設 4 位數字");
+  await guard(async()=>{ await rpc("op_set_pin",{p_token:token,p_id:id,p_pin:v}); },"已重設 PIN");
+}
+function switchRole(){
+  if(draft&&doneCount()>0&&!confirm("目前這張盤點單尚未送出，離開會遺失。要切換身分嗎？"))return;
+  if(token) rpc("op_logout",{p_token:token}).catch(()=>{});
+  role=null; me=null; token=null; draft=null; gate="pick"; login={id:"",pin:""};
+  render();
+}
+
+/* ===================== 盤點人員頁 ===================== */
+const newDraft=()=>({person:"",vehicle:"",date:today(),items:{},pkgPhoto:{},pkgPhotoByName:{}});
+function st(rid){ if(!draft.items[rid])draft.items[rid]={status:"pending",type:"",actual:null,note:"",photo:null,open:false};
+  return draft.items[rid]; }
+const pkgRows=id=>RW().filter(r=>r.pkg===id);
+const byItem=()=>S.photoMode==="item";
+function pkgStat(id){const rs=pkgRows(id);let d=0,b=0;
+  rs.forEach(r=>{const s=draft.items[r.rid];
+    if(!s)return;
+    const done = byItem() ? !!s.photo : s.status!=="pending";
+    if(done){d++;if(s.status==="abnormal")b++;}});
+  if(!rs.length) return{done:0,bad:0,total:0,photo:true,ok:true};   // 空包別直接視為完成
+  const photo=byItem()?true:!!draft.pkgPhoto[id];
+  return{done:d,bad:b,total:rs.length,photo,ok:(d===rs.length)&&photo};}
+const doneCount=()=>PKGS().filter(p=>pkgStat(p.id).ok).length;
+const allDone=()=>doneCount()===PKGS().length;
+
+function viewField(){
+  if(!draft)draft=newDraft();
+  if(!draft.person||!draft.vehicle)return viewStart();
+  const tape=PKGS().map(p=>{const s=pkgStat(p.id);
+    let c=s.ok?(s.bad?"flag":"done"):"";if(p.id===curPkg)c+=" cur";return `<i class="${c}"></i>`;}).join("");
+  const nav=PKGS().map(p=>{const s=pkgStat(p.id);
+    const dot=s.ok?`<span class="dot ${s.bad?"bad":"ok"}"></span>`:"";
+    return `<button aria-selected="${p.id===curPkg}" onclick="curPkg='${p.id}';window.scrollTo(0,0);render()">${p.name}${dot}</button>`;}).join("");
+  const s=pkgStat(curPkg);
+  const nextPkg=PKGS().find(p=>!pkgStat(p.id).ok);
+  return `
+  <div class="tape">${tape}</div>
+  <div class="tapecap"><span class="lbl">${draft.vehicle} 車 · ${draft.person} · ${draft.date}</span>
+    <span class="lbl num">${byItem()?`已拍 ${RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} / ${RW().length}`:`已完成 ${doneCount()} / ${PKGS().length} 包`}</span></div>
+  <div class="pkgnav">${nav}</div>
+  <div class="wrap" style="padding-top:0">
+    <div class="card">
+      <div class="hd"><h2>${pkgName(curPkg)}</h2>
+        <span class="lbl num" style="margin-left:auto">${s.done}/${s.total}</span></div>
+      ${!pkgRows(curPkg).length?`<div class="empty">這個包別目前沒有盤點項目<div class="lbl" style="margin-top:6px">
+          可到「設定 → 盤點項目」新增，或直接把這個包別刪除</div></div>`
+      :byItem()?`<div style="padding:9px 12px;border-bottom:1px solid var(--line2)" class="lbl">
+          逐項拍照模式：每一項都要拍一張。拍完預設為正常，有問題再點右邊改為異常。</div>`
+      :`<div class="pkgshot">
+        <label class="bigshot ${draft.pkgPhoto[curPkg]?"has":""}">
+          ${draft.pkgPhoto[curPkg]?`<img src="${draft.pkgPhoto[curPkg]}"><span class="redo">重拍</span>`
+            :`<span class="cam">▣</span><span class="ct">拍攝本包照片</span>`}
+          <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootPkg(this)">
+        </label>
+        <div class="pkgtip"><b>本包整體照片（必拍一張）</b>
+          <div class="lbl" style="margin-top:4px">拍完後掃過下面的清單，全部沒問題就按「本包全部正常」；
+          有問題的項目個別點開登記，異常項目要另外補拍該項照片。</div></div>
+      </div>
+      <div style="padding:10px 12px;border-bottom:1px solid var(--line2)">
+        <button class="btn amber block" onclick="markPkgOK()">本包全部正常（${pkgRows(curPkg).length} 項）</button>
+      </div>`}
+      ${pkgRows(curPkg).map(rowHTML).join("")}
+    </div>
+    ${s.done===s.total&&nextPkg&&nextPkg.id!==curPkg?
+      `<button class="btn amber block" style="margin-bottom:10px" onclick="curPkg='${nextPkg.id}';window.scrollTo(0,0);render()">
+        下一包：${nextPkg.name}</button>`:""}
+    <button class="btn block" ${allDone()&&!busy?"":"disabled"} onclick="submitCount()">
+      <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
+        (allDone()?"送出盤點單":(byItem()?`還有 ${RW().length-RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} 項未拍照`:`還有 ${PKGS().length-doneCount()} 個包別未完成`))}</button>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn ghost tiny" onclick="fillDemo()">測試填充（原型用，跳過拍照）</button>
+      <button class="btn ghost tiny" onclick="resetDraft()">清空重填</button>
+    </div>
+  </div>`;
+}
+function viewStart(){
+  return `<div class="wrap">
+    <div class="card"><div class="hd"><h2>開始盤點</h2><span class="lbl" style="margin-left:auto">${REGION}</span></div>
+      <div class="bd">
+        <label class="f"><span class="lbl">盤點人姓名</span>
+          <input type="text" id="pname" value="${draft.person}" placeholder="請填全名" oninput="draft.person=this.value"></label>
+        <div class="g2">
+          <label class="f"><span class="lbl">盤點日期</span>
+            <input type="text" value="${draft.date}" readonly style="background:#F4F6F8;color:var(--muted)"></label>
+          <label class="f"><span class="lbl">盤點時間</span>
+            <input type="text" value="${nowHM()}" readonly style="background:#F4F6F8;color:var(--muted)"></label>
+        </div>
+        <div class="lbl" style="margin-bottom:6px">車別</div>
+        <div class="chips">${VEH().map(v=>`<button class="chip" aria-pressed="${draft.vehicle===v}" onclick="pickV('${v}')">${v}</button>`).join("")}</div>
+        <div style="margin-top:16px"><button class="btn block" onclick="startCount()">進入盤點（${byItem()?`逐項拍照 · ${RW().length} 張`:`每包一張 · ${PKGS().length} 張`}）</button></div>
+      </div></div>
+  </div>`;
+}
+function rowHTML(r){
+  const s=st(r.rid);
+  const tags=(r.valuable?`<span class="tag v">貴重</span>`:"")+(r.consum?`<span class="tag c">耗材</span>`:"");
+  const cls=s.status==="ok"?"ok":s.status==="abnormal"?"bad":"";
+  const txt=s.status==="ok"?"正常":s.status==="abnormal"?(s.type||"異常"):(byItem()?"待拍照":"待確認");
+  let panel="";
+  if(s.status==="abnormal"&&s.open){
+    panel=`<div class="panel">
+      <div class="seg">${["短缺","損壞","多出"].map(t=>`<button aria-pressed="${s.type===t}" onclick="setType('${r.rid}','${t}')">${t}</button>`).join("")}</div>
+      ${s.type?`<div class="lbl" style="margin-bottom:6px">${s.type==="損壞"?"損壞數量":"實際數量"}（標配 ${r.std}）</div>
+      <div class="step"><button onclick="bump('${r.rid}',-1)">−</button>
+        <input class="num" type="number" value="${s.actual===null?"":s.actual}" oninput="setActual('${r.rid}',this.value)">
+        <button onclick="bump('${r.rid}',1)">＋</button>
+        <span class="num" style="color:var(--alert);font-weight:600">${diffText(r,s)}</span></div>
+      <div style="margin-top:10px"><input type="text" placeholder="備註（選填）" value="${s.note}" oninput="setNote('${r.rid}',this.value)"></div>
+      ${byItem()?"":`<div class="shot">
+        ${s.photo?`<img src="${s.photo}">`:""}
+        <label class="btn ghost sm" style="cursor:pointer">${s.photo?"重拍":"拍這一項"}
+          <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)"></label>
+        ${s.photo?"":`<span class="req">異常項目需拍照</span>`}
+      </div>`}`
+      :`<div class="lbl">請選擇異常類型</div>`}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn sm" onclick="closePanel('${r.rid}')">完成這項</button>
+        <button class="btn ghost sm" onclick="setOK('${r.rid}')">改回正常</button></div>
+    </div>`;
+  }
+  const shotCell = byItem() ? `<label class="shotbtn ${s.photo?"has":""}">
+      ${s.photo?`<img src="${s.photo}"><span class="redo">重拍</span>`:`<span class="cam">▣</span>`}
+      <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)">
+    </label>` : "";
+  return `<div>
+    <div class="row">
+      ${shotCell}
+      <div class="info"><div class="nm">${r.name} ${tags}</div>
+        <div class="meta">標配 ${r.std}</div></div>
+      <button class="stat ${cls}" ${byItem()&&!s.photo?"disabled":""} onclick="toggleRow('${r.rid}')">${txt}</button>
+    </div>${panel}</div>`;
+}
+function diffText(r,s){ if(s.actual===null||s.actual==="")return"";
+  if(s.type==="損壞")return`損壞 ${s.actual}`;
+  const d=Number(s.actual)-r.std;return d===0?"與標配相同":(d>0?`多 ${d}`:`缺 ${-d}`);}
+
+function pickV(v){draft.vehicle=draft.vehicle===v?"":v;render();}
+function startCount(){const n=document.getElementById("pname");if(n)draft.person=n.value.trim();
+  if(!draft.person)return toast("請先填盤點人姓名");
+  if(!draft.vehicle)return toast("請選擇車別");
+  curPkg=1;render();}
+function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
+  img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));
+    const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.5));};
+  img.src=fr.result;};fr.readAsDataURL(f);}
+function shoot(rid,inp){ if(!inp.files[0])return;
+  shrink(inp.files[0],d=>{const x=st(rid);x.photo=d;
+    if(byItem()&&x.status==="pending")x.status="ok"; render();});}
+function shootPkg(inp){ if(!inp.files[0]||!pkgRows(curPkg).length)return;
+  shrink(inp.files[0],d=>{ draft.pkgPhoto[curPkg]=d;
+    draft.pkgPhotoByName[pkgName(curPkg)]=d; render();});}
+function markPkgOK(){
+  pkgRows(curPkg).forEach(r=>{const s=st(r.rid);
+    if(s.status!=="abnormal"){s.status="ok";s.type="";s.actual=null;s.photo=null;s.note="";s.open=false;}});
+  render();}
+function toggleRow(rid){const s=st(rid);
+  if(byItem()&&!s.photo)return toast("請先拍這一項的照片");
+  if(s.status==="abnormal"){s.open=!s.open;} else {s.status="abnormal";s.open=true;} render();}
+function setOK(rid){const s=st(rid);s.status="ok";s.type="";s.actual=null;s.note="";s.open=false;render();}
+function setType(rid,t){const s=st(rid),r=RW().find(x=>x.rid===rid);s.type=t;
+  if(s.actual===null)s.actual=t==="損壞"?1:(t==="多出"?r.std+1:Math.max(0,r.std-1));render();}
+function setActual(rid,v){st(rid).actual=v===""?null:Math.max(0,parseInt(v)||0);}
+function bump(rid,d){const s=st(rid);s.actual=Math.max(0,(s.actual===null?0:Number(s.actual))+d);render();}
+function setNote(rid,v){st(rid).note=v;}
+function closePanel(rid){const s=st(rid),r=RW().find(x=>x.rid===rid);
+  if(!s.type)return toast("請選擇異常類型");
+  if(s.actual===null)return toast("請填數量");
+  if(s.type==="短缺"&&Number(s.actual)>=r.std)return toast("短缺的實際數量要少於標配");
+  if(s.type==="多出"&&Number(s.actual)<=r.std)return toast("多出的實際數量要大於標配");
+  if(!s.photo)return toast("異常項目需拍一張照片");
+  s.open=false;render();}
+function resetDraft(){if(confirm("清空目前這張盤點單？")){draft=newDraft();curPkg=1;render();}}
+function fillDemo(){
+  const c=document.createElement("canvas");c.width=c.height=64;const x=c.getContext("2d");
+  x.fillStyle="#C9CDD3";x.fillRect(0,0,64,64);x.fillStyle="#6C737D";x.font="11px sans-serif";x.fillText("原型測試",6,36);
+  const img=c.toDataURL("image/jpeg",0.4);
+  if(byItem()){ RW().forEach(r=>{const s=st(r.rid);if(!s.photo){s.photo=img;s.status="ok";}}); }
+  else { PKGS().forEach(p=>{if(!pkgRows(p.id).length)return;
+           if(!draft.pkgPhoto[p.id]){draft.pkgPhoto[p.id]=img;draft.pkgPhotoByName[p.name]=img;}});
+         RW().forEach(r=>{const s=st(r.rid);if(s.status==="pending")s.status="ok";}); }
+  render();toast("已用測試圖填滿，可直接送出");
+}
+async function submitCount(){
+  if(busy)return;
+  for(const p of PKGS()){
+    if(!pkgRows(p.id).length) continue;
+    if(!byItem()&&!draft.pkgPhoto[p.id]){curPkg=p.id;render();return toast(`「${p.name}」還沒拍本包照片`);}
+    const t=pkgStat(p.id);
+    if(t.done<t.total){curPkg=p.id;render();
+      return toast(`「${p.name}」還有 ${t.total-t.done} 項${byItem()?"未拍照":"未確認"}`);}
+  }
+  for(const r of RW()){const s=draft.items[r.rid];
+    if(s.status==="abnormal"&&(!s.type||s.actual===null)){curPkg=r.pkg;s.open=true;render();return toast(`「${r.name}」尚未填完`);}
+    if(s.status==="abnormal"&&!s.photo){curPkg=r.pkg;s.open=true;render();return toast(`「${r.name}」缺照片`);}}
+
+  busy=true; render();
+  try{
+    const veh=draft.vehicle;
+    const slot=await rpc("field_next_slot",{p_vehicle:veh});
+    const base=`${veh}/${slot}`;
+    let done=0;
+    const total=(byItem()?RW().filter(r=>draft.items[r.rid].photo).length
+                        :PKGS().filter(p=>draft.pkgPhoto[p.id]).length)
+               +RW().filter(r=>draft.items[r.rid].status==="abnormal"&&draft.items[r.rid].photo&&!byItem()).length;
+    const tick=()=>{done++; setProgress(`上傳照片 ${done}/${total}`);};
+
+    const pkgPhotos=[];
+    if(!byItem()){
+      for(const p of PKGS()){
+        const img=draft.pkgPhoto[p.id]; if(!img) continue;
+        const path=`${base}/pkg-${p.id}.jpg`;
+        await uploadPhoto(path,img); tick();
+        pkgPhotos.push({package_name:p.name,photo_path:path});
+      }
+    }
+    const lines=[];
+    for(const r of RW()){
+      const st0=draft.items[r.rid];
+      const ab=st0.status==="abnormal";
+      const actual=ab?Number(st0.actual):r.std;
+      let path=null;
+      if(st0.photo && (byItem()||ab)){
+        path=`${base}/item-${r.rid}.jpg`;
+        await uploadPhoto(path,st0.photo); tick();
+      }
+      lines.push({item_name:r.name,package_name:r.pkgName,std:r.std,actual,
+        status:ab?st0.type:"正常",note:st0.note||"",photo_path:path});
+    }
+    setProgress("寫入盤點單…");
+    await rpc("field_submit",{p:{vehicle_code:veh,person:draft.person,
+      time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos}});
+    const n=lines.filter(l=>l.status!=="正常").length;
+    draft=null; curPkg=(S.pkgs[0]||{}).id;
+    setProgress(null); busy=false; render();
+    toast(`${veh} 車已送出，${n} 項異常`);
+  }catch(e){
+    setProgress(null); busy=false; render();
+    toast("送出失敗："+(e.message||""));
+  }
+}
+let progressMsg=null;
+function setProgress(m){ progressMsg=m;
+  const el=document.getElementById("prog"); if(el) el.textContent=m||"";
+  if(!el) render(); }
+
+/* ===================== 報表匯出 ===================== */
+let rng={preset:"month",from:"",to:""};
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function todayD(){const [y,m,d]=today().split("-").map(Number);return new Date(y,m-1,d);}
+function rangeDates(){
+  const t=todayD();
+  if(rng.preset==="all")return{from:"1900-01-01",to:"2999-12-31",label:"全部期間"};
+  if(rng.preset==="week"){
+    const a=new Date(t); a.setDate(a.getDate()-((a.getDay()+6)%7));
+    const b=new Date(a); b.setDate(a.getDate()+6);
+    return{from:iso(a),to:iso(b),label:"本週"};}
+  if(rng.preset==="month"){
+    const a=new Date(t.getFullYear(),t.getMonth(),1), b=new Date(t.getFullYear(),t.getMonth()+1,0);
+    return{from:iso(a),to:iso(b),label:"本月"};}
+  if(rng.preset==="last"){
+    const a=new Date(t.getFullYear(),t.getMonth()-1,1), b=new Date(t.getFullYear(),t.getMonth(),0);
+    return{from:iso(a),to:iso(b),label:"上個月"};}
+  return{from:rng.from||"1900-01-01",to:rng.to||"2999-12-31",label:"自訂區間"};
+}
+function setRng(k,v){rng[k]=v;if(k!=="preset")rng.preset="custom";render();}
+const esc=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+const TH_S='background:#DCE1E6;border:1px solid #6E7680;padding:1px 4px;font-size:8.5pt;font-weight:bold;';
+const TD_S='border:1px solid #98A0AA;padding:1px 4px;font-size:8.5pt;vertical-align:top;word-wrap:break-word;';
+const PP='margin:0;padding:0;font-size:8.5pt;line-height:1.06;mso-line-height-rule:exactly;';
+function reportHTML(title,meta,cols,rows,foot,extra){
+  const PW=640;   // A4 直式可用寬度（px），確保 Word/Excel 依比例撐滿
+  const colg=cols.map(c=>`<col style="width:${c.w}%" width="${Math.round(c.w*PW/100)}">`).join("");
+  const head=cols.map(c=>`<th style="${TH_S}text-align:${c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("");
+  const body=rows.map(r=>{
+    const bg=r.low?"background:#F2DAD5;":"";
+    return `<tr style="height:.40cm;mso-height-rule:exactly">${r.c.map((v,i)=>`<td style="${TD_S}${bg}text-align:${cols[i].n?"right":"left"};`
+      +`${cols[i].nw?"white-space:nowrap;":""}"><p style="${PP}">${esc(v)}</p></td>`).join("")}</tr>`;}).join("");
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:w="urn:schemas-microsoft-com:office:word"
+ xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>報表</x:Name><x:WorksheetOptions><x:Print><x:ValidPrinterInfo/>
+<x:PaperSizeIndex>9</x:PaperSizeIndex><x:Scale>100</x:Scale>
+<x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:HorizontalResolution>600</x:HorizontalResolution>
+</x:Print><x:FreezePanes/><x:FrozenNoSplit/><x:SplitHorizontal>1</x:SplitHorizontal>
+<x:TopRowBottomPane>1</x:TopRowBottomPane><x:ActivePane>2</x:ActivePane>
+</x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>
+@page WordSection1{size:21.0cm 29.7cm;margin:1.3cm 1.1cm 1.4cm 1.1cm;mso-page-orientation:portrait;}
+div.WordSection1{page:WordSection1;}
+@page{size:A4 portrait;margin:1.3cm 1.1cm;}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ table{page-break-inside:auto} tr{page-break-inside:avoid}}
+table td p,table th p{margin:0;padding:0;line-height:1.06}
+body{font-family:"Microsoft JhengHei","PingFang TC",sans-serif;font-size:9pt;color:#111;margin:0;line-height:1.1}
+p,h1,div{margin:0}
+table p{margin:0!important;padding:0!important;mso-margin-top-alt:0;mso-margin-bottom-alt:0}
+thead{display:table-header-group}
+</style></head><body><div class="WordSection1">
+<div style="font-size:14pt;font-weight:bold;letter-spacing:.5pt;margin-bottom:3pt">${esc(title)}</div>
+<div style="font-size:8pt;color:#444;margin-bottom:6pt;line-height:1.4">${meta.map(esc).join("　　")}</div>
+<table border="1" cellspacing="0" cellpadding="0"
+ style="border-collapse:collapse;width:100%;table-layout:fixed;mso-cellspacing:0">
+<colgroup>${colg}</colgroup>
+<thead><tr style="height:.44cm">${head}</tr></thead><tbody>${body}</tbody></table>
+${foot?`<div style="margin-top:6pt;font-size:8pt;color:#444;line-height:1.4">${esc(foot)}</div>`:""}
+${(extra?[].concat(extra):[]).filter(x=>x&&x.rows.length).map(extra=>`
+<div style="font-size:11pt;font-weight:bold;margin:12pt 0 4pt">${esc(extra.title)}</div>
+<table border="1" cellspacing="0" cellpadding="0"
+ style="border-collapse:collapse;width:100%;table-layout:fixed;mso-cellspacing:0">
+<colgroup>${extra.cols.map(c=>`<col style="width:${c.w}%" width="${Math.round(c.w*640/100)}">`).join("")}</colgroup>
+<thead><tr style="height:.44cm">${extra.cols.map(c=>
+  `<th style="${TH_S}text-align:${c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("")}</tr></thead>
+<tbody>${extra.rows.map(r=>`<tr style="height:.40cm">${r.c.map((v,i)=>
+  `<td style="${TD_S}text-align:${extra.cols[i].n?"right":"left"};"><p style="${PP}">${esc(v)}</p></td>`).join("")}</tr>`).join("")}</tbody></table>
+${extra.foot?`<div style="margin-top:6pt;font-size:8pt;color:#444">${esc(extra.foot)}</div>`:""}`).join("")}
+</div></body></html>`;
+}
+function printReport(content){
+  try{
+    const f=document.createElement("iframe");
+    f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+    document.body.appendChild(f);
+    const d=f.contentWindow.document;
+    d.open(); d.write(content); d.close();
+    setTimeout(()=>{ f.contentWindow.focus(); f.contentWindow.print();
+      setTimeout(()=>f.remove(),1000); },350);
+  }catch(e){ toast("無法開啟列印，請改用匯出檔案"); }
+}
+function download(name,mime,content){
+  try{
+    const blob=new Blob(["\ufeff"+content],{type:mime+";charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=name;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+    toast(`已匯出 ${name}`);
+  }catch(e){ toast("匯出失敗，請改用瀏覽器直接開啟本檔案"); }
+}
+const stamp=d=>d.replace(/-/g,"");
+
+function exportStock(fmt){
+  const sorted=ITEMS().slice().sort((a,b)=>{
+    const d=locRank(a.loc)-locRank(b.loc);return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
+  const heads=[{t:"位置",w:11,px:60,nw:1},{t:"品項",w:45,px:250},
+               {t:"倉庫",w:14,px:70,n:1},{t:"安全庫存",w:16,px:80,n:1},{t:"差額",w:14,px:70,n:1}];
+  const rows=sorted.map(it=>{
+    const h=S.warehouse[it.sku]||0, sf=S.safety[it.sku]||0, gap=h-sf;
+    return {low:h<sf, c:[it.loc,it.sku,h,sf,gap]};});
+  const lowN=sorted.filter(it=>(S.warehouse[it.sku]||0)<(S.safety[it.sku]||0)).length;
+  const html=reportHTML("鉅誠驗屋 · 倉庫庫存報表",
+    [`列印日期：${today()}`,`區域：${REGION}`,`品項總數：${sorted.length}`,`低於安全庫存：${lowN} 項`,
+     `製表：${me?me.name:"—"}`],
+    heads,rows,"依儲位順序排列。差額為負（灰底列）代表低於安全庫存，需補貨。");
+  if(fmt==="print") return printReport(html);
+  fmt==="doc" ? download(`庫存報表_${stamp(today())}.doc`,"application/msword",html)
+              : download(`庫存報表_${stamp(today())}.xls`,"application/vnd.ms-excel",html);
+}
+function movesInRange(type){
+  const {from,to}=rangeDates();
+  return S.moves.filter(m=>m.type===type&&m.date>=from&&m.date<=to)
+    .slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts);
+}
+function exportMoves(fmt){
+  const type=mv.type, r=rangeDates(), list=movesInRange(type);
+  if(!list.length)return toast(`${r.label}沒有${type==="in"?"入庫":"出庫"}紀錄`);
+  const heads=[{t:"日期",w:13,px:72,nw:1},{t:"原因",w:15,px:82},{t:"品項",w:21,px:118},
+               {t:"位置",w:6,px:34,nw:1},{t:"數量",w:7,px:40,n:1},{t:"車別",w:6,px:34,nw:1},
+               {t:"經手人",w:11,px:62},{t:"備註",w:21,px:118}];
+  const rows=list.map(m=>{const it=itemOf(m.sku);
+    return {c:[m.date,m.reason,m.sku,it?it.loc:"—",m.qty,m.vehicle||"—",m.person||"—",m.note||""]};});
+  const total=list.reduce((t,m)=>t+m.qty,0);
+  const byReason={}; list.forEach(m=>byReason[m.reason]=(byReason[m.reason]||0)+m.qty);
+  const html=reportHTML(`鉅誠驗屋 · ${type==="in"?"入庫":"出庫"}報表`,
+    [`期間：${r.from} ~ ${r.to}（${r.label}）`,`筆數：${list.length}`,`合計數量：${total}`,
+     `列印日期：${today()}`,`製表：${me?me.name:"—"}`],
+    heads,rows,
+    "原因小計　"+Object.entries(byReason).map(([k,v])=>`${k} ${v}`).join("　|　"));
+  if(fmt==="print") return printReport(html);
+  const fn=`${type==="in"?"入庫":"出庫"}報表_${stamp(r.from)}-${stamp(r.to)}`;
+  fmt==="doc" ? download(fn+".doc","application/msword",html)
+              : download(fn+".xls","application/vnd.ms-excel",html);
+}
+
+
+/* ===================== 月報統計 ===================== */
+let mRange=6;   // 顯示最近幾個月
+const consumOf=k=>{const r=RW().find(x=>cur(x.sku)===k);return r?!!r.consum:false;};
+function monthKeys(){
+  const set=new Set();
+  S.records.forEach(r=>set.add(r.date.slice(0,7)));
+  S.moves.forEach(m=>set.add(m.date.slice(0,7)));
+  if(!set.size) return [];
+  const all=[...set].sort();
+  // 補齊中間沒有資料的月份，趨勢才不會跳月
+  const [y0,m0]=all[0].split("-").map(Number);
+  const [y1,m1]=all[all.length-1].split("-").map(Number);
+  const seq=[];
+  for(let y=y0,m=m0; y<y1||(y===y1&&m<=m1); m++){
+    if(m>12){m=1;y++;}
+    seq.push(`${y}-${String(m).padStart(2,"0")}`);
+  }
+  return mRange==="all"?seq:seq.slice(-mRange);
+}
+function monthlyStats(){
+  // 以實際補料／出入庫為準，每筆只算一次，不會因為連續盤到同一筆而重複
+  const ms=monthKeys(), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0});
+  const agg={}, byItem={}, byBuy={};
+  ms.forEach(k=>agg[k]=z());
+  (S.moves||[]).forEach(m=>{
+    const k=(m.date||"").slice(0,7); if(!agg[k])return;
+    const sk=m.sku, isC=consumOf(sk), q=m.qty||0;
+    if(m.reason==="遺失或損壞"){
+      if(isC){ agg[k].耗材+=q; }
+      else if(m.loss==="損壞"){ agg[k].損壞+=q;
+        byItem[sk]=byItem[sk]||{}; byItem[sk][k]=(byItem[sk][k]||0)+q; }
+      else { agg[k].遺失+=q;
+        byItem[sk]=byItem[sk]||{}; byItem[sk][k]=(byItem[sk][k]||0)+q; }
+    }
+    else if(m.reason==="車輛多出繳回") agg[k].多出+=q;
+    else if(m.reason==="採購入庫"){ agg[k].採購+=q;
+      byBuy[sk]=byBuy[sk]||{}; byBuy[sk][k]=(byBuy[sk][k]||0)+q; }
+    else if(m.reason.indexOf("工具製作")===0) agg[k].製作+=q;
+  });
+  return {ms,agg,byItem,byBuy};
+}
+const METRICS=[
+  ["遺失","工具遺失，實際補出去的數量",1],
+  ["損壞","工具損壞，實際汰換的數量",1],
+  ["耗材","耗材補充，屬正常消耗",0],
+  ["多出","車輛多出繳回倉庫",0],
+  ["採購","當月採購入庫數量",0],
+  ["製作","工具製作領料／完成",0]
+];
+function trend(cur,prev,bad){
+  if(prev==null||prev===cur)return {t:"—",c:"var(--muted)"};
+  const up=cur>prev, worse=bad?up:false;
+  return {t:`${up?"▲":"▼"}${Math.abs(cur-prev)}`,
+          c: bad ? (up?"var(--alert)":"var(--ok)") : "var(--muted)"};
+}
+
+/* ===================== 管理者頁 ===================== */
+const abLines=r=>r.lines.filter(l=>l.type!=="正常");
+// 待補明細：盤點自動產生 ＋ 管理者手動輸入
+function needList(){
+  const out=[];
+  // 每台車只看「最後一次」盤點，避免同一筆短缺被重複累加
+  const latest={};
+  S.records.forEach(r=>{ if(!latest[r.vehicle]||r.ts>latest[r.vehicle].ts) latest[r.vehicle]=r; });
+  Object.values(latest).filter(r=>!r.fixed).forEach(r=>abLines(r).forEach(l=>{
+    if(l.type==="多出")return;
+    const q=l.type==="損壞"?l.actual:(l.std-l.actual); if(q<=0)return;
+    out.push({key:r.id+"|"+l.sku,vehicle:r.vehicle,sku:cur(l.sku),qty:q,
+              src:`${r.date} 盤點 ${l.type}`,auto:true});}));
+  (S.manual||[]).forEach(m=>out.push({key:m.id,vehicle:m.vehicle,sku:m.sku,qty:m.qty,
+    src:m.note?`手動 · ${m.note}`:"手動新增",auto:false,id:m.id}));
+  return out;
+}
+function needByVehicle(){const g={};
+  needList().forEach(n=>{(g[n.vehicle]=g[n.vehicle]||[]).push(n);});return g;}
+function needBySku(){const m={};
+  needList().forEach(n=>{if(!m[n.sku])m[n.sku]={sku:n.sku,qty:0,cars:{}};
+    m[n.sku].qty+=n.qty;m[n.sku].cars[n.vehicle]=(m[n.sku].cars[n.vehicle]||0)+n.qty;});
+  return Object.values(m).sort((a,b)=>b.qty-a.qty);}
+
+/* ---- 頁面①：待補料清單 ＋ 採購建議 ---- */
+function viewRestock(){
+  if(!rs.sku)rs.sku=ALLSKU()[0]||"";
+  if(!rs.vehicle)rs.vehicle=VEH()[0]||"";
+  const g=needByVehicle(), bySku=needBySku(), all=needList();
+  const low=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k]).sort((a,b)=>(S.safety[b]-S.warehouse[b])-(S.safety[a]-S.warehouse[a]));
+
+  const carBlocks=VEH().filter(v=>g[v]&&g[v].length).map(v=>{
+    const lines=g[v].map(n=>{
+      const h=S.warehouse[n.sku]||0;
+      return `<tr class="${h<n.qty?"warn":""}">
+        <td class="c-name">${n.sku}<div class="lbl">${n.src}</div></td>
+        <td class="n c-num">${n.qty}</td>
+        <td class="n">${h}${h<n.qty?`<div class="lbl" style="color:var(--alert)">倉庫不足</div>`:""}</td>
+        <td class="n">${n.auto?"":`<button class="btn ghost tiny" onclick="delManual('${n.id}')">刪除</button>`}</td></tr>`;}).join("");
+    const cnt=g[v].reduce((t,n)=>t+n.qty,0);
+    return `<div class="card"><div class="hd"><h2>${v} 車</h2>
+        <span class="lbl" style="margin-left:auto">${g[v].length} 項 · 共 ${cnt} 個</span></div>
+      <div class="tw"><table><colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:74px"></colgroup><tr><th>品項 / 來源</th><th class="n">要補</th><th class="n">倉庫</th><th></th></tr>${lines}</table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <button class="btn amber block" onclick="fulfill('${v}')">${v} 車揀貨完成 → 出庫扣帳</button></div></div>`;}).join("");
+
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>手動新增待補</h2></div><div class="bd">
+      <div class="lbl" style="margin-bottom:6px">補到哪一台車</div>
+      <div class="chips" style="margin-bottom:13px">${VEH().map(v=>
+        `<button class="chip" aria-pressed="${rs.vehicle===v}" onclick="setRs('vehicle','${v}')">${v}</button>`).join("")}</div>
+      <label class="f"><span class="lbl">品項</span>
+        <select onchange="setRs('sku',this.value)">${ITEMS().map(i=>
+          `<option value="${i.sku}" ${i.sku===rs.sku?"selected":""}>${i.sku}（倉庫 ${S.warehouse[i.sku]}${i.loc!=="未設定"?" · 位置 "+i.loc:""}）</option>`).join("")}</select></label>
+      <div class="g2">
+        <label class="f"><span class="lbl">數量</span>
+          <input type="number" min="1" class="num" value="${rs.qty}" onchange="setRs('qty',this.value)"></label>
+        <label class="f"><span class="lbl">備註</span>
+          <input type="text" value="${rs.note}" placeholder="選填，如：外勤口頭回報" onchange="setRs('note',this.value)"></label></div>
+      <button class="btn block" onclick="addManual()">加入待補料清單</button>
+    </div></div>
+
+    ${all.length?carBlocks:`<div class="card"><div class="empty">目前沒有待補料。</div></div>`}
+
+    ${all.length?`<div class="card"><div class="hd"><h2>出庫合計</h2>
+        <span class="lbl" style="margin-left:auto">${bySku.length} 個品項</span></div>
+      <div class="tw"><table><colgroup><col><col style="width:80px"><col style="width:80px"></colgroup><tr><th>品項 / 分配</th><th class="n">合計</th><th class="n">倉庫</th></tr>
+        ${bySku.map(b=>{const h=S.warehouse[b.sku]||0;
+          return `<tr class="${h<b.qty?"warn":""}"><td class="c-name">${b.sku}
+            <div class="lbl">${Object.entries(b.cars).map(([v,q])=>`${v}車 ${q}`).join("　")}</div></td>
+            <td class="n c-num">${b.qty}</td>
+            <td class="n">${h}${h<b.qty?`<div class="lbl" style="color:var(--alert)">不足</div>`:""}</td></tr>`;}).join("")}
+      </table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <button class="btn block" onclick="fulfill()">全部揀貨完成 → 自動產生出庫、扣庫存</button>
+        <div class="lbl" style="margin-top:8px">會在「出入庫」留下「遺失或損壞」出庫紀錄（標註來自盤點），各車在庫補回標配</div>
+        <div class="lbl" style="margin-top:5px">盤點來源只採計每台車最新一次的結果，連續多次未補料不會重複累加</div></div></div>`:""}
+
+    <div class="card"><div class="hd"><h2>採購建議</h2>
+      <span class="lbl" style="margin-left:auto">${low.length} 項待補</span></div>
+      ${low.length?`<div class="tw"><table>
+        <colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:96px"></colgroup>
+        <tr><th>品項</th><th class="n">現有</th><th class="n">安全</th><th class="n">缺口</th><th>位置</th></tr>
+        ${low.map(k=>{const gp=S.safety[k]-S.warehouse[k],it=itemOf(k);
+          return `<tr class="warn"><td class="c-name">${k}</td><td class="n">${S.warehouse[k]}</td><td class="n">${S.safety[k]}</td>
+          <td class="n" style="font-weight:700;color:var(--alert)">${gp}</td>
+          <td class="num" style="font-size:12.5px;${!it||it.loc==="未設定"?"color:var(--muted)":""}">${it?it.loc:"—"}</td></tr>`;}).join("")}
+        </table></div>`:`<div class="empty">所有品項都在安全庫存以上。</div>`}</div>
+  </div>`;
+}
+function setRs(k,v){rs[k]=k==="qty"?Math.max(1,parseInt(v)||1):v;render();}
+async function addManual(){
+  const it=itemOf(rs.sku); if(!it)return toast("請選擇品項");
+  const sk=rs.sku,q=rs.qty,v=rs.vehicle;
+  await guard(async()=>{
+    await rpc("mgr_manual_add",{p_token:token,p_vehicle:v,p_item:it.id,
+      p_qty:Number(q),p_note:rs.note.trim()});
+    rs.qty=1; rs.note=""; await reload(); render();
+  },`已加入：${v} 車 ${sk} ${q} 個`);
+}
+async function delManual(id){
+  await guard(async()=>{ await rpc("mgr_manual_delete",{p_token:token,p_id:id});
+    await reload(); render(); });
+}
+
+/* ---- 頁面②：庫存總表 ---- */
+
+
+function locRank(l){const i=LOCS.indexOf(l);return i<=0?9999:i;}
+function viewStock(){
+  const ni=nItem;
+  const sorted=ITEMS().slice().sort((a,b)=>{
+    const d=locRank(a.loc)-locRank(b.loc); return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
+  let rows="";
+  sorted.forEach(it=>{
+    const k=it.sku, h=S.warehouse[k]||0, sf=S.safety[k]||0;
+    const pct=sf?Math.min(100,Math.round(h/sf*100)):100;
+    if(editSku===k){
+      rows+=`<tr class="edit"><td colspan="5">
+        <div class="lbl" style="margin-bottom:9px">編輯品項　·　改名會同步更新盤點項目</div>
+        <div class="g2">
+          <label class="f"><span class="lbl">品項名稱</span><input type="text" id="e_name" value="${k}"></label>
+          <label class="f"><span class="lbl">擺放位置</span>
+            <select id="e_loc">${LOCS.map(l=>`<option ${l===it.loc?"selected":""}>${l}</option>`).join("")}</select></label>
+        </div>
+        <label class="f"><span class="lbl">安全庫存</span>
+          <input type="number" min="0" id="e_safe" class="num" value="${sf}"></label>
+        <div class="g2"><button class="btn" onclick="saveEdit('${k}')">儲存</button>
+          <button class="btn ghost" onclick="editSku=null;render()">取消</button></div>
+      </td></tr>`;
+      return;
+    }
+    rows+=`<tr class="${h<sf?"warn":""}">
+      <td class="c-name">${k}${it.base?"":`<span class="tag c">自建</span>`}
+        <div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div></td>
+      <td class="c-loc num${it.loc==="未設定"?" un":""}">${it.loc}</td>
+      <td class="n c-num">${h}</td>
+      <td class="n c-num" style="color:var(--muted)">${sf}</td>
+      <td class="c-act">
+        <button class="btn ghost tiny" onclick="editSku='${k}';render()">編輯</button>
+        <button class="btn ghost tiny" onclick="delSku('${k}')">刪除</button></td></tr>`;});
+
+  const lowN=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k]).length;
+  const noLoc=ITEMS().filter(i=>i.loc==="未設定").length;
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>庫存總表</h2>
+      <span class="lbl" style="margin-left:auto">${ITEMS().length} 個品項</span></div>
+      <div class="stats">
+        <div><div class="lbl">品項總數</div><div class="fig">${ITEMS().length}</div></div>
+        <div><div class="lbl">低於安全庫存</div><div class="fig" style="color:${lowN?"var(--alert)":"var(--ok)"}">${lowN}</div></div>
+        <div><div class="lbl">未設定位置</div><div class="fig" style="color:${noLoc?"var(--amber-d)":"var(--ok)"}">${noLoc}</div></div>
+      </div>
+      <div class="tw"><table>
+        <colgroup><col><col style="width:76px"><col style="width:78px"><col style="width:88px"><col style="width:124px"></colgroup>
+        <tr><th>品項</th><th class="c-loc">位置</th><th class="n">倉庫</th><th class="n">安全庫存</th><th></th></tr>${rows}</table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="lbl" style="margin-bottom:9px">匯出目前庫存報表（依儲位排序，含差額與低於安全庫存標示）</div>
+        <div class="g3">
+          <button class="btn ghost" onclick="exportStock('xls')">Excel</button>
+          <button class="btn ghost" onclick="exportStock('doc')">Word</button>
+          <button class="btn amber" onclick="exportStock('print')">直接列印</button></div></div>
+      <div class="foot"><span class="lbl">依儲位排序　·　倉庫數量唯讀，只能透過「出入庫」變更</span></div></div>
+
+    <div class="card"><div class="hd"><h2>新增庫存品項</h2></div><div class="bd">
+      <div class="g2">
+        <label class="f"><span class="lbl">品項名稱</span>
+          <input type="text" value="${ni.name}" placeholder="例：打診棒" onchange="setNi('name',this.value)"></label>
+        <label class="f"><span class="lbl">擺放位置</span>
+          <select onchange="setNi('loc',this.value)">${LOCS.map(l=>`<option ${l===ni.loc?"selected":""}>${l}</option>`).join("")}</select></label>
+      </div>
+      <div class="g2">
+        <label class="f"><span class="lbl">目前倉庫數量</span>
+          <input type="number" min="0" class="num" value="${ni.qty}" onchange="setNi('qty',this.value)"></label>
+        <label class="f"><span class="lbl">安全庫存</span>
+          <input type="number" min="0" class="num" value="${ni.safe}" onchange="setNi('safe',this.value)"></label>
+      </div>
+      <button class="btn block" onclick="addSku()">新增品項</button>
+    </div></div>
+  </div>`;
+}
+async function setSafety(k,v){
+  const it=itemOf(k); if(!it)return;
+  await guard(async()=>{
+    await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:k,p_loc:it.loc,
+      p_safety:Math.max(0,parseInt(v)||0)});
+    await reload(); render();
+  });
+}
+function setNi(k,v){nItem[k]=(k==="name"||k==="loc")?v:Math.max(0,parseInt(v)||0);}
+async function addSku(){
+  const n=(nItem.name||"").trim();
+  if(!n)return toast("請填品項名稱");
+  if(ALLSKU().includes(n))return toast(`「${n}」已經在庫存表裡了`);
+  await guard(async()=>{
+    await rpc("mgr_item_add",{p_token:token,p_name:n,p_loc:nItem.loc||"未設定",
+      p_qty:Number(nItem.qty)||0,p_safety:Number(nItem.safe)||0});
+    nItem={name:"",qty:0,safe:1,loc:"未設定"};
+    await reload(); render();
+  },`已新增品項：${n}`);
+}
+async function saveEdit(k){
+  const g=id=>document.getElementById(id);
+  const nn=(g("e_name").value||"").trim();
+  if(!nn)return toast("品項名稱不能空白");
+  if(nn!==k && ALLSKU().includes(nn))return toast(`「${nn}」已經存在`);
+  const it=itemOf(k);
+  await guard(async()=>{
+    await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:nn,
+      p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
+    editSku=null; await reload(); render();
+  },nn!==k?`已改名為「${nn}」，盤點項目已同步`:"已更新");
+}
+async function delSku(k){
+  const it=itemOf(k); if(!it)return;
+  const inCount=RW().filter(r=>r.sku===k).length;
+  const warn=inCount?`\n注意：盤點表有 ${inCount} 個位置會盤到它，會一併移除。`:"";
+  if(!confirm(`刪除品項「${k}」？庫存與位置資料會一併移除。${warn}`))return;
+  await guard(async()=>{
+    await rpc("mgr_item_delete",{p_token:token,p_id:it.id});
+    if(mv.sku===k)mv.sku=""; if(rs.sku===k)rs.sku="";
+    editSku=null; await reload(); render();
+  },`已刪除品項：${k}`);
+}
+/* ---- 車輛管理 ---- */
+function setNv(k,v){nVeh[k]=k==="preload"?v:v.toUpperCase().trim();render();}
+async function addVehicle(){
+  const c=(nVeh.code||"").trim();
+  if(!c)return toast("請填車輛代號");
+  if(c.length>3)return toast("代號請在 3 個字以內");
+  if(VEH().includes(c))return toast(`${c} 車已經存在`);
+  await guard(async()=>{
+    await rpc("mgr_vehicle_add",{p_token:token,p_code:c,p_preload:!!nVeh.preload});
+    nVeh={code:"",preload:false}; await reload(); render();
+  },`已新增 ${c} 車`);
+}
+async function delVehicle(v){
+  if(!confirm(`刪除 ${v} 車？`))return;
+  await guard(async()=>{
+    await rpc("mgr_vehicle_delete",{p_token:token,p_id:S.vehicleIds[v]});
+    if(rs.vehicle===v)rs.vehicle=""; if(mv.vehicle===v)mv.vehicle="";
+    await reload(); render();
+  },`已刪除 ${v} 車`);
+}
+
+/* 每個原因明確宣告效果：wh＝倉庫增減、car＝車上增減、needV＝是否要選車 */
+const REASONS={
+  in:[ {r:"採購入庫",wh:1,car:0},
+       {r:"工具製作完成入庫",wh:1,car:0},
+       {r:"車輛多出繳回",wh:1,car:0,needV:true,noCarQty:true},
+       {r:"盤盈調整",wh:1,car:0} ],
+  out:[{r:"遺失或損壞",wh:-1,car:1,needV:true},
+       {r:"工具製作領料",wh:-1,car:0},
+       {r:"盤虧調整",wh:-1,car:0} ]
+};
+const rdef=()=>REASONS[mv.type].find(x=>x.r===mv.reason)||REASONS[mv.type][0];
+
+function viewMove(){
+  const d=rdef(), q=Number(mv.qty||0);
+  const cur=S.warehouse[mv.sku]||0, after=cur+d.wh*q;
+  const v=mv.vehicle||VEH()[0];
+  const cCur=(S.onCar[v]||{})[mv.sku]||0, cAfter=cCur+d.car*q;
+  const bad = after<0 || (d.car && cAfter<0);
+  const r=rangeDates();
+  const mine=movesInRange(mv.type);
+  const list=mine.slice(0,50).map(m=>`<tr>
+    <td>${m.date}<div class="lbl">${m.person||"—"}</div></td>
+    <td><span class="pill ${m.type}">${m.reason}</span> ${m.sku}
+      ${m.vehicle?`<span class="tag" style="margin-left:4px">${m.vehicle} 車</span>`:""}
+      ${m.loss?`<span class="tag" style="margin-left:4px">${m.loss}</span>`:""}
+      ${m.fromCount?`<span class="tag c" style="margin-left:4px">來自盤點</span>`:""}
+      ${m.note?`<div class="lbl">${m.note}</div>`:""}</td>
+    <td class="n" style="font-weight:700;color:${m.wh>0?"var(--ok)":"var(--alert)"}">${m.wh>0?"+":"−"}${m.qty}</td>
+    <td class="n" style="color:var(--muted)">${m.car?`${m.car>0?"+":"−"}${m.qty}`:"—"}</td></tr>`).join("");
+
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>登錄出入庫</h2></div><div class="bd">
+      <div class="g2" style="margin-bottom:13px">
+        <button class="btn ${mv.type==="in"?"":"ghost"}" onclick="setMv('type','in')">入庫</button>
+        <button class="btn ${mv.type==="out"?"":"ghost"}" onclick="setMv('type','out')">出庫</button></div>
+      <label class="f"><span class="lbl">原因</span>
+        <select onchange="setMv('reason',this.value)">${REASONS[mv.type].map(x=>
+          `<option ${x.r===mv.reason?"selected":""}>${x.r}</option>`).join("")}</select></label>
+      ${mv.reason==="遺失或損壞"?`<div class="lbl" style="margin-bottom:6px">屬於哪一種</div>
+        <div class="g2" style="margin-bottom:13px">
+          <button class="btn ${(mv.loss||"遺失")==="遺失"?"amber":"ghost"}" onclick="setMv('loss','遺失')">遺失</button>
+          <button class="btn ${mv.loss==="損壞"?"amber":"ghost"}" onclick="setMv('loss','損壞')">損壞</button>
+        </div>`:""}
+      ${d.needV?`<div class="lbl" style="margin-bottom:6px">
+          ${d.car>0?"哪一台車（補到這台車上）":"哪一台車繳回"}</div>
+        <div class="chips" style="margin-bottom:13px">${VEH().map(x=>
+          `<button class="chip" aria-pressed="${v===x}" onclick="setMv('vehicle','${x}')">${x}</button>`).join("")}</div>`:""}
+      <label class="f"><span class="lbl">品項</span>
+        <select onchange="setMv('sku',this.value)">${ITEMS().map(i=>
+          `<option value="${i.sku}" ${i.sku===mv.sku?"selected":""}>${i.sku}（倉庫 ${S.warehouse[i.sku]}${i.loc!=="未設定"?" · 位置 "+i.loc:""}）</option>`).join("")}</select></label>
+      <div class="g2">
+        <label class="f"><span class="lbl">數量</span>
+          <input type="number" min="1" value="${mv.qty}" class="num" onchange="setMv('qty',this.value)"></label>
+        <label class="f"><span class="lbl">經手人${me?"（自動帶入，可改）":""}</span>
+          <input type="text" value="${mv.person||(me?me.name:"")}" placeholder="誰處理的" onchange="setMv('person',this.value)"></label>
+      </div>
+      <label class="f"><span class="lbl">備註</span>
+        <input type="text" value="${mv.note}" placeholder="選填" onchange="setMv('note',this.value)"></label>
+      <div class="prev">
+        <div class="lbl">登錄後</div>
+        <div class="prevrow"><span>${mv.sku}　倉庫</span>
+          <b class="num">${cur} → ${after}</b></div>
+        ${d.car?`<div class="prevrow"><span>${v} 車在庫</span><b class="num">${cCur} → ${cAfter}</b></div>`:""}
+        ${d.needV&&d.noCarQty?`<div class="lbl" style="margin-top:4px">記錄為 ${v} 車繳回，不變更車上數量</div>`:""}
+        ${after<0?`<div class="err">倉庫不足，不能出這麼多</div>`:""}
+        ${d.car&&cAfter<0?`<div class="err">${v} 車上沒有這麼多</div>`:""}
+        ${after>=0&&after<S.safety[mv.sku]?`<div class="err">倉庫會低於安全庫存 ${S.safety[mv.sku]}</div>`:""}</div>
+      <button class="btn block" ${bad?"disabled":""} onclick="submitMove()">確認登錄</button>
+    </div></div>
+    <div class="card"><div class="hd"><h2>${mv.type==="in"?"入庫紀錄":"出庫紀錄"}</h2>
+      <span class="lbl" style="margin-left:auto">${mine.length} 筆${mine.length>50?"（顯示最近 50 筆）":""}</span></div>
+      <div class="bd" style="border-bottom:1px solid var(--line2)">
+        <div class="lbl" style="margin-bottom:7px">統計期間</div>
+        <div class="chips" style="margin-bottom:11px">${[["week","本週"],["month","本月"],["last","上個月"],["all","全部"]].map(([k,t])=>
+          `<button class="chip" style="min-width:auto;padding:0 14px;font-family:var(--tc);font-size:14px;font-weight:700"
+            aria-pressed="${rng.preset===k}" onclick="setRng('preset','${k}')">${t}</button>`).join("")}</div>
+        <div class="g2">
+          <label class="f" style="margin-bottom:0"><span class="lbl">起</span>
+            <input type="date" value="${r.from==="1900-01-01"?"":r.from}" onchange="setRng('from',this.value)"></label>
+          <label class="f" style="margin-bottom:0"><span class="lbl">迄</span>
+            <input type="date" value="${r.to==="2999-12-31"?"":r.to}" onchange="setRng('to',this.value)"></label>
+        </div>
+        <div class="lbl" style="margin-top:9px">目前：${r.label}　${r.from} ~ ${r.to}　共 ${mine.length} 筆</div>
+        <div class="g3" style="margin-top:12px">
+          <button class="btn ghost" onclick="exportMoves('xls')">Excel</button>
+          <button class="btn ghost" onclick="exportMoves('doc')">Word</button>
+          <button class="btn amber" onclick="exportMoves('print')">直接列印</button></div>
+      </div>
+      ${mine.length?`<div class="tw"><table><colgroup><col style="width:110px"><col><col style="width:76px"><col style="width:76px"></colgroup><tr><th>日期 / 經手</th><th>原因 / 品項</th><th class="n">倉庫</th><th class="n">車上</th></tr>${list}</table></div>`
+      :`<div class="empty">還沒有${mv.type==="in"?"入庫":"出庫"}紀錄。</div>`}</div>
+  </div>`;
+}
+function setMv(k,v){
+  mv[k]=k==="qty"?Math.max(1,parseInt(v)||1):v;
+  if(k==="type")mv.reason=REASONS[v][0].r;
+  if(!mv.vehicle)mv.vehicle=VEH()[0]||"";
+  if(!mv.sku)mv.sku=ALLSKU()[0]||"";
+  render();
+}
+async function submitMove(){
+  const d=rdef(), q=Number(mv.qty), v=mv.vehicle||VEH()[0];
+  const it=itemOf(mv.sku); if(!it)return toast("請選擇品項");
+  if((S.warehouse[mv.sku]||0)+d.wh*q<0)return toast("倉庫庫存不足");
+  await guard(async()=>{
+    await rpc("mgr_move",{p_token:token,p_item:it.id,p_type:mv.type,p_reason:mv.reason,
+      p_qty:q,p_vehicle:d.needV?v:null,p_note:mv.note.trim(),
+      p_loss:mv.reason==="遺失或損壞"?(mv.loss||"遺失"):null});
+    const nm=mv.sku; mv.qty=1; mv.note="";
+    await reload(); render();
+    toast(`${nm} ${mv.reason} ${q}，倉庫剩 ${S.warehouse[nm]}`);
+  });
+}
+async function fulfill(vehicle){
+  const list=needList().filter(n=>!vehicle||n.vehicle===vehicle);
+  if(!list.length)return;
+  await guard(async()=>{
+    await rpc("mgr_fulfill",{p_token:token,p_vehicle:vehicle||null});
+    await reload(); render();
+  },vehicle?`${vehicle} 車補料完成`:"全部補料完成，庫存已扣");
+}
+
+function viewResult(){
+  const cards=VEH().map(v=>{
+    const r=S.records.find(x=>x.vehicle===v);
+    if(!r)return `<div class="vcard red"><div class="id">${v}</div><div class="st">尚無盤點紀錄</div><div class="who">—</div></div>`;
+    const d=dayDiff(r.date),n=abLines(r).length;
+    const cls=d===0?"":d===1?"amber":"red", stx=d===0?"今日已盤":d===1?"昨日盤點":`已 ${d} 天未盤`;
+    return `<div class="vcard ${cls}"><div class="id">${v}</div>
+      <div class="st">${stx}${r.time?`<span class="lbl" style="margin-left:5px">${r.time}</span>`:""}</div>
+      <div class="who">${r.person}　${n?`<span style="color:var(--alert);font-weight:700">${n} 項異常</span>`:"全部正常"}</div></div>`;}).join("");
+
+  const recs=S.records.slice(0,20).map(r=>{
+    const ab=abLines(r), open=openRec===r.id;
+    const nShots=Object.keys(r.pkgPhotos||{}).length+((r.photoLines||[]).filter(l=>l.photo).length||r.lines.filter(l=>l.photo).length);
+    const head=`<button class="rechd" onclick="toggleRec('${r.id}')">
+      <div style="flex:1;min-width:0;text-align:left">
+        <div style="font-size:14.5px;font-weight:900">${r.vehicle} 車　${r.date}${r.time?" "+r.time:""}</div>
+        <div class="lbl" style="margin-top:2px">${r.person}　·　正常 ${r.okCount}/${r.lines.length}
+          ${ab.length?`　·　<span style="color:var(--alert)">${ab.length} 項異常</span>`:""}
+          ${nShots?`　·　${nShots} 張照片`:"　·　照片已清除"}</div></div>
+      <span class="caret">${open?"收合 ▲":"展開 ▼"}</span></button>`;
+    if(!open) return `<div class="card">${head}</div>`;
+
+    const abTable=ab.length?`<div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
+      <tr><th>品項</th><th>包別</th><th class="n">標配</th><th class="n">實際</th><th class="n">狀況</th></tr>
+      ${ab.map(l=>`<tr class="warn"><td>${l.name}${l.note?`<div class="lbl">${l.note}</div>`:""}</td>
+        <td style="color:var(--muted)">${l.pkg}</td><td class="n">${l.std}</td><td class="n">${l.actual}</td>
+        <td class="n" style="color:var(--alert);font-weight:700">${l.type}</td></tr>`).join("")}</table></div>`
+      :`<div style="padding:12px 14px;color:var(--ok);font-size:13.5px">全部正常</div>`;
+
+    const shots=[];
+    Object.keys(r.pkgPhotos||{}).forEach(nm=>shots.push({src:r.pkgPhotos[nm],t:nm,s:"本包照片",bad:false}));
+    (r.photoLines||r.lines.filter(l=>l.photo)).filter(l=>l.photo).forEach(l=>shots.push({src:l.photo,t:l.name,
+      s:l.type==="正常"?`${l.pkg}　${l.std} 個`:`${l.type} ${l.type==="損壞"?l.actual:Math.abs(l.diff)}`,
+      bad:l.type!=="正常"}));
+    const grid=shots.length?`<div class="grid">${shots.map((x,i)=>`
+      <div class="cell ${x.bad?"bad":""}" onclick="zoom('${r.id}',${i})">
+        <img src="${x.src}"><div class="cap">${x.t}</div><div class="cap2">${x.s}</div></div>`).join("")}</div>`
+      :`<div class="lbl" style="padding:10px 14px">照片已刪除（每車只保留最新 ${KEEP} 組）</div>`;
+    return `<div class="card">${head}
+      <div class="lbl" style="padding:10px 14px 0">異常明細</div>
+      ${abTable}
+      <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">
+        照片　${Object.keys(r.pkgPhotos||{}).length?`${Object.keys(r.pkgPhotos).length} 張本包照 ＋ `:""}${(r.photoLines||[]).filter(l=>l.photo).length} 張項目照　·　點圖可放大</div>
+      ${grid}</div>`;}).join("");
+
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>各車狀態</h2><span class="lbl" style="margin-left:auto">${today()}</span></div>
+      <div class="bd"><div class="fleet">${cards}</div>
+        <div class="lbl" style="margin-top:12px">綠＝今日已盤　黃＝昨日　紅＝2 天以上未盤</div></div></div>
+    ${S.records.length?recs:`<div class="card"><div class="empty">還沒有盤點紀錄。</div></div>`}
+    ${lightbox?lbHTML():""}
+  </div>`;
+}
+function toggleRec(id){openRec=openRec===id?null:id;render();}
+function zoom(rid,idx){lightbox={rid,idx};render();}
+function lbClose(){lightbox=null;render();}
+function lbStep(d){
+  const r=S.records.find(x=>x.id===lightbox.rid); if(!r)return;
+  const n=shotList(r).length; if(!n)return;
+  lightbox.idx=(lightbox.idx+d+n)%n; render();
+}
+function shotList(r){
+  const a=[];
+  Object.keys(r.pkgPhotos||{}).forEach(nm=>a.push({src:r.pkgPhotos[nm],t:nm,sub:"本包整體照片",bad:false}));
+  (r.photoLines||r.lines.filter(l=>l.photo)).filter(l=>l.photo).forEach(l=>a.push({src:l.photo,t:l.name,
+    sub:`${l.pkg}　${l.type}　標配 ${l.std} → 實際 ${l.actual}${l.note?"　"+l.note:""}`,
+    bad:l.type!=="正常"}));
+  return a;
+}
+function lbHTML(){
+  const r=S.records.find(x=>x.id===lightbox.rid); if(!r)return "";
+  const arr=shotList(r), l=arr[lightbox.idx]; if(!l)return "";
+  return `<div class="lb" onclick="lbClose()">
+    <div class="lbbox" onclick="event.stopPropagation()">
+      <img src="${l.src}">
+      <div class="lbinfo">
+        <div style="font-weight:900;font-size:15px">${l.t}</div>
+        <div class="lbl" style="margin-top:3px">${r.vehicle} 車 · ${r.date}${r.time?" "+r.time:""} · ${r.person}</div>
+        <div style="margin-top:6px;font-size:13.5px;color:${l.bad?"var(--alert)":"var(--ok)"}">${l.sub}</div>
+      </div>
+      <div class="lbbar">
+        <button class="btn ghost sm" onclick="lbStep(-1)">← 上一張</button>
+        <button class="btn ghost sm" onclick="lbClose()">關閉</button>
+        <button class="btn ghost sm" onclick="lbStep(1)">下一張 →</button></div>
+    </div></div>`;
+}
+
+
+/* ---- 盤點項目管理（車輛標配表） ---- */
+let nRow={name:"",std:1,pkg:null,valuable:false,consum:false};
+let nPkg="", editPkg=null;
+function setNr(k,v){nRow[k]=(k==="std")?Math.max(0,parseInt(v)||0):v;render();}
+
+function viewItems(){
+  const pk=PKGS();
+  if(!nRow.pkg&&pk.length)nRow.pkg=pk[0].id;
+  const blocks=pk.map(p=>{
+    const rs=RW().filter(r=>r.pkg===p.id);
+    const lines=rs.map(r=>{
+      if(editRow===r.rid) return `<tr class="edit"><td colspan="3">
+        <div class="lbl" style="margin-bottom:9px">編輯盤點項目　·　改名會同步更新庫存品項</div>
+        <div class="g2">
+          <label class="f"><span class="lbl">品項名稱</span><input type="text" id="r_name" value="${r.name}"></label>
+          <label class="f"><span class="lbl">標配數量</span><input type="number" min="0" class="num" id="r_std" value="${r.std}"></label>
+        </div>
+        <label class="f"><span class="lbl">所屬包別</span>
+          <select id="r_pkg">${pk.map(x=>`<option value="${x.id}" ${x.id===r.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
+        <div style="display:flex;gap:16px;margin-bottom:14px">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
+            <input type="checkbox" id="r_val" ${r.valuable?"checked":""} style="width:17px;height:17px">貴重設備</label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
+            <input type="checkbox" id="r_con" ${r.consum?"checked":""} style="width:17px;height:17px">耗材</label>
+        </div>
+        <div class="g2"><button class="btn" onclick="saveRow('${r.rid}')">儲存</button>
+          <button class="btn ghost" onclick="editRow=null;render()">取消</button></div></td></tr>`;
+      return `<tr><td class="c-name">${r.name}
+          ${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
+        <td class="n c-num">${r.std}</td>
+        <td class="c-act">
+          <button class="btn ghost tiny" onclick="editRow='${r.rid}';render()">編輯</button>
+          <button class="btn ghost tiny" onclick="delRow('${r.rid}')">刪除</button></td></tr>`;}).join("");
+    const hd = editPkg===p.id
+      ? `<div class="bd" style="border-bottom:1px solid var(--line2);background:#FFFBF0">
+          <label class="f"><span class="lbl">包別名稱</span><input type="text" id="p_name" value="${p.name}"></label>
+          <div class="g2"><button class="btn" onclick="savePkg('${p.id}')">儲存</button>
+            <button class="btn ghost" onclick="editPkg=null;render()">取消</button></div>
+          <button class="btn ghost sm" style="margin-top:10px" onclick="delPkg('${p.id}')">刪除這個包別</button></div>`
+      : `<div class="hd"><h2>${p.name}</h2>
+          <span class="lbl" style="margin-left:auto">${rs.length} 項</span>
+          <button class="btn ghost tiny" onclick="editPkg='${p.id}';render()">重新命名</button></div>`;
+    return `<div class="card">${hd}
+      <div class="tw"><table>
+        <colgroup><col><col style="width:80px"><col style="width:124px"></colgroup>
+        <tr><th>品項</th><th class="n">標配</th><th></th></tr>${lines}</table></div></div>`;}).join("");
+
+  const dup={}; RW().forEach(r=>{const k=cur(r.sku);dup[k]=(dup[k]||0)+1;});
+  const multi=Object.keys(dup).filter(k=>dup[k]>1);
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>盤點項目</h2>
+      <span class="lbl" style="margin-left:auto">${RW().length} 項 · ${pk.length} 個包別</span></div>
+      <div class="stats">
+        <div><div class="lbl">盤點行數</div><div class="fig">${RW().length}</div></div>
+        <div><div class="lbl">包別</div><div class="fig">${pk.length}</div></div>
+        <div><div class="lbl">跨包別重複</div><div class="fig">${multi.length}</div></div>
+      </div>
+      <div class="foot"><span class="lbl">這裡就是各車的標配表　·　改動會立刻影響盤點端與待補料計算</span></div></div>
+
+    <div class="card"><div class="hd"><h2>新增包別</h2></div><div class="bd">
+      <label class="f"><span class="lbl">包別名稱</span>
+        <input type="text" value="${nPkg}" placeholder="例：空調檢測包" onchange="nPkg=this.value"></label>
+      <button class="btn block" onclick="addPkg()">新增包別</button>
+      <div class="lbl" style="margin-top:8px">新包別建立後就能在下面把項目放進去；沒有項目的包別可以刪除</div>
+    </div></div>
+
+    <div class="card"><div class="hd"><h2>新增盤點項目</h2></div><div class="bd">
+      <div class="g2">
+        <label class="f"><span class="lbl">品項名稱</span>
+          <input type="text" value="${nRow.name}" placeholder="例：打診棒" onchange="setNr('name',this.value)"></label>
+        <label class="f"><span class="lbl">標配數量（每車）</span>
+          <input type="number" min="0" class="num" value="${nRow.std}" onchange="setNr('std',this.value)"></label>
+      </div>
+      <label class="f"><span class="lbl">放進哪個包別</span>
+        <select onchange="setNr('pkg',this.value)">${pk.map(x=>
+          `<option value="${x.id}" ${x.id===nRow.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
+      <div style="display:flex;gap:16px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
+          <input type="checkbox" ${nRow.valuable?"checked":""} onchange="setNr('valuable',this.checked)"
+            style="width:17px;height:17px">貴重設備</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
+          <input type="checkbox" ${nRow.consum?"checked":""} onchange="setNr('consum',this.checked)"
+            style="width:17px;height:17px">耗材</label>
+      </div>
+      <button class="btn block" onclick="addRow()">新增項目</button>
+      <div class="lbl" style="margin-top:8px">新品項若不在庫存總表，會自動建一筆庫存資料（倉庫 0）</div>
+    </div></div>
+    ${blocks}
+  </div>`;
+}
+async function addPkg(){
+  const n=(nPkg||"").trim();
+  if(!n)return toast("請填包別名稱");
+  if(PKGS().some(p=>p.name===n))return toast(`「${n}」已經存在`);
+  await guard(async()=>{ await rpc("mgr_pkg_add",{p_token:token,p_name:n});
+    nPkg=""; await reload(); render(); },`已新增包別：${n}`);
+}
+async function savePkg(id){
+  const n=(document.getElementById("p_name").value||"").trim();
+  if(!n)return toast("包別名稱不能空白");
+  if(PKGS().some(p=>p.name===n&&p.id!==id))return toast(`「${n}」已經存在`);
+  await guard(async()=>{ await rpc("mgr_pkg_rename",{p_token:token,p_id:id,p_name:n});
+    editPkg=null; await reload(); render(); },`已更名為「${n}」`);
+}
+async function delPkg(id){
+  const n=RW().filter(r=>r.pkg===id).length;
+  if(n)return toast(`這個包別還有 ${n} 項，請先移除或搬到別的包別`);
+  if(!confirm(`刪除包別「${pkgName(id)}」？`))return;
+  await guard(async()=>{ await rpc("mgr_pkg_delete",{p_token:token,p_id:id});
+    editPkg=null; await reload(); render(); },"已刪除包別");
+}
+async function addRow(){
+  const n=(nRow.name||"").trim();
+  if(!n)return toast("請填品項名稱");
+  const pid=nRow.pkg, pname=pkgName(pid);
+  if(!pname)return toast("請先選擇包別");
+  await guard(async()=>{
+    await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_name:n,p_std:Number(nRow.std)||0,
+      p_valuable:!!nRow.valuable,p_consumable:!!nRow.consum});
+    nRow={name:"",std:1,pkg:pid,valuable:false,consum:false};
+    await reload(); render();
+  },`已新增：${pname} · ${n}`);
+}
+async function saveRow(rid){
+  const g=id=>document.getElementById(id);
+  const r=RW().find(x=>x.rid===rid); if(!r)return;
+  const nn=(g("r_name").value||"").trim(); if(!nn)return toast("品項名稱不能空白");
+  const renamed=(nn!==r.name);
+  await guard(async()=>{
+    await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:nn,
+      p_std:Math.max(0,parseInt(g("r_std").value)||0),p_pkg:g("r_pkg").value,
+      p_valuable:g("r_val").checked,p_consumable:g("r_con").checked});
+    editRow=null; await reload(); render();
+  },renamed?`已改名為「${nn}」，庫存品項已同步`:"已更新盤點項目");
+}
+async function delRow(rid){
+  const r=RW().find(x=>x.rid===rid); if(!r)return;
+  if(!confirm(`從盤點表移除「${r.name}」（${r.pkgName}）？\n之後盤點就不會盤到這一項。`))return;
+  await guard(async()=>{ await rpc("mgr_row_delete",{p_token:token,p_id:rid});
+    editRow=null; await reload(); render(); },`已移除：${r.name}`);
+}
+
+
+/* ---- 月報頁 ---- */
+function viewMonthly(){
+  const {ms,agg,byItem,byBuy}=monthlyStats();
+  if(!ms.length) return `<div class="wrap wide"><div class="card">
+    <div class="empty">還沒有資料。送出幾張盤點單、登錄一些出入庫之後，這裡就會出現月度趨勢。</div></div></div>`;
+  const last=ms[ms.length-1], prev=ms.length>1?ms[ms.length-2]:null;
+  const A=agg[last], P=prev?agg[prev]:null;
+
+  const cards=[["遺失",1],["損壞",1],["耗材",0]].map(([k,bad])=>{
+    const t=trend(A[k],P?P[k]:null,bad);
+    return `<div><div class="lbl">${last} ${k}</div>
+      <div class="fig">${A[k]}<span style="font-size:13px;margin-left:7px;color:${t.c}">${t.t}</span></div></div>`;}).join("");
+
+  const head=`<tr><th>項目</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>`;
+  const body=METRICS.map(([k,desc,bad])=>{
+    const tot=ms.reduce((t,m)=>t+agg[m][k],0);
+    return `<tr class="${bad&&A[k]>(P?P[k]:0)?"warn":""}">
+      <td class="c-name">${k}<div class="lbl">${desc}</div></td>
+      ${ms.map((m,i)=>{
+        const v=agg[m][k], pv=i>0?agg[ms[i-1]][k]:null, t=trend(v,pv,bad);
+        return `<td class="n">${v}${i>0&&t.t!=="—"?`<div class="lbl" style="color:${t.c}">${t.t}</div>`:""}</td>`;}).join("")}
+      <td class="n c-num">${tot}</td></tr>`;}).join("");
+
+  const items=Object.keys(byItem).map(k=>({k,tot:ms.reduce((t,m)=>t+(byItem[k][m]||0),0)}))
+    .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
+  const itemRows=items.slice(0,20).map(x=>`<tr>
+    <td class="c-name">${x.k}</td>
+    ${ms.map(m=>`<td class="n">${byItem[x.k][m]||"—"}</td>`).join("")}
+    <td class="n c-num">${x.tot}</td></tr>`).join("");
+
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>月度工具狀態</h2>
+      <span class="lbl" style="margin-left:auto">${ms[0]} ~ ${last}</span></div>
+      <div class="stats">${cards}</div>
+      <div class="bd" style="border-bottom:1px solid var(--line2)">
+        <div class="lbl" style="margin-bottom:7px">統計範圍</div>
+        <div class="chips">${[[3,"近 3 個月"],[6,"近 6 個月"],[12,"近 12 個月"],["all","全部"]].map(([v,t])=>
+          `<button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
+            aria-pressed="${String(mRange)===String(v)}" onclick="setMRange('${v}')">${t}</button>`).join("")}</div>
+      </div>
+      <div class="tw"><table>
+        <colgroup><col>${ms.map(()=>`<col style="width:72px">`).join("")}<col style="width:72px"></colgroup>
+        ${head}${body}</table></div>
+      <div class="foot"><span class="lbl">
+        箭頭為與前一個月相比。遺失與損壞往上是壞事（紅色），往下是好事（綠色）；耗材屬正常消耗，不判好壞。<br>
+        數字以<b>實際補料</b>為準（補了幾個就是損失幾個），同一筆損失不會因為連續盤到而重複計算；
+        盤到但尚未補料的，會算在實際補料的那個月</span></div></div>
+
+    <div class="card"><div class="hd"><h2>遺失與損壞品項</h2>
+      <span class="lbl" style="margin-left:auto">${items.length} 項</span></div>
+      ${items.length?`<div class="tw"><table>
+        <colgroup><col>${ms.map(()=>`<col style="width:72px">`).join("")}<col style="width:72px"></colgroup>
+        <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>
+        ${itemRows}</table></div>
+        ${items.length>20?`<div class="foot"><span class="lbl">僅顯示前 20 項，匯出報表含全部</span></div>`:""}`
+      :`<div class="empty">這段期間沒有工具遺失或損壞。</div>`}</div>
+
+    <div class="card"><div class="hd"><h2>採購品項明細</h2>
+      <span class="lbl" style="margin-left:auto">${Object.keys(byBuy).length} 項</span></div>
+      ${Object.keys(byBuy).length?`<div class="tw"><table>
+        <colgroup><col>${ms.map(()=>`<col style="width:72px">`).join("")}<col style="width:72px"></colgroup>
+        <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>
+        ${Object.keys(byBuy).map(k=>({k,tot:ms.reduce((t,m)=>t+(byBuy[k][m]||0),0)}))
+          .sort((a,b)=>b.tot-a.tot).slice(0,20).map(x=>`<tr>
+          <td class="c-name">${x.k}</td>
+          ${ms.map(m=>`<td class="n">${byBuy[x.k][m]||"—"}</td>`).join("")}
+          <td class="n c-num">${x.tot}</td></tr>`).join("")}</table></div>`
+      :`<div class="empty">這段期間沒有採購入庫紀錄。</div>`}</div>
+
+    <div class="card"><div class="hd"><h2>匯出月報</h2></div><div class="bd">
+      <div class="g3">
+        <button class="btn ghost" onclick="exportMonthly('xls')">Excel</button>
+        <button class="btn ghost" onclick="exportMonthly('doc')">Word</button>
+        <button class="btn amber" onclick="exportMonthly('print')">直接列印</button></div>
+      <div class="lbl" style="margin-top:9px">含月度比較表、遺失損壞品項明細、採購品項明細，可直接列印給主管</div>
+    </div></div>
+  </div>`;
+}
+function setMRange(v){mRange=(v==="all")?"all":Number(v);render();}
+function exportMonthly(fmt){
+  const {ms,agg,byItem,byBuy}=monthlyStats();
+  if(!ms.length)return toast("還沒有可統計的資料");
+  const w1=Math.max(14,Math.floor(58/Math.max(1,ms.length)));
+  const cols=[{t:"項目",w:100-w1*ms.length-14,px:110}]
+    .concat(ms.map(m=>({t:m.slice(5)+"月",w:w1,px:52,n:1})))
+    .concat([{t:"合計",w:14,px:52,n:1}]);
+  const rows=METRICS.map(([k,desc])=>({c:[k].concat(ms.map(m=>agg[m][k]))
+    .concat([ms.reduce((t,m)=>t+agg[m][k],0)])}));
+  const items=Object.keys(byItem).map(k=>({k,tot:ms.reduce((t,m)=>t+(byItem[k][m]||0),0)}))
+    .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
+  const buys=Object.keys(byBuy).map(k=>({k,tot:ms.reduce((t,m)=>t+(byBuy[k][m]||0),0)}))
+    .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
+  const extra=[
+    {title:"遺失與損壞品項明細",cols,
+     rows:items.map(x=>({c:[x.k].concat(ms.map(m=>byItem[x.k][m]||"")).concat([x.tot])})),
+     foot:"依實際補料統計，耗材正常消耗不計入。"},
+    {title:"採購品項明細",cols,
+     rows:buys.map(x=>({c:[x.k].concat(ms.map(m=>byBuy[x.k][m]||"")).concat([x.tot])})),
+     foot:"來源為出入庫登錄的「採購入庫」。"}
+  ];
+  const A=agg[ms[ms.length-1]];
+  const html=reportHTML("鉅誠驗屋 · 月度工具狀態報表",
+    [`統計期間：${ms[0]} ~ ${ms[ms.length-1]}`,`車輛數：${VEH().length}`,
+     `本月遺失 ${A.遺失}　損壞 ${A.損壞}　耗材 ${A.耗材}　採購 ${A.採購}`,
+     `列印日期：${today()}`,`製表：${me?me.name:"—"}`],
+    cols,rows,
+    "數字以實際補料為準：遺失與損壞為工具實際補出／汰換的數量，耗材為耗材補充量。同一筆損失只計一次。",extra);
+  if(fmt==="print")return printReport(html);
+  const fn=`月度工具狀態_${stamp(ms[0])}-${stamp(ms[ms.length-1])}`;
+  fmt==="doc"?download(fn+".doc","application/msword",html)
+             :download(fn+".xls","application/vnd.ms-excel",html);
+}
+
+/* ---- 車輛管理（獨立分頁） ---- */
+function viewVehicles(){
+  const vlist=VEH().map(v=>{
+    const used=S.records.some(r=>r.vehicle===v);
+    const last=S.records.find(r=>r.vehicle===v);
+    const cnt=S.records.filter(r=>r.vehicle===v).length;
+    return `<tr><td class="num" style="font-size:17px;font-weight:600">${v}</td>
+      <td style="color:var(--muted);font-size:13px">${used?`${cnt} 張盤點單　最近 ${last.date}`:"尚未使用"}</td>
+      <td class="n">${used?`<span class="lbl">不可刪除</span>`:`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪除</button>`}</td></tr>`;}).join("");
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>車輛清單</h2>
+      <span class="lbl" style="margin-left:auto">目前 ${VEH().length} 台</span></div>
+      <div class="tw"><table><colgroup><col style="width:70px"><col><col style="width:80px"></colgroup><tr><th>車別</th><th>使用狀況</th><th></th></tr>${vlist}</table></div>
+      <div class="foot"><span class="lbl">已有盤點紀錄的車不能刪除，避免歷史資料失去對應</span></div></div>
+
+    <div class="card"><div class="hd"><h2>盤點拍照模式</h2>
+      <span class="lbl" style="margin-left:auto">${byItem()?"每項一張":"每包一張"}</span></div>
+      <div class="bd">
+        <div class="g2" style="margin-bottom:12px">
+          <button class="btn ${byItem()?"ghost":"amber"}" onclick="setPhotoMode('pkg')">每包一張</button>
+          <button class="btn ${byItem()?"amber":"ghost"}" onclick="setPhotoMode('item')">每項一張</button>
+        </div>
+        <div class="tw"><table>
+          <colgroup><col><col style="width:76px"><col style="width:80px"><col style="width:88px"></colgroup>
+          <tr><th></th><th class="n">每車每次</th><th class="n">全隊上限</th><th class="n">估算容量</th></tr>
+          ${[["每包一張",PKGS().length,!byItem()],["每項一張",RW().length,byItem()]].map(([t,n,cur])=>{
+            const tot=n*VEH().length*KEEP, mb=Math.round(tot*0.1);
+            return `<tr class="${cur?"warn":""}"><td class="c-name">${t}${cur?"（目前）":""}</td>
+              <td class="n c-num">${n} 張</td><td class="n">${tot} 張</td>
+              <td class="n">${mb} MB</td></tr>`;}).join("")}
+        </table></div>
+        <div class="lbl" style="margin-top:9px;line-height:1.7">
+          估算以每張約 100KB 計。免費雲端空間為 1024 MB，
+          目前上限用量約 ${Math.round((byItem()?RW().length:PKGS().length)*VEH().length*KEEP*0.1/1024*100)}%。
+          增加車輛或盤點項目時，這裡的數字會跟著變。</div>
+      </div>
+      <div class="foot"><span class="lbl">切換後下一張盤點單即生效，已送出的紀錄不受影響</span></div></div>
+
+    <div class="card"><div class="hd"><h2>照片保留</h2>
+      <span class="lbl" style="margin-left:auto">每車 ${KEEP} 組</span></div>
+      <div class="bd">
+        <div class="lbl" style="line-height:1.7">每台車只保留最新 ${KEEP} 組盤點照片，第 ${KEEP+1} 組以後的照片會自動刪除，
+        盤點紀錄本身（數量、異常、盤點人）永久保留。<br>
+        目前存有照片的盤點單：${S.records.filter(r=>!r.pruned).length} 組
+        ／ 已清除照片：${S.records.filter(r=>r.pruned).length} 組</div>
+      </div></div>
+
+    <div class="card"><div class="hd"><h2>操作者</h2>
+      <span class="lbl" style="margin-left:auto">${S.admins.length} 位</span></div>
+      <div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:80px"></colgroup>
+        <tr><th>姓名</th><th>狀態</th><th></th></tr>
+        ${S.admins.map(a=>`<tr><td class="c-name" style="font-weight:700">${a.name}</td>
+          <td style="color:var(--muted);font-size:13px">${me&&me.id===a.id?"使用中":"—"}</td>
+          <td class="n" style="white-space:nowrap">
+            <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
+            ${me&&me.id===a.id?"":`<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`}</td></tr>`).join("")}
+      </table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="lbl" style="margin-bottom:9px">新增操作者</div>
+        <label class="f"><span class="lbl">姓名</span>
+          <input type="text" value="${setup.name}" placeholder="例：冠揚" onchange="setup.name=this.value"></label>
+        <div class="g2">
+          <label class="f"><span class="lbl">設定 4 位數 PIN</span>
+            <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+              value="${setup.pin}" placeholder="••••" onchange="setup.pin=this.value"></label>
+          <label class="f"><span class="lbl">再輸入一次</span>
+            <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+              value="${setup.pin2}" placeholder="••••" onchange="setup.pin2=this.value"></label></div>
+        <button class="btn block" onclick="addAdmin()">新增操作者</button></div>
+      <div class="foot"><span class="lbl">PIN 存在本機、用於區分操作者並擋掉隨手誤入，不是正式的資安機制；正式版接後端帳號系統時可直接沿用這份名單</span></div></div>
+
+    <div class="card"><div class="hd"><h2>新增車輛</h2></div><div class="bd">
+      <label class="f"><span class="lbl">車輛代號（3 字以內）</span>
+        <input type="text" value="${nVeh.code}" placeholder="例：G、中1" maxlength="3" onchange="setNv('code',this.value)"></label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:13.5px;cursor:pointer">
+        <input type="checkbox" ${nVeh.preload?"checked":""} onchange="setNv('preload',this.checked)"
+          style="width:18px;height:18px"> 直接帶入整套標配數量（新車已配齊時勾選）</label>
+      <button class="btn block" onclick="addVehicle()">新增車輛</button>
+      <div class="lbl" style="margin-top:8px">不勾選則車上在庫從 0 起算，之後用出入庫的「遺失或損壞」逐項配上去</div>
+    </div></div>
+  </div>`;
+}
+
+/* ===================== 導覽 ===================== */
+const TABS={field:[["count","☑","盤點"]],
+  admin:[["restock","⚑","待補料"],["stock","▤","庫存"],["items","☑","項目"],
+         ["move","⇅","出入庫"],["result","▦","結果"],["month","◷","月報"],["veh","⚙","設定"]]};
+function render(){
+  const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
+  document.body.classList.toggle("norole",!role);
+  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">CLOUD v1</div></div>`;
+    nv.className="tabs hide"; app.innerHTML=viewGate(); return; }
+  hdr.innerHTML=`<div><h1>${role==="field"?"設備盤點":`設備管理${me?" · "+me.name:""}`}</h1>
+    <div class="sub">${REGION} / ${role==="field"?RW().length+" 項":VEH().join(" ")}</div></div>
+    <button class="sw" onclick="switchRole()">切換身分</button>`;
+  const t=TABS[role];
+  if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
+    nv.innerHTML=t.map(([k,i,l])=>`<button aria-selected="${tab===k}" onclick="go('${k}')"><span class="ic">${i}</span>${l}</button>`).join("");
+    document.body.classList.remove("norole");
+  } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
+  app.innerHTML = role==="field" ? viewField()
+    : tab==="move" ? viewMove() : tab==="result" ? viewResult()
+    : tab==="veh" ? viewVehicles() : tab==="items" ? viewItems()
+    : tab==="month" ? viewMonthly()
+    : tab==="stock" ? viewStock() : viewRestock();
+}
+function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;window.scrollTo(0,0);render();}
+boot();
+</script>
