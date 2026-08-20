@@ -343,7 +343,7 @@ async function boot(){
   try{
     const cfg=await rpc("field_config");
     applyConfig(cfg);
-    curPkg=(S.pkgs[0]||{}).id;
+    curPkg=firstPkg();
     S.opCount=await rpc("op_count");
     render();
   }catch(e){
@@ -374,7 +374,7 @@ function viewGate(){
   </div>`;
 }
 function setRole(r){ role=r; tab=r==="field"?"count":"restock"; draft=null;
-  curPkg=(S.pkgs[0]||{}).id; window.scrollTo(0,0); render(); }
+  curPkg=firstPkg(); window.scrollTo(0,0); render(); }
 async function gotoAdmin(){
   await guard(async()=>{
     S.opCount=await rpc("op_count");
@@ -495,6 +495,9 @@ const allDone=()=>doneCount()===PKGS().length;
 function viewField(){
   if(!draft)draft=newDraft();
   if(!draft.person||!draft.vehicle)return viewStart();
+  if(!PKGS().some(p=>p.id===curPkg)) curPkg=firstPkg();
+  if(!curPkg) return `<div class="wrap"><div class="card"><div class="empty">
+    目前沒有任何盤點項目<div class="lbl" style="margin-top:6px">請管理者到「項目」分頁新增</div></div></div></div>`;
   const tape=PKGS().map(p=>{const s=pkgStat(p.id);
     let c=s.ok?(s.bad?"flag":"done"):"";if(p.id===curPkg)c+=" cur";return `<i class="${c}"></i>`;}).join("");
   const nav=PKGS().map(p=>{const s=pkgStat(p.id);
@@ -536,8 +539,7 @@ function viewField(){
     <button class="btn block" ${allDone()&&!busy?"":"disabled"} onclick="submitCount()">
       <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
         (allDone()?"送出盤點單":(byItem()?`還有 ${RW().length-RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} 項未拍照`:`還有 ${PKGS().length-doneCount()} 個包別未完成`))}</button>
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="btn ghost tiny" onclick="fillDemo()">測試填充（原型用，跳過拍照）</button>
+    <div style="margin-top:10px">
       <button class="btn ghost tiny" onclick="resetDraft()">清空重填</button>
     </div>
   </div>`;
@@ -604,10 +606,14 @@ function diffText(r,s){ if(s.actual===null||s.actual==="")return"";
   const d=Number(s.actual)-r.std;return d===0?"與標配相同":(d>0?`多 ${d}`:`缺 ${-d}`);}
 
 function pickV(v){draft.vehicle=draft.vehicle===v?"":v;render();}
+function firstPkg(){
+  const p=PKGS().find(x=>pkgRows(x.id).length)||PKGS()[0];
+  return p?p.id:null;
+}
 function startCount(){const n=document.getElementById("pname");if(n)draft.person=n.value.trim();
   if(!draft.person)return toast("請先填盤點人姓名");
   if(!draft.vehicle)return toast("請選擇車別");
-  curPkg=1;render();}
+  curPkg=firstPkg();render();}
 function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
   img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));
     const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
@@ -639,17 +645,7 @@ function closePanel(rid){const s=st(rid),r=RW().find(x=>x.rid===rid);
   if(s.type==="多出"&&Number(s.actual)<=r.std)return toast("多出的實際數量要大於標配");
   if(!s.photo)return toast("異常項目需拍一張照片");
   s.open=false;render();}
-function resetDraft(){if(confirm("清空目前這張盤點單？")){draft=newDraft();curPkg=1;render();}}
-function fillDemo(){
-  const c=document.createElement("canvas");c.width=c.height=64;const x=c.getContext("2d");
-  x.fillStyle="#C9CDD3";x.fillRect(0,0,64,64);x.fillStyle="#6C737D";x.font="11px sans-serif";x.fillText("原型測試",6,36);
-  const img=c.toDataURL("image/jpeg",0.4);
-  if(byItem()){ RW().forEach(r=>{const s=st(r.rid);if(!s.photo){s.photo=img;s.status="ok";}}); }
-  else { PKGS().forEach(p=>{if(!pkgRows(p.id).length)return;
-           if(!draft.pkgPhoto[p.id]){draft.pkgPhoto[p.id]=img;draft.pkgPhotoByName[p.name]=img;}});
-         RW().forEach(r=>{const s=st(r.rid);if(s.status==="pending")s.status="ok";}); }
-  render();toast("已用測試圖填滿，可直接送出");
-}
+function resetDraft(){if(confirm("清空目前這張盤點單？")){draft=newDraft();curPkg=firstPkg();render();}}
 async function submitCount(){
   if(busy)return;
   for(const p of PKGS()){
@@ -700,7 +696,7 @@ async function submitCount(){
     await rpc("field_submit",{p:{vehicle_code:veh,person:draft.person,
       time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos}});
     const n=lines.filter(l=>l.status!=="正常").length;
-    draft=null; curPkg=(S.pkgs[0]||{}).id;
+    draft=null; curPkg=firstPkg();
     setProgress(null); busy=false; render();
     toast(`${veh} 車已送出，${n} 項異常`);
   }catch(e){
@@ -1709,7 +1705,7 @@ const TABS={field:[["count","☑","盤點"]],
 function render(){
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
-  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">CLOUD v1</div></div>`;
+  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">${REGION}</div></div>`;
     nv.className="tabs hide"; app.innerHTML=viewGate(); return; }
   hdr.innerHTML=`<div><h1>${role==="field"?"設備盤點":`設備管理${me?" · "+me.name:""}`}</h1>
     <div class="sub">${REGION} / ${role==="field"?RW().length+" 項":VEH().join(" ")}</div></div>
