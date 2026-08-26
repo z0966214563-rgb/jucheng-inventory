@@ -114,6 +114,13 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .stat.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
 .stat.bad{background:var(--alert-bg);border-color:var(--alert);color:var(--alert)}
 .stat:disabled{opacity:.4}
+.pick{display:flex;gap:5px;flex:0 0 auto}
+.pk{width:54px;height:46px;border:1px solid var(--line);background:#fff;border-radius:3px;
+  font-family:var(--tc);font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;padding:0 2px}
+.pk.ok.on{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.pk.bad.on{background:var(--alert-bg);border-color:var(--alert);color:var(--alert)}
+.pk:disabled{opacity:.35}
+@media (max-width:360px){.pk{width:48px;font-size:12px}}
 .panel{background:#FBFCFD;border-top:1px solid var(--line2);padding:12px 14px 14px}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
 .seg button{padding:11px 4px;font-family:var(--tc);font-size:14px;font-weight:700;border:1px solid var(--line);
@@ -520,7 +527,7 @@ function viewField(){
       ${!pkgRows(curPkg).length?`<div class="empty">這個包別目前沒有盤點項目<div class="lbl" style="margin-top:6px">
           可到「設定 → 盤點項目」新增，或直接把這個包別刪除</div></div>`
       :byItem()?`<div style="padding:9px 12px;border-bottom:1px solid var(--line2)" class="lbl">
-          逐項拍照模式：每一項都要拍一張。拍完預設為正常，有問題再點右邊改為異常。</div>`
+          逐項拍照模式：每一項都要拍一張，拍完再按「正常」或「異常」。</div>`
       :`<div class="pkgshot">
         <label class="bigshot ${draft.pkgPhoto[curPkg]?"has":""}">
           ${draft.pkgPhoto[curPkg]?`<img src="${draft.pkgPhoto[curPkg]}"><span class="redo">重拍</span>`
@@ -528,8 +535,8 @@ function viewField(){
           <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootPkg(this)">
         </label>
         <div class="pkgtip"><b>本包整體照片（必拍一張）</b>
-          <div class="lbl" style="margin-top:4px">拍完後掃過下面的清單，全部沒問題就按「本包全部正常」；
-          有問題的項目個別點開登記，異常項目要另外補拍該項照片。</div></div>
+          <div class="lbl" style="margin-top:4px">整包沒問題就按「本包全部正常」一次帶過；
+          有問題的那幾項按「異常」登記並補拍照片，其餘按「正常」即可。</div></div>
       </div>
       <div style="padding:10px 12px;border-bottom:1px solid var(--line2)">
         <button class="btn amber block" onclick="markPkgOK()">本包全部正常（${pkgRows(curPkg).length} 項）</button>
@@ -596,12 +603,21 @@ function rowHTML(r){
       ${s.photo?`<img src="${s.photo}"><span class="redo">重拍</span>`:`<span class="cam">▣</span>`}
       <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)">
     </label>` : "";
+  const lock = byItem() && !s.photo;
+  const meta = s.status==="abnormal" && s.actual!==null
+    ? `標配 ${r.std}　→　${s.type==="損壞"?`損壞 ${s.actual}`:`實有 ${s.actual}`}`
+    : `標配 ${r.std}`;
   return `<div>
     <div class="row">
       ${shotCell}
       <div class="info"><div class="nm">${r.name} ${tags}</div>
-        <div class="meta">標配 ${r.std}</div></div>
-      <button class="stat ${cls}" ${byItem()&&!s.photo?"disabled":""} onclick="toggleRow('${r.rid}')">${txt}</button>
+        <div class="meta">${meta}</div></div>
+      <div class="pick">
+        <button class="pk ok ${s.status==="ok"?"on":""}" ${lock?"disabled":""}
+          onclick="markOK('${r.rid}')">正常</button>
+        <button class="pk bad ${s.status==="abnormal"?"on":""}" ${lock?"disabled":""}
+          onclick="markBad('${r.rid}')">${s.status==="abnormal"?(s.type||"異常"):"異常"}</button>
+      </div>
     </div>${panel}</div>`;
 }
 function diffText(r,s){ if(s.actual===null||s.actual==="")return"";
@@ -632,10 +648,20 @@ function markPkgOK(){
   pkgRows(curPkg).forEach(r=>{const s=st(r.rid);
     if(s.status!=="abnormal"){s.status="ok";s.type="";s.actual=null;s.photo=null;s.note="";s.open=false;}});
   render();}
-function toggleRow(rid){const s=st(rid);
+
+function setOK(rid){const s=st(rid);s.status="ok";s.type="";s.actual=null;s.note="";s.photo=byItem()?s.photo:null;s.open=false;render();}
+function markOK(rid){
+  const s=st(rid);
   if(byItem()&&!s.photo)return toast("請先拍這一項的照片");
-  if(s.status==="abnormal"){s.open=!s.open;} else {s.status="abnormal";s.open=true;} render();}
-function setOK(rid){const s=st(rid);s.status="ok";s.type="";s.actual=null;s.note="";s.open=false;render();}
+  setOK(rid);
+}
+function markBad(rid){
+  const s=st(rid);
+  if(byItem()&&!s.photo)return toast("請先拍這一項的照片");
+  if(s.status==="abnormal"){ s.open=!s.open; }
+  else { s.status="abnormal"; s.open=true; }
+  render();
+}
 function setType(rid,t){const s=st(rid),r=RW().find(x=>x.rid===rid);s.type=t;
   if(s.actual===null)s.actual=t==="損壞"?1:(t==="多出"?r.std+1:Math.max(0,r.std-1));render();}
 function setActual(rid,v){st(rid).actual=v===""?null:Math.max(0,parseInt(v)||0);}
