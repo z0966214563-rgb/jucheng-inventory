@@ -217,6 +217,9 @@ const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
 const ITEMS=()=>(S&&S.items)?S.items:[];
 const ALLSKU=()=>ITEMS().map(i=>i.sku);
 const itemOf=k=>ITEMS().find(i=>i.sku===k);
+// 下拉選單依儲位順序排列，方便照著貨架找東西
+const ITEMS_BY_LOC=()=>ITEMS().slice().sort((a,b)=>{
+  const d=locRank(a.loc)-locRank(b.loc); return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
 const cur=k=>k;
 const needOf=k=>{const i=itemOf(k);return i?i.std:0;};
 const priceOf=()=>null;
@@ -871,7 +874,7 @@ function monthKeys(){
 }
 function monthlyStats(){
   // 以實際補料／出入庫為準，每筆只算一次，不會因為連續盤到同一筆而重複
-  const ms=monthKeys(), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0});
+  const ms=monthKeys(), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0});
   const agg={}, byItem={}, byBuy={};
   ms.forEach(k=>agg[k]=z());
   (S.moves||[]).forEach(m=>{
@@ -887,6 +890,7 @@ function monthlyStats(){
     else if(m.reason==="車輛多出繳回") agg[k].多出+=q;
     else if(m.reason==="採購入庫"){ agg[k].採購+=q;
       byBuy[sk]=byBuy[sk]||{}; byBuy[sk][k]=(byBuy[sk][k]||0)+q; }
+    else if(m.reason==="個人用品") agg[k].個人+=q;
     else if(m.reason.indexOf("工具製作")===0) agg[k].製作+=q;
   });
   return {ms,agg,byItem,byBuy};
@@ -897,7 +901,8 @@ const METRICS=[
   ["耗材","耗材補充，屬正常消耗",0],
   ["多出","車輛多出繳回倉庫",0],
   ["採購","當月採購入庫數量",0],
-  ["製作","工具製作領料／完成",0]
+  ["製作","工具製作領料／完成",0],
+  ["個人","個人用品配發／補發",0]
 ];
 function trend(cur,prev,bad){
   if(prev==null||prev===cur)return {t:"—",c:"var(--muted)"};
@@ -946,11 +951,17 @@ function viewRestock(){
         <td class="n">${h}${h<n.qty?`<div class="lbl" style="color:var(--alert)">倉庫不足</div>`:""}</td>
         <td class="n">${n.auto?"":`<button class="btn ghost tiny" onclick="delManual('${n.id}')">刪除</button>`}</td></tr>`;}).join("");
     const cnt=g[v].reduce((t,n)=>t+n.qty,0);
+    const short=[];
+    const byS={}; g[v].forEach(n=>byS[n.sku]=(byS[n.sku]||0)+n.qty);
+    Object.keys(byS).forEach(k=>{ if((S.warehouse[k]||0)<byS[k]) short.push(`${k}（需 ${byS[k]}、倉庫 ${S.warehouse[k]||0}）`); });
     return `<div class="card"><div class="hd"><h2>${v} 車</h2>
         <span class="lbl" style="margin-left:auto">${g[v].length} 項 · 共 ${cnt} 個</span></div>
       <div class="tw"><table><colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:74px"></colgroup><tr><th>品項 / 來源</th><th class="n">要補</th><th class="n">倉庫</th><th></th></tr>${lines}</table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
-        <button class="btn amber block" onclick="fulfill('${v}')">${v} 車揀貨完成 → 出庫扣帳</button></div></div>`;}).join("");
+        ${short.length?`<div class="err" style="margin:0 0 10px">倉庫不足，無法揀貨：${short.join("、")}<br>
+          請先用「出入庫 → 採購入庫」補進倉庫，再回來揀貨。</div>`:""}
+        <button class="btn amber block" ${short.length?"disabled":""} onclick="fulfill('${v}')">
+          ${short.length?"倉庫不足，無法揀貨":`${v} 車揀貨完成 → 出庫扣帳`}</button></div></div>`;}).join("");
 
   return `<div class="wrap wide">
     <div class="card"><div class="hd"><h2>手動新增待補</h2></div><div class="bd">
@@ -958,7 +969,7 @@ function viewRestock(){
       <div class="chips" style="margin-bottom:13px">${VEH().map(v=>
         `<button class="chip" aria-pressed="${rs.vehicle===v}" onclick="setRs('vehicle','${v}')">${v}</button>`).join("")}</div>
       <label class="f"><span class="lbl">品項</span>
-        <select onchange="setRs('sku',this.value)">${ITEMS().map(i=>
+        <select onchange="setRs('sku',this.value)">${ITEMS_BY_LOC().map(i=>
           `<option value="${i.sku}" ${i.sku===rs.sku?"selected":""}>${i.sku}（倉庫 ${S.warehouse[i.sku]}${i.loc!=="未設定"?" · 位置 "+i.loc:""}）</option>`).join("")}</select></label>
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
@@ -980,7 +991,10 @@ function viewRestock(){
             <td class="n">${h}${h<b.qty?`<div class="lbl" style="color:var(--alert)">不足</div>`:""}</td></tr>`;}).join("")}
       </table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
-        <button class="btn block" onclick="fulfill()">全部揀貨完成 → 自動產生出庫、扣庫存</button>
+        ${bySku.some(b=>(S.warehouse[b.sku]||0)<b.qty)
+          ?`<div class="err" style="margin:0 0 10px">有品項倉庫不足（上表紅底），請先採購入庫</div>`:""}
+        <button class="btn block" ${bySku.some(b=>(S.warehouse[b.sku]||0)<b.qty)?"disabled":""}
+          onclick="fulfill()">全部揀貨完成 → 自動產生出庫、扣庫存</button>
         <div class="lbl" style="margin-top:8px">會在「出入庫」留下「遺失或損壞」出庫紀錄（標註來自盤點），各車在庫補回標配</div>
         <div class="lbl" style="margin-top:5px">盤點來源只採計每台車最新一次的結果，連續多次未補料不會重複累加</div></div></div>`:""}
 
@@ -1039,7 +1053,7 @@ function viewStock(){
       return;
     }
     rows+=`<tr class="${h<sf?"warn":""}">
-      <td class="c-name">${k}${it.base?"":`<span class="tag c">自建</span>`}
+      <td class="c-name">${k}
         <div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div></td>
       <td class="c-loc num${it.loc==="未設定"?" un":""}">${it.loc}</td>
       <td class="n c-num">${h}</td>
@@ -1157,6 +1171,7 @@ const REASONS={
        {r:"車輛多出繳回",wh:1,car:0,needV:true,noCarQty:true},
        {r:"盤盈調整",wh:1,car:0} ],
   out:[{r:"遺失或損壞",wh:-1,car:1,needV:true},
+       {r:"個人用品",wh:-1,car:0},
        {r:"工具製作領料",wh:-1,car:0},
        {r:"盤虧調整",wh:-1,car:0} ]
 };
@@ -1178,7 +1193,8 @@ function viewMove(){
       ${m.fromCount?`<span class="tag c" style="margin-left:4px">來自盤點</span>`:""}
       ${m.note?`<div class="lbl">${m.note}</div>`:""}</td>
     <td class="n" style="font-weight:700;color:${m.wh>0?"var(--ok)":"var(--alert)"}">${m.wh>0?"+":"−"}${m.qty}</td>
-    <td class="n" style="color:var(--muted)">${m.car?`${m.car>0?"+":"−"}${m.qty}`:"—"}</td></tr>`).join("");
+    <td class="n" style="color:var(--muted)">${m.car?`${m.car>0?"+":"−"}${m.qty}`:"—"}</td>
+    <td class="n"><button class="btn ghost tiny" onclick="delMove('${m.id}')">刪除</button></td></tr>`).join("");
 
   return `<div class="wrap wide">
     <div class="card"><div class="hd"><h2>登錄出入庫</h2></div><div class="bd">
@@ -1198,7 +1214,7 @@ function viewMove(){
         <div class="chips" style="margin-bottom:13px">${VEH().map(x=>
           `<button class="chip" aria-pressed="${v===x}" onclick="setMv('vehicle','${x}')">${x}</button>`).join("")}</div>`:""}
       <label class="f"><span class="lbl">品項</span>
-        <select onchange="setMv('sku',this.value)">${ITEMS().map(i=>
+        <select onchange="setMv('sku',this.value)">${ITEMS_BY_LOC().map(i=>
           `<option value="${i.sku}" ${i.sku===mv.sku?"selected":""}>${i.sku}（倉庫 ${S.warehouse[i.sku]}${i.loc!=="未設定"?" · 位置 "+i.loc:""}）</option>`).join("")}</select></label>
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
@@ -1207,7 +1223,8 @@ function viewMove(){
           <input type="text" value="${mv.person||(me?me.name:"")}" placeholder="誰處理的" onchange="setMv('person',this.value)"></label>
       </div>
       <label class="f"><span class="lbl">備註</span>
-        <input type="text" value="${mv.note}" placeholder="選填" onchange="setMv('note',this.value)"></label>
+        <input type="text" value="${mv.note}" placeholder="${mv.reason==="個人用品"?"領用人與用途，例如：新人小陳配發手電筒":"選填"}"
+          onchange="setMv('note',this.value)"></label>
       <div class="prev">
         <div class="lbl">登錄後</div>
         <div class="prevrow"><span>${mv.sku}　倉庫</span>
@@ -1238,7 +1255,7 @@ function viewMove(){
           <button class="btn ghost" onclick="exportMoves('doc')">Word</button>
           <button class="btn amber" onclick="exportMoves('print')">直接列印</button></div>
       </div>
-      ${mine.length?`<div class="tw"><table><colgroup><col style="width:110px"><col><col style="width:76px"><col style="width:76px"></colgroup><tr><th>日期 / 經手</th><th>原因 / 品項</th><th class="n">倉庫</th><th class="n">車上</th></tr>${list}</table></div>`
+      ${mine.length?`<div class="tw"><table><colgroup><col style="width:104px"><col><col style="width:70px"><col style="width:70px"><col style="width:62px"></colgroup><tr><th>日期 / 經手</th><th>原因 / 品項</th><th class="n">倉庫</th><th class="n">車上</th><th></th></tr>${list}</table></div>`
       :`<div class="empty">還沒有${mv.type==="in"?"入庫":"出庫"}紀錄。</div>`}</div>
   </div>`;
 }
@@ -1292,6 +1309,8 @@ function viewResult(){
           ${nShots?`　·　${nShots} 張照片`:"　·　照片已清除"}</div></div>
       <span class="caret">${open?"收合 ▲":"展開 ▼"}</span></button>`;
     if(!open) return `<div class="card">${head}</div>`;
+    const delBar=`<div class="bd" style="border-top:1px solid var(--line2);text-align:right">
+      <button class="btn ghost tiny" onclick="delSheet('${r.id}')">刪除這張盤點單</button></div>`;
 
     const abTable=ab.length?`<div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
       <tr><th>品項</th><th>包別</th><th class="n">標配</th><th class="n">實際</th><th class="n">狀況</th></tr>
@@ -1314,7 +1333,7 @@ function viewResult(){
       ${abTable}
       <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">
         照片　${Object.keys(r.pkgPhotos||{}).length?`${Object.keys(r.pkgPhotos).length} 張本包照 ＋ `:""}${(r.photoLines||[]).filter(l=>l.photo).length} 張項目照　·　點圖可放大</div>
-      ${grid}</div>`;}).join("");
+      ${grid}${delBar}</div>`;}).join("");
 
   return `<div class="wrap wide">
     <div class="card"><div class="hd"><h2>各車狀態</h2><span class="lbl" style="margin-left:auto">${today()}</span></div>
@@ -1325,6 +1344,18 @@ function viewResult(){
   </div>`;
 }
 function toggleRec(id){openRec=openRec===id?null:id;render();}
+async function delSheet(id){
+  const r=S.records.find(x=>x.id===id); if(!r)return;
+  if(!confirm(`刪除 ${r.vehicle} 車 ${r.date} 的盤點單？\n照片與明細會一併移除，無法復原。`))return;
+  await guard(async()=>{ await rpc("mgr_sheet_delete",{p_token:token,p_id:id});
+    openRec=null; await reload(); render(); },"已刪除盤點單");
+}
+async function delMove(id){
+  const m=S.moves.find(x=>x.id===id); if(!m)return;
+  if(!confirm(`刪除這筆${m.type==="in"?"入庫":"出庫"}紀錄？\n${m.sku} ${m.qty} 個\n庫存數量會一併還原。`))return;
+  await guard(async()=>{ await rpc("mgr_move_delete",{p_token:token,p_id:id});
+    await reload(); render(); },"已刪除並還原庫存");
+}
 function zoom(rid,idx){lightbox={rid,idx};render();}
 function lbClose(){lightbox=null;render();}
 function lbStep(d){
@@ -1360,7 +1391,7 @@ function lbHTML(){
 
 
 /* ---- 盤點項目管理（車輛標配表） ---- */
-let nRow={name:"",std:1,pkg:null,valuable:false,consum:false};
+let nRow={item:"",std:1,pkg:null,valuable:false,consum:false};
 let nPkg="", editPkg=null;
 function setNr(k,v){nRow[k]=(k==="std")?Math.max(0,parseInt(v)||0):v;render();}
 
@@ -1371,11 +1402,11 @@ function viewItems(){
     const rs=RW().filter(r=>r.pkg===p.id);
     const lines=rs.map(r=>{
       if(editRow===r.rid) return `<tr class="edit"><td colspan="3">
-        <div class="lbl" style="margin-bottom:9px">編輯盤點項目　·　改名會同步更新庫存品項</div>
-        <div class="g2">
-          <label class="f"><span class="lbl">品項名稱</span><input type="text" id="r_name" value="${r.name}"></label>
-          <label class="f"><span class="lbl">標配數量</span><input type="number" min="0" class="num" id="r_std" value="${r.std}"></label>
-        </div>
+        <div class="lbl" style="margin-bottom:9px">編輯盤點項目</div>
+        <div class="lbl" style="margin-bottom:9px">品項：<b style="font-size:14px;color:var(--ink)">${r.name}</b>
+          　（要改名請到「庫存」分頁）</div>
+        <label class="f"><span class="lbl">標配數量（每車）</span>
+          <input type="number" min="0" class="num" id="r_std" value="${r.std}"></label>
         <label class="f"><span class="lbl">所屬包別</span>
           <select id="r_pkg">${pk.map(x=>`<option value="${x.id}" ${x.id===r.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
         <div style="display:flex;gap:16px;margin-bottom:14px">
@@ -1426,12 +1457,13 @@ function viewItems(){
     </div></div>
 
     <div class="card"><div class="hd"><h2>新增盤點項目</h2></div><div class="bd">
-      <div class="g2">
-        <label class="f"><span class="lbl">品項名稱</span>
-          <input type="text" value="${nRow.name}" placeholder="例：打診棒" onchange="setNr('name',this.value)"></label>
-        <label class="f"><span class="lbl">標配數量（每車）</span>
-          <input type="number" min="0" class="num" value="${nRow.std}" onchange="setNr('std',this.value)"></label>
-      </div>
+      <label class="f"><span class="lbl">選擇庫存品項</span>
+        <select onchange="setNr('item',this.value)">
+          <option value="">請選擇…</option>
+          ${ITEMS_BY_LOC().map(i=>`<option value="${i.sku}" ${i.sku===nRow.item?"selected":""}>${i.sku}${i.loc!=="未設定"?"（位置 "+i.loc+"）":""}</option>`).join("")}
+        </select></label>
+      <label class="f"><span class="lbl">標配數量（每車）</span>
+        <input type="number" min="0" class="num" value="${nRow.std}" onchange="setNr('std',this.value)"></label>
       <label class="f"><span class="lbl">放進哪個包別</span>
         <select onchange="setNr('pkg',this.value)">${pk.map(x=>
           `<option value="${x.id}" ${x.id===nRow.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
@@ -1444,7 +1476,9 @@ function viewItems(){
             style="width:17px;height:17px">耗材</label>
       </div>
       <button class="btn block" onclick="addRow()">新增項目</button>
-      <div class="lbl" style="margin-top:8px">新品項若不在庫存總表，會自動建一筆庫存資料（倉庫 0）</div>
+      <div class="lbl" style="margin-top:8px">
+        只能從庫存總表既有的品項挑選。要盤的東西還不在清單裡的話，
+        請先到「庫存」分頁新增，再回來這裡加入盤點表。</div>
     </div></div>
     ${blocks}
   </div>`;
@@ -1471,28 +1505,26 @@ async function delPkg(id){
     editPkg=null; await reload(); render(); },"已刪除包別");
 }
 async function addRow(){
-  const n=(nRow.name||"").trim();
-  if(!n)return toast("請填品項名稱");
+  const it=itemOf(nRow.item);
+  if(!it)return toast("請先選擇庫存品項");
   const pid=nRow.pkg, pname=pkgName(pid);
   if(!pname)return toast("請先選擇包別");
   await guard(async()=>{
-    await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_name:n,p_std:Number(nRow.std)||0,
+    await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:it.id,p_std:Number(nRow.std)||0,
       p_valuable:!!nRow.valuable,p_consumable:!!nRow.consum});
-    nRow={name:"",std:1,pkg:pid,valuable:false,consum:false};
+    nRow={item:"",std:1,pkg:pid,valuable:false,consum:false};
     await reload(); render();
-  },`已新增：${pname} · ${n}`);
+  },`已新增：${pname} · ${it.sku}`);
 }
 async function saveRow(rid){
   const g=id=>document.getElementById(id);
   const r=RW().find(x=>x.rid===rid); if(!r)return;
-  const nn=(g("r_name").value||"").trim(); if(!nn)return toast("品項名稱不能空白");
-  const renamed=(nn!==r.name);
   await guard(async()=>{
-    await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:nn,
+    await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:null,
       p_std:Math.max(0,parseInt(g("r_std").value)||0),p_pkg:g("r_pkg").value,
       p_valuable:g("r_val").checked,p_consumable:g("r_con").checked});
     editRow=null; await reload(); render();
-  },renamed?`已改名為「${nn}」，庫存品項已同步`:"已更新盤點項目");
+  },"已更新盤點項目");
 }
 async function delRow(rid){
   const r=RW().find(x=>x.rid===rid); if(!r)return;
