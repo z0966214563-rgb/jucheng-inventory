@@ -200,6 +200,9 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
 .lbbar{display:flex;gap:8px;padding:0 14px 14px;justify-content:space-between}
 .req{color:var(--alert);font-size:12px;font-weight:700}
 .pkgshot{display:flex;gap:12px;padding:12px;border-bottom:1px solid var(--line2);align-items:flex-start}
+.shots2{display:flex;gap:8px;flex:0 0 auto}
+.bigshot.opt{border-color:#C9CDD3;background:#FBFCFD}
+.bigshot.opt .cam{font-size:22px}
 .bigshot{width:96px;height:96px;flex:0 0 96px;border:1px dashed var(--line);border-radius:3px;background:#F7F8FA;
   display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative}
 .bigshot.has{border-style:solid;border-color:var(--ok)}
@@ -289,39 +292,44 @@ function applyConfig(cfg){
     valuable:!!r.valuable,consum:!!r.consumable}));
 }
 async function applyState(st,urls){
-  S=blankState();
-  S.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
+  // 先組好一份完整資料，最後才整個換掉；中途失敗不會把畫面清空
+  const N=blankState();
+  N.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
   KEEP=(st.settings&&st.settings.keep_sets)||4;
-  S.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base}));
-  (st.items||[]).forEach(i=>{S.warehouse[i.name]=i.warehouse;S.safety[i.name]=i.safety;});
-  S.pkgs=(st.packages||[]).map(p=>({id:p.id,name:p.name}));
-  S.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
+  N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base}));
+  (st.items||[]).forEach(i=>{N.warehouse[i.name]=i.warehouse;N.safety[i.name]=i.safety;});
+  N.pkgs=(st.packages||[]).map(p=>({id:p.id,name:p.name}));
+  N.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
     name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
     valuable:!!r.valuable,consum:!!r.consumable}));
-  S.vehicles=(st.vehicles||[]).map(v=>v.code);
-  S.vehicleIds={}; (st.vehicles||[]).forEach(v=>S.vehicleIds[v.code]=v.id);
-  S.vehicleUsed={}; (st.vehicles||[]).forEach(v=>S.vehicleUsed[v.code]=v.used);
-  S.onCar=st.vehicle_stock||{};
-  S.vehicles.forEach(v=>{S.onCar[v]=S.onCar[v]||{};});
-  S.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
+  N.vehicles=(st.vehicles||[]).map(v=>v.code);
+  N.vehicleIds={}; (st.vehicles||[]).forEach(v=>N.vehicleIds[v.code]=v.id);
+  N.vehicleUsed={}; (st.vehicles||[]).forEach(v=>N.vehicleUsed[v.code]=v.used);
+  N.onCar=st.vehicle_stock||{};
+  N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
+  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
   const U=urls||{};
-  S.records=(st.sheets||[]).map(x=>({
+  N.records=(st.sheets||[]).map(x=>({
     id:x.id,vehicle:x.vehicle,person:x.person,date:x.date,time:x.time,
     okCount:x.ok_count,fixed:x.fixed,pruned:x.pruned,ts:new Date(x.created_at).getTime(),
     lines:(x.lines||[]).map(l=>({sku:l.name,name:l.name,pkg:l.pkg,std:l.std,actual:l.actual,
       type:l.status,diff:l.status==="損壞"?-l.actual:l.actual-l.std,
+      done:l.done||0,itemId:l.item_id,
       note:l.note||"",photo:U[l.photo]||null})),
     photoLines:(x.photo_lines||[]).map(l=>({name:l.name,pkg:l.pkg,std:l.std,actual:l.actual,
       type:l.status,photo:U[l.photo]||null})),
-    pkgPhotos:Object.fromEntries((x.pkg_photos||[]).map(p=>[p.pkg,U[p.photo]||null]))
+    pkgPhotos:(x.pkg_photos||[]).map(p=>({pkg:p.pkg,url:U[p.photo]||null})).filter(p=>p.url)
   }));
-  S.moves=(st.moves||[]).map(m=>({id:m.id,date:m.date,type:m.type,sku:m.item,qty:m.qty,
+  N.moves=(st.moves||[]).map(m=>({id:m.id,date:m.date,type:m.type,sku:m.item,qty:m.qty,
     reason:m.reason,person:m.person,note:m.note,vehicle:m.vehicle||"",
     fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,car:m.reason==="遺失或損壞"?1:0}));
-  S.manual=(st.manual||[]).map(x=>({id:x.id,vehicle:x.vehicle,sku:x.item,qty:x.qty,note:x.note}));
+  N.manual=(st.manual||[]).map(x=>({id:x.id,vehicle:x.vehicle,sku:x.item,itemId:x.item_id,
+    qty:x.qty,note:x.note}));
+  S=N;
 }
 async function reload(){
   const st=await rpc("mgr_state",{p_token:token,p_days:400});
+  if(!st||typeof st!=="object") throw new Error("讀取資料失敗，請重試");
   const paths=[];
   (st.sheets||[]).forEach(x=>{
     (x.pkg_photos||[]).forEach(p=>paths.push(p.photo));
@@ -486,18 +494,23 @@ function switchRole(){
 }
 
 /* ===================== 盤點人員頁 ===================== */
-const newDraft=()=>({person:"",vehicle:"",date:today(),items:{},pkgPhoto:{},pkgPhotoByName:{}});
+const newDraft=()=>({person:"",vehicle:"",date:today(),items:{},pkgPhoto:{}});  // pkgPhoto[包別id] = [照片1, 照片2]
 function st(rid){ if(!draft.items[rid])draft.items[rid]={status:"pending",type:"",actual:null,note:"",photo:null,open:false};
   return draft.items[rid]; }
 const pkgRows=id=>RW().filter(r=>r.pkg===id);
 const byItem=()=>S.photoMode==="item";
+function rowDone(s){
+  if(!s || s.status==="pending") return false;
+  if(s.status==="abnormal") return !!s.type && s.actual!==null;   // 異常一定要選類型並填數量
+  return true;
+}
 function pkgStat(id){const rs=pkgRows(id);let d=0,b=0;
   rs.forEach(r=>{const s=draft.items[r.rid];
     if(!s)return;
-    const done = byItem() ? !!s.photo : s.status!=="pending";
+    const done = byItem() ? (!!s.photo && rowDone(s)) : rowDone(s);
     if(done){d++;if(s.status==="abnormal")b++;}});
   if(!rs.length) return{done:0,bad:0,total:0,photo:true,ok:true};   // 空包別直接視為完成
-  const photo=byItem()?true:!!draft.pkgPhoto[id];
+  const photo=byItem()?true:((draft.pkgPhoto[id]||[]).length>0);
   return{done:d,bad:b,total:rs.length,photo,ok:(d===rs.length)&&photo};}
 const doneCount=()=>PKGS().filter(p=>pkgStat(p.id).ok).length;
 const allDone=()=>doneCount()===PKGS().length;
@@ -524,23 +537,27 @@ function viewField(){
     <div class="card">
       <div class="hd"><h2>${pkgName(curPkg)}</h2>
         <span class="lbl num" style="margin-left:auto">${s.done}/${s.total}</span></div>
+      ${pkgRows(curPkg).some(r=>{const x=draft.items[r.rid];return x&&x.status==="abnormal"&&!rowDone(x);})
+        ?`<div class="err" style="padding:9px 12px;margin:0">有項目標記為異常但還沒選類型（短缺／損壞／多出），請點紅色按鈕補選</div>`:""}
       ${!pkgRows(curPkg).length?`<div class="empty">這個包別目前沒有盤點項目<div class="lbl" style="margin-top:6px">
           可到「設定 → 盤點項目」新增，或直接把這個包別刪除</div></div>`
       :byItem()?`<div style="padding:9px 12px;border-bottom:1px solid var(--line2)" class="lbl">
           逐項拍照模式：每一項都要拍一張，拍完再按「正常」或「異常」。</div>`
-      :`<div class="pkgshot">
-        <label class="bigshot ${draft.pkgPhoto[curPkg]?"has":""}">
-          ${draft.pkgPhoto[curPkg]?`<img src="${draft.pkgPhoto[curPkg]}"><span class="redo">重拍</span>`
-            :`<span class="cam">▣</span><span class="ct">拍攝本包照片</span>`}
-          <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootPkg(this)">
-        </label>
-        <div class="pkgtip"><b>本包整體照片（必拍一張）</b>
-          <div class="lbl" style="margin-top:4px">整包沒問題就按「本包全部正常」一次帶過；
-          有問題的那幾項按「異常」登記並補拍照片，其餘按「正常」即可。</div></div>
+      :(()=>{const ph=draft.pkgPhoto[curPkg]||[];
+        const slot=(i,opt)=>`<label class="bigshot ${ph[i]?"has":""} ${opt&&!ph[i]?"opt":""}">
+          ${ph[i]?`<img src="${ph[i]}"><span class="redo">重拍</span>`
+            :`<span class="cam">${opt?"＋":"▣"}</span><span class="ct">${opt?"加拍第二張<br>（選填）":"拍攝本包照片"}</span>`}
+          <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootPkg(this,${i})">
+        </label>`;
+        return `<div class="pkgshot">
+        <div class="shots2">${slot(0,false)}${ph.length>0?slot(1,true):""}</div>
+        <div class="pkgtip"><b>本包整體照片（至少一張，最多兩張）</b>
+          <div class="lbl" style="margin-top:4px">拍完第一張後可再加拍一張，東西多的包別分兩張拍比較清楚。
+          ${ph.length>1?`<br><button class="btn ghost tiny" style="margin-top:6px" onclick="removePkgPhoto(1)">移除第二張</button>`:""}</div></div>
       </div>
       <div style="padding:10px 12px;border-bottom:1px solid var(--line2)">
         <button class="btn amber block" onclick="markPkgOK()">本包全部正常（${pkgRows(curPkg).length} 項）</button>
-      </div>`}
+      </div>`;})()}
       ${pkgRows(curPkg).map(rowHTML).join("")}
     </div>
     ${s.done===s.total&&nextPkg&&nextPkg.id!==curPkg?
@@ -616,7 +633,7 @@ function rowHTML(r){
         <button class="pk ok ${s.status==="ok"?"on":""}" ${lock?"disabled":""}
           onclick="markOK('${r.rid}')">正常</button>
         <button class="pk bad ${s.status==="abnormal"?"on":""}" ${lock?"disabled":""}
-          onclick="markBad('${r.rid}')">${s.status==="abnormal"?(s.type||"異常"):"異常"}</button>
+          onclick="markBad('${r.rid}')">${s.status==="abnormal"?(s.type||"選類型"):"異常"}</button>
       </div>
     </div>${panel}</div>`;
 }
@@ -641,9 +658,11 @@ function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Ima
 function shoot(rid,inp){ if(!inp.files[0])return;
   shrink(inp.files[0],d=>{const x=st(rid);x.photo=d;
     if(byItem()&&x.status==="pending")x.status="ok"; render();});}
-function shootPkg(inp){ if(!inp.files[0]||!pkgRows(curPkg).length)return;
-  shrink(inp.files[0],d=>{ draft.pkgPhoto[curPkg]=d;
-    draft.pkgPhotoByName[pkgName(curPkg)]=d; render();});}
+function shootPkg(inp,idx){ if(!inp.files[0]||!pkgRows(curPkg).length)return;
+  shrink(inp.files[0],d=>{ const a=draft.pkgPhoto[curPkg]||(draft.pkgPhoto[curPkg]=[]);
+    a[idx||0]=d; if(a.length>2)a.length=2; render();});}
+function removePkgPhoto(idx){ const a=draft.pkgPhoto[curPkg]; if(!a)return;
+  a.splice(idx,1); render(); }
 function markPkgOK(){
   pkgRows(curPkg).forEach(r=>{const s=st(r.rid);
     if(s.status!=="abnormal"){s.status="ok";s.type="";s.actual=null;s.photo=null;s.note="";s.open=false;}});
@@ -679,7 +698,7 @@ async function submitCount(){
   if(busy)return;
   for(const p of PKGS()){
     if(!pkgRows(p.id).length) continue;
-    if(!byItem()&&!draft.pkgPhoto[p.id]){curPkg=p.id;render();return toast(`「${p.name}」還沒拍本包照片`);}
+    if(!byItem()&&!((draft.pkgPhoto[p.id]||[]).length)){curPkg=p.id;render();return toast(`「${p.name}」還沒拍本包照片`);}
     const t=pkgStat(p.id);
     if(t.done<t.total){curPkg=p.id;render();
       return toast(`「${p.name}」還有 ${t.total-t.done} 項${byItem()?"未拍照":"未確認"}`);}
@@ -695,17 +714,19 @@ async function submitCount(){
     const base=`${veh}/${slot}`;
     let done=0;
     const total=(byItem()?RW().filter(r=>draft.items[r.rid].photo).length
-                        :PKGS().filter(p=>draft.pkgPhoto[p.id]).length)
+                        :PKGS().reduce((t,p)=>t+((draft.pkgPhoto[p.id]||[]).length),0))
                +RW().filter(r=>draft.items[r.rid].status==="abnormal"&&draft.items[r.rid].photo&&!byItem()).length;
     const tick=()=>{done++; setProgress(`上傳照片 ${done}/${total}`);};
 
     const pkgPhotos=[];
     if(!byItem()){
       for(const p of PKGS()){
-        const img=draft.pkgPhoto[p.id]; if(!img) continue;
-        const path=`${base}/pkg-${p.id}.jpg`;
-        await uploadPhoto(path,img); tick();
-        pkgPhotos.push({package_name:p.name,photo_path:path});
+        const arr=draft.pkgPhoto[p.id]||[];
+        for(let i=0;i<arr.length;i++){
+          const path=`${base}/pkg-${p.id}-${i}.jpg`;
+          await uploadPhoto(path,arr[i]); tick();
+          pkgPhotos.push({package_name:p.name,photo_path:path});
+        }
       }
     }
     const lines=[];
@@ -760,16 +781,16 @@ function rangeDates(){
 function setRng(k,v){rng[k]=v;if(k!=="preset")rng.preset="custom";render();}
 const esc=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-const TH_S='background:#DCE1E6;border:1px solid #6E7680;padding:1px 4px;font-size:8.5pt;font-weight:bold;';
-const TD_S='border:1px solid #98A0AA;padding:1px 4px;font-size:8.5pt;vertical-align:top;word-wrap:break-word;';
-const PP='margin:0;padding:0;font-size:8.5pt;line-height:1.06;mso-line-height-rule:exactly;';
+const TH_S='background:#DCE1E6;border:1px solid #6E7680;padding:4px 5px;font-size:10pt;font-weight:bold;';
+const TD_S='border:1px solid #98A0AA;padding:4px 5px;font-size:10pt;vertical-align:middle;word-wrap:break-word;';
+const PP='margin:0;padding:0;font-size:10pt;line-height:1.25;mso-line-height-rule:exactly;';
 function reportHTML(title,meta,cols,rows,foot,extra){
   const PW=640;   // A4 直式可用寬度（px），確保 Word/Excel 依比例撐滿
   const colg=cols.map(c=>`<col style="width:${c.w}%" width="${Math.round(c.w*PW/100)}">`).join("");
-  const head=cols.map(c=>`<th style="${TH_S}text-align:${c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("");
+  const head=cols.map(c=>`<th style="${TH_S}text-align:${c.c?"center":c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("");
   const body=rows.map(r=>{
     const bg=r.low?"background:#F2DAD5;":"";
-    return `<tr style="height:.40cm;mso-height-rule:exactly">${r.c.map((v,i)=>`<td style="${TD_S}${bg}text-align:${cols[i].n?"right":"left"};`
+    return `<tr style="height:.62cm;mso-height-rule:exactly">${r.c.map((v,i)=>`<td style="${TD_S}${bg}text-align:${cols[i].c?"center":cols[i].n?"right":"left"};`
       +`${cols[i].nw?"white-space:nowrap;":""}"><p style="${PP}">${esc(v)}</p></td>`).join("")}</tr>`;}).join("");
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
  xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -798,17 +819,17 @@ thead{display:table-header-group}
 <table border="1" cellspacing="0" cellpadding="0"
  style="border-collapse:collapse;width:100%;table-layout:fixed;mso-cellspacing:0">
 <colgroup>${colg}</colgroup>
-<thead><tr style="height:.44cm">${head}</tr></thead><tbody>${body}</tbody></table>
+<thead><tr style="height:.66cm">${head}</tr></thead><tbody>${body}</tbody></table>
 ${foot?`<div style="margin-top:6pt;font-size:8pt;color:#444;line-height:1.4">${esc(foot)}</div>`:""}
 ${(extra?[].concat(extra):[]).filter(x=>x&&x.rows.length).map(extra=>`
 <div style="font-size:11pt;font-weight:bold;margin:12pt 0 4pt">${esc(extra.title)}</div>
 <table border="1" cellspacing="0" cellpadding="0"
  style="border-collapse:collapse;width:100%;table-layout:fixed;mso-cellspacing:0">
 <colgroup>${extra.cols.map(c=>`<col style="width:${c.w}%" width="${Math.round(c.w*640/100)}">`).join("")}</colgroup>
-<thead><tr style="height:.44cm">${extra.cols.map(c=>
+<thead><tr style="height:.66cm">${extra.cols.map(c=>
   `<th style="${TH_S}text-align:${c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("")}</tr></thead>
-<tbody>${extra.rows.map(r=>`<tr style="height:.40cm">${r.c.map((v,i)=>
-  `<td style="${TD_S}text-align:${extra.cols[i].n?"right":"left"};"><p style="${PP}">${esc(v)}</p></td>`).join("")}</tr>`).join("")}</tbody></table>
+<tbody>${extra.rows.map(r=>`<tr style="height:.62cm">${r.c.map((v,i)=>
+  `<td style="${TD_S}text-align:${extra.cols[i].c?"center":extra.cols[i].n?"right":"left"};"><p style="${PP}">${esc(v)}</p></td>`).join("")}</tr>`).join("")}</tbody></table>
 ${extra.foot?`<div style="margin-top:6pt;font-size:8pt;color:#444">${esc(extra.foot)}</div>`:""}`).join("")}
 </div></body></html>`;
 }
@@ -838,16 +859,16 @@ const stamp=d=>d.replace(/-/g,"");
 function exportStock(fmt){
   const sorted=ITEMS().slice().sort((a,b)=>{
     const d=locRank(a.loc)-locRank(b.loc);return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
-  const heads=[{t:"位置",w:11,px:60,nw:1},{t:"品項",w:45,px:250},
-               {t:"倉庫",w:14,px:70,n:1},{t:"安全庫存",w:16,px:80,n:1},{t:"差額",w:14,px:70,n:1}];
+  const heads=[{t:"位置",w:14,px:60,nw:1,c:1},{t:"品項",w:50,px:250},
+               {t:"倉庫數量",w:18,px:80,c:1},{t:"安全庫存",w:18,px:80,c:1}];
   const rows=sorted.map(it=>{
-    const h=S.warehouse[it.sku]||0, sf=S.safety[it.sku]||0, gap=h-sf;
-    return {low:h<sf, c:[it.loc,it.sku,h,sf,gap]};});
+    const h=S.warehouse[it.sku]||0, sf=S.safety[it.sku]||0;
+    return {low:h<sf, c:[it.loc,it.sku,h,sf]};});
   const lowN=sorted.filter(it=>(S.warehouse[it.sku]||0)<(S.safety[it.sku]||0)).length;
   const html=reportHTML("鉅誠驗屋 · 倉庫庫存報表",
     [`列印日期：${today()}`,`區域：${REGION}`,`品項總數：${sorted.length}`,`低於安全庫存：${lowN} 項`,
      `製表：${me?me.name:"—"}`],
-    heads,rows,"依儲位順序排列。差額為負（灰底列）代表低於安全庫存，需補貨。");
+    heads,rows,"依儲位順序排列。灰底列代表倉庫數量低於安全庫存，需要補貨。");
   if(fmt==="print") return printReport(html);
   fmt==="doc" ? download(`庫存報表_${stamp(today())}.doc`,"application/msword",html)
               : download(`庫存報表_${stamp(today())}.xls`,"application/vnd.ms-excel",html);
@@ -901,7 +922,7 @@ function monthKeys(){
 function monthlyStats(){
   // 以實際補料／出入庫為準，每筆只算一次，不會因為連續盤到同一筆而重複
   const ms=monthKeys(), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0});
-  const agg={}, byItem={}, byBuy={};
+  const agg={}, byItem={}, byLost={}, byDmg={}, byBuy={};
   ms.forEach(k=>agg[k]=z());
   (S.moves||[]).forEach(m=>{
     const k=(m.date||"").slice(0,7); if(!agg[k])return;
@@ -909,8 +930,10 @@ function monthlyStats(){
     if(m.reason==="遺失或損壞"){
       if(isC){ agg[k].耗材+=q; }
       else if(m.loss==="損壞"){ agg[k].損壞+=q;
+        byDmg[sk]=byDmg[sk]||{}; byDmg[sk][k]=(byDmg[sk][k]||0)+q;
         byItem[sk]=byItem[sk]||{}; byItem[sk][k]=(byItem[sk][k]||0)+q; }
       else { agg[k].遺失+=q;
+        byLost[sk]=byLost[sk]||{}; byLost[sk][k]=(byLost[sk][k]||0)+q;
         byItem[sk]=byItem[sk]||{}; byItem[sk][k]=(byItem[sk][k]||0)+q; }
     }
     else if(m.reason==="車輛多出繳回") agg[k].多出+=q;
@@ -919,7 +942,7 @@ function monthlyStats(){
     else if(m.reason==="個人用品") agg[k].個人+=q;
     else if(m.reason.indexOf("工具製作")===0) agg[k].製作+=q;
   });
-  return {ms,agg,byItem,byBuy};
+  return {ms,agg,byItem,byLost,byDmg,byBuy};
 }
 const METRICS=[
   ["遺失","工具遺失，實際補出去的數量",1],
@@ -941,16 +964,20 @@ function trend(cur,prev,bad){
 const abLines=r=>r.lines.filter(l=>l.type!=="正常");
 // 待補明細：盤點自動產生 ＋ 管理者手動輸入
 function needList(){
-  const out=[];
-  // 每台車只看「最後一次」盤點，避免同一筆短缺被重複累加
-  const latest={};
-  S.records.forEach(r=>{ if(!latest[r.vehicle]||r.ts>latest[r.vehicle].ts) latest[r.vehicle]=r; });
-  Object.values(latest).filter(r=>!r.fixed).forEach(r=>abLines(r).forEach(l=>{
-    if(l.type==="多出")return;
-    const q=l.type==="損壞"?l.actual:(l.std-l.actual); if(q<=0)return;
-    out.push({key:r.id+"|"+l.sku,vehicle:r.vehicle,sku:cur(l.sku),qty:q,
-              src:`${r.date} 盤點 ${l.type}`,auto:true});}));
-  (S.manual||[]).forEach(m=>out.push({key:m.id,vehicle:m.vehicle,sku:m.sku,qty:m.qty,
+  const out=[], seen={};
+  S.records.slice().sort((a,b)=>b.ts-a.ts).filter(r=>!r.fixed).forEach(r=>{
+    if(seen[r.vehicle])return;                 // 每台車只看最新一次盤點
+    seen[r.vehicle]=true;
+    (r.lines||[]).forEach(l=>{
+      if(l.type==="多出")return;
+      const total=l.type==="損壞"?l.actual:(l.std-l.actual);
+      const q=total-(l.done||0);               // 扣掉已經補過的
+      if(q<=0)return;
+      out.push({key:r.id+"|"+l.sku,vehicle:r.vehicle,sku:l.sku,itemId:l.itemId,qty:q,
+                src:`盤點 ${l.type}${l.done?`（已補 ${l.done}）`:""}`,auto:true});
+    });
+  });
+  (S.manual||[]).forEach(m=>out.push({key:m.id,vehicle:m.vehicle,sku:m.sku,itemId:m.itemId,qty:m.qty,
     src:m.note?`手動 · ${m.note}`:"手動新增",auto:false,id:m.id}));
   return out;
 }
@@ -971,23 +998,28 @@ function viewRestock(){
   const carBlocks=VEH().filter(v=>g[v]&&g[v].length).map(v=>{
     const lines=g[v].map(n=>{
       const h=S.warehouse[n.sku]||0;
+      const can=h>0;
       return `<tr class="${h<n.qty?"warn":""}">
         <td class="c-name">${n.sku}<div class="lbl">${n.src}</div></td>
         <td class="n c-num">${n.qty}</td>
-        <td class="n">${h}${h<n.qty?`<div class="lbl" style="color:var(--alert)">倉庫不足</div>`:""}</td>
-        <td class="n">${n.auto?"":`<button class="btn ghost tiny" onclick="delManual('${n.id}')">刪除</button>`}</td></tr>`;}).join("");
+        <td class="n">${h}${h<n.qty?`<div class="lbl" style="color:var(--alert)">${h?"只能補 "+h:"沒庫存"}</div>`:""}</td>
+        <td class="n" style="white-space:nowrap">
+          <button class="btn ${can?"amber":"ghost"} tiny" ${can?"":"disabled"}
+            onclick="fulfillItem('${v}','${n.itemId}','${n.sku}')">${can?"補這項":"沒庫存"}</button>
+          ${n.auto?"":`<button class="btn ghost tiny" onclick="delManual('${n.id}')">刪除</button>`}</td></tr>`;}).join("");
     const cnt=g[v].reduce((t,n)=>t+n.qty,0);
     const short=[];
     const byS={}; g[v].forEach(n=>byS[n.sku]=(byS[n.sku]||0)+n.qty);
     Object.keys(byS).forEach(k=>{ if((S.warehouse[k]||0)<byS[k]) short.push(`${k}（需 ${byS[k]}、倉庫 ${S.warehouse[k]||0}）`); });
     return `<div class="card"><div class="hd"><h2>${v} 車</h2>
         <span class="lbl" style="margin-left:auto">${g[v].length} 項 · 共 ${cnt} 個</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:74px"></colgroup><tr><th>品項 / 來源</th><th class="n">要補</th><th class="n">倉庫</th><th></th></tr>${lines}</table></div>
+      <div class="tw"><table><colgroup><col><col style="width:64px"><col style="width:72px"><col style="width:132px"></colgroup><tr><th>品項 / 來源</th><th class="n">要補</th><th class="n">倉庫</th><th></th></tr>${lines}</table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
-        ${short.length?`<div class="err" style="margin:0 0 10px">倉庫不足，無法揀貨：${short.join("、")}<br>
-          請先用「出入庫 → 採購入庫」補進倉庫，再回來揀貨。</div>`:""}
-        <button class="btn amber block" ${short.length?"disabled":""} onclick="fulfill('${v}')">
-          ${short.length?"倉庫不足，無法揀貨":`${v} 車揀貨完成 → 出庫扣帳`}</button></div></div>`;}).join("");
+        ${short.length?`<div class="err" style="margin:0 0 10px;font-weight:500">
+          倉庫不足：${short.join("、")}<br>
+          <span style="color:var(--muted)">這幾項會留在清單上，其餘照補。進貨後再回來補即可。</span></div>`:""}
+        <button class="btn ghost block" onclick="fulfill('${v}')">${v} 車全部補完 → 一次出庫扣帳</button>
+        <div class="lbl" style="margin-top:8px">也可以按上面每一列的「補這項」單獨補</div></div></div>`;}).join("");
 
   return `<div class="wrap wide">
     <div class="card"><div class="hd"><h2>手動新增待補</h2></div><div class="bd">
@@ -996,7 +1028,7 @@ function viewRestock(){
         `<button class="chip" aria-pressed="${rs.vehicle===v}" onclick="setRs('vehicle','${v}')">${v}</button>`).join("")}</div>
       <label class="f"><span class="lbl">品項</span>
         <select onchange="setRs('sku',this.value)">${ITEMS_BY_LOC().map(i=>
-          `<option value="${i.sku}" ${i.sku===rs.sku?"selected":""}>${i.sku}（倉庫 ${S.warehouse[i.sku]}${i.loc!=="未設定"?" · 位置 "+i.loc:""}）</option>`).join("")}</select></label>
+          `<option value="${i.sku}" ${i.sku===rs.sku?"selected":""}>${i.loc!=="未設定"?i.loc+"　":"—　"}${i.sku}（倉庫 ${S.warehouse[i.sku]}）</option>`).join("")}</select></label>
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
           <input type="number" min="1" class="num" value="${rs.qty}" onchange="setRs('qty',this.value)"></label>
@@ -1018,11 +1050,12 @@ function viewRestock(){
       </table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         ${bySku.some(b=>(S.warehouse[b.sku]||0)<b.qty)
-          ?`<div class="err" style="margin:0 0 10px">有品項倉庫不足（上表紅底），請先採購入庫</div>`:""}
-        <button class="btn block" ${bySku.some(b=>(S.warehouse[b.sku]||0)<b.qty)?"disabled":""}
-          onclick="fulfill()">全部揀貨完成 → 自動產生出庫、扣庫存</button>
+          ?`<div class="err" style="margin:0 0 10px;font-weight:500">部分品項倉庫不足（上表紅底）<br>
+            <span style="color:var(--muted)">不足的會留在清單上，有貨的照補</span></div>`:""}
+        <button class="btn block" onclick="fulfill()">全部揀貨完成 → 自動產生出庫、扣庫存</button>
         <div class="lbl" style="margin-top:8px">會在「出入庫」留下「遺失或損壞」出庫紀錄（標註來自盤點），各車在庫補回標配</div>
-        <div class="lbl" style="margin-top:5px">盤點來源只採計每台車最新一次的結果，連續多次未補料不會重複累加</div></div></div>`:""}
+        <div class="lbl" style="margin-top:5px">盤點來源只採計每台車最新一次的結果，連續多次未補料不會重複累加。
+          倉庫不足的品項會自動留在清單上，標註尚缺多少</div></div></div>`:""}
 
     <div class="card"><div class="hd"><h2>採購建議</h2>
       <span class="lbl" style="margin-left:auto">${low.length} 項待補</span></div>
@@ -1079,9 +1112,9 @@ function viewStock(){
       return;
     }
     rows+=`<tr class="${h<sf?"warn":""}">
+      <td class="c-loc num${it.loc==="未設定"?" un":""}" style="font-weight:700">${it.loc}</td>
       <td class="c-name">${k}
         <div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div></td>
-      <td class="c-loc num${it.loc==="未設定"?" un":""}">${it.loc}</td>
       <td class="n c-num">${h}</td>
       <td class="n c-num" style="color:var(--muted)">${sf}</td>
       <td class="c-act">
@@ -1099,8 +1132,8 @@ function viewStock(){
         <div><div class="lbl">未設定位置</div><div class="fig" style="color:${noLoc?"var(--amber-d)":"var(--ok)"}">${noLoc}</div></div>
       </div>
       <div class="tw"><table>
-        <colgroup><col><col style="width:76px"><col style="width:78px"><col style="width:88px"><col style="width:124px"></colgroup>
-        <tr><th>品項</th><th class="c-loc">位置</th><th class="n">倉庫</th><th class="n">安全庫存</th><th></th></tr>${rows}</table></div>
+        <colgroup><col style="width:74px"><col><col style="width:78px"><col style="width:88px"><col style="width:124px"></colgroup>
+        <tr><th class="c-loc">位置</th><th>品項</th><th class="n">倉庫</th><th class="n">安全庫存</th><th></th></tr>${rows}</table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:9px">匯出目前庫存報表（依儲位排序，含差額與低於安全庫存標示）</div>
         <div class="g3">
@@ -1241,7 +1274,7 @@ function viewMove(){
           `<button class="chip" aria-pressed="${v===x}" onclick="setMv('vehicle','${x}')">${x}</button>`).join("")}</div>`:""}
       <label class="f"><span class="lbl">品項</span>
         <select onchange="setMv('sku',this.value)">${ITEMS_BY_LOC().map(i=>
-          `<option value="${i.sku}" ${i.sku===mv.sku?"selected":""}>${i.sku}（倉庫 ${S.warehouse[i.sku]}${i.loc!=="未設定"?" · 位置 "+i.loc:""}）</option>`).join("")}</select></label>
+          `<option value="${i.sku}" ${i.sku===mv.sku?"selected":""}>${i.loc!=="未設定"?i.loc+"　":"—　"}${i.sku}（倉庫 ${S.warehouse[i.sku]}）</option>`).join("")}</select></label>
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
           <input type="number" min="1" value="${mv.qty}" class="num" onchange="setMv('qty',this.value)"></label>
@@ -1305,13 +1338,20 @@ async function submitMove(){
     toast(`${nm} ${mv.reason} ${q}，倉庫剩 ${S.warehouse[nm]}`);
   });
 }
+async function fulfillItem(veh,itemId,name){
+  await guard(async()=>{
+    const n=await rpc("mgr_fulfill_item",{p_token:token,p_vehicle:veh,p_item:itemId});
+    await reload(); render();
+    toast(`${veh} 車 ${name} 已補 ${n} 個`);
+  });
+}
 async function fulfill(vehicle){
   const list=needList().filter(n=>!vehicle||n.vehicle===vehicle);
   if(!list.length)return;
   await guard(async()=>{
     await rpc("mgr_fulfill",{p_token:token,p_vehicle:vehicle||null});
     await reload(); render();
-  },vehicle?`${vehicle} 車補料完成`:"全部補料完成，庫存已扣");
+  },vehicle?`${vehicle} 車已補料`:"補料完成，庫存已扣");
 }
 
 function viewResult(){
@@ -1326,7 +1366,7 @@ function viewResult(){
 
   const recs=S.records.slice(0,20).map(r=>{
     const ab=abLines(r), open=openRec===r.id;
-    const nShots=Object.keys(r.pkgPhotos||{}).length+((r.photoLines||[]).filter(l=>l.photo).length||r.lines.filter(l=>l.photo).length);
+    const nShots=(r.pkgPhotos||[]).length+((r.photoLines||[]).filter(l=>l.photo).length||r.lines.filter(l=>l.photo).length);
     const head=`<button class="rechd" onclick="toggleRec('${r.id}')">
       <div style="flex:1;min-width:0;text-align:left">
         <div style="font-size:14.5px;font-weight:900">${r.vehicle} 車　${r.date}${r.time?" "+r.time:""}</div>
@@ -1346,7 +1386,7 @@ function viewResult(){
       :`<div style="padding:12px 14px;color:var(--ok);font-size:13.5px">全部正常</div>`;
 
     const shots=[];
-    Object.keys(r.pkgPhotos||{}).forEach(nm=>shots.push({src:r.pkgPhotos[nm],t:nm,s:"本包照片",bad:false}));
+    (r.pkgPhotos||[]).forEach(p=>shots.push({src:p.url,t:p.pkg,s:"本包照片",bad:false}));
     (r.photoLines||r.lines.filter(l=>l.photo)).filter(l=>l.photo).forEach(l=>shots.push({src:l.photo,t:l.name,
       s:l.type==="正常"?`${l.pkg}　${l.std} 個`:`${l.type} ${l.type==="損壞"?l.actual:Math.abs(l.diff)}`,
       bad:l.type!=="正常"}));
@@ -1358,7 +1398,7 @@ function viewResult(){
       <div class="lbl" style="padding:10px 14px 0">異常明細</div>
       ${abTable}
       <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">
-        照片　${Object.keys(r.pkgPhotos||{}).length?`${Object.keys(r.pkgPhotos).length} 張本包照 ＋ `:""}${(r.photoLines||[]).filter(l=>l.photo).length} 張項目照　·　點圖可放大</div>
+        照片　${(r.pkgPhotos||[]).length?`${(r.pkgPhotos||[]).length} 張本包照 ＋ `:""}${(r.photoLines||[]).filter(l=>l.photo).length} 張項目照　·　點圖可放大</div>
       ${grid}${delBar}</div>`;}).join("");
 
   return `<div class="wrap wide">
@@ -1391,7 +1431,7 @@ function lbStep(d){
 }
 function shotList(r){
   const a=[];
-  Object.keys(r.pkgPhotos||{}).forEach(nm=>a.push({src:r.pkgPhotos[nm],t:nm,sub:"本包整體照片",bad:false}));
+  (r.pkgPhotos||[]).forEach(p=>a.push({src:p.url,t:p.pkg,sub:"本包整體照片",bad:false}));
   (r.photoLines||r.lines.filter(l=>l.photo)).filter(l=>l.photo).forEach(l=>a.push({src:l.photo,t:l.name,
     sub:`${l.pkg}　${l.type}　標配 ${l.std} → 實際 ${l.actual}${l.note?"　"+l.note:""}`,
     bad:l.type!=="正常"}));
@@ -1486,7 +1526,7 @@ function viewItems(){
       <label class="f"><span class="lbl">選擇庫存品項</span>
         <select onchange="setNr('item',this.value)">
           <option value="">請選擇…</option>
-          ${ITEMS_BY_LOC().map(i=>`<option value="${i.sku}" ${i.sku===nRow.item?"selected":""}>${i.sku}${i.loc!=="未設定"?"（位置 "+i.loc+"）":""}</option>`).join("")}
+          ${ITEMS_BY_LOC().map(i=>`<option value="${i.sku}" ${i.sku===nRow.item?"selected":""}>${i.loc!=="未設定"?i.loc+"　":"—　"}${i.sku}</option>`).join("")}
         </select></label>
       <label class="f"><span class="lbl">標配數量（每車）</span>
         <input type="number" min="0" class="num" value="${nRow.std}" onchange="setNr('std',this.value)"></label>
@@ -1562,7 +1602,7 @@ async function delRow(rid){
 
 /* ---- 月報頁 ---- */
 function viewMonthly(){
-  const {ms,agg,byItem,byBuy}=monthlyStats();
+  const {ms,agg,byItem,byLost,byDmg,byBuy}=monthlyStats();
   if(!ms.length) return `<div class="wrap wide"><div class="card">
     <div class="empty">還沒有資料。送出幾張盤點單、登錄一些出入庫之後，這裡就會出現月度趨勢。</div></div></div>`;
   const last=ms[ms.length-1], prev=ms.length>1?ms[ms.length-2]:null;
@@ -1583,12 +1623,21 @@ function viewMonthly(){
         return `<td class="n">${v}${i>0&&t.t!=="—"?`<div class="lbl" style="color:${t.c}">${t.t}</div>`:""}</td>`;}).join("")}
       <td class="n c-num">${tot}</td></tr>`;}).join("");
 
-  const items=Object.keys(byItem).map(k=>({k,tot:ms.reduce((t,m)=>t+(byItem[k][m]||0),0)}))
+  const mkList=src=>Object.keys(src).map(k=>({k,tot:ms.reduce((t,m)=>t+(src[k][m]||0),0)}))
     .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
-  const itemRows=items.slice(0,20).map(x=>`<tr>
-    <td class="c-name">${x.k}</td>
-    ${ms.map(m=>`<td class="n">${byItem[x.k][m]||"—"}</td>`).join("")}
-    <td class="n c-num">${x.tot}</td></tr>`).join("");
+  const lostList=mkList(byLost), dmgList=mkList(byDmg);
+  const detailCard=(title,src,list,note)=>`
+    <div class="card"><div class="hd"><h2>${title}</h2>
+      <span class="lbl" style="margin-left:auto">${list.length} 項 · 合計 ${list.reduce((t,x)=>t+x.tot,0)} 個</span></div>
+      ${list.length?`<div class="tw"><table>
+        <colgroup><col>${ms.map(()=>`<col style="width:66px">`).join("")}<col style="width:72px"></colgroup>
+        <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>
+        ${list.map(x=>`<tr>
+          <td class="c-name">${x.k}</td>
+          ${ms.map(m=>`<td class="n">${src[x.k][m]||"—"}</td>`).join("")}
+          <td class="n c-num">${x.tot}</td></tr>`).join("")}
+        </table></div>${note?`<div class="foot"><span class="lbl">${note}</span></div>`:""}`
+      :`<div class="empty">這段期間沒有紀錄。</div>`}</div>`;
 
   return `<div class="wrap wide">
     <div class="card"><div class="hd"><h2>月度工具狀態</h2>
@@ -1608,14 +1657,8 @@ function viewMonthly(){
         數字以<b>實際補料</b>為準（補了幾個就是損失幾個），同一筆損失不會因為連續盤到而重複計算；
         盤到但尚未補料的，會算在實際補料的那個月</span></div></div>
 
-    <div class="card"><div class="hd"><h2>遺失與損壞品項</h2>
-      <span class="lbl" style="margin-left:auto">${items.length} 項</span></div>
-      ${items.length?`<div class="tw"><table>
-        <colgroup><col>${ms.map(()=>`<col style="width:72px">`).join("")}<col style="width:72px"></colgroup>
-        <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>
-        ${itemRows}</table></div>
-        ${items.length>20?`<div class="foot"><span class="lbl">僅顯示前 20 項，匯出報表含全部</span></div>`:""}`
-      :`<div class="empty">這段期間沒有工具遺失或損壞。</div>`}</div>
+    ${detailCard("損壞品項明細",byDmg,dmgList,"依實際汰換數量統計。數字大的代表這項工具特別容易壞，可考慮換品牌或改變使用方式。")}
+    ${detailCard("遺失品項明細",byLost,lostList,"依實際補出數量統計。")}
 
     <div class="card"><div class="hd"><h2>採購品項明細</h2>
       <span class="lbl" style="margin-left:auto">${Object.keys(byBuy).length} 項</span></div>
@@ -1634,31 +1677,28 @@ function viewMonthly(){
         <button class="btn ghost" onclick="exportMonthly('xls')">Excel</button>
         <button class="btn ghost" onclick="exportMonthly('doc')">Word</button>
         <button class="btn amber" onclick="exportMonthly('print')">直接列印</button></div>
-      <div class="lbl" style="margin-top:9px">含月度比較表、遺失損壞品項明細、採購品項明細，可直接列印給主管</div>
+      <div class="lbl" style="margin-top:9px">含月度比較表、損壞品項明細、遺失品項明細、採購品項明細，可直接列印給主管</div>
     </div></div>
   </div>`;
 }
 function setMRange(v){mRange=(v==="all")?"all":Number(v);render();}
 function exportMonthly(fmt){
-  const {ms,agg,byItem,byBuy}=monthlyStats();
+  const {ms,agg,byItem,byLost,byDmg,byBuy}=monthlyStats();
   if(!ms.length)return toast("還沒有可統計的資料");
   const w1=Math.max(14,Math.floor(58/Math.max(1,ms.length)));
   const cols=[{t:"項目",w:100-w1*ms.length-14,px:110}]
-    .concat(ms.map(m=>({t:m.slice(5)+"月",w:w1,px:52,n:1})))
-    .concat([{t:"合計",w:14,px:52,n:1}]);
+    .concat(ms.map(m=>({t:m.slice(5)+"月",w:w1,px:52,c:1})))
+    .concat([{t:"合計",w:14,px:52,c:1}]);
   const rows=METRICS.map(([k,desc])=>({c:[k].concat(ms.map(m=>agg[m][k]))
     .concat([ms.reduce((t,m)=>t+agg[m][k],0)])}));
-  const items=Object.keys(byItem).map(k=>({k,tot:ms.reduce((t,m)=>t+(byItem[k][m]||0),0)}))
+  const mk=src=>Object.keys(src).map(k=>({k,tot:ms.reduce((t,m)=>t+(src[k][m]||0),0)}))
     .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
-  const buys=Object.keys(byBuy).map(k=>({k,tot:ms.reduce((t,m)=>t+(byBuy[k][m]||0),0)}))
-    .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
+  const tbl=(title,src,foot)=>({title,cols,
+    rows:mk(src).map(x=>({c:[x.k].concat(ms.map(m=>src[x.k][m]||"")).concat([x.tot])})),foot});
   const extra=[
-    {title:"遺失與損壞品項明細",cols,
-     rows:items.map(x=>({c:[x.k].concat(ms.map(m=>byItem[x.k][m]||"")).concat([x.tot])})),
-     foot:"依實際補料統計，耗材正常消耗不計入。"},
-    {title:"採購品項明細",cols,
-     rows:buys.map(x=>({c:[x.k].concat(ms.map(m=>byBuy[x.k][m]||"")).concat([x.tot])})),
-     foot:"來源為出入庫登錄的「採購入庫」。"}
+    tbl("損壞品項明細",byDmg,"依實際汰換數量統計。數字大的代表該項工具特別容易損壞。"),
+    tbl("遺失品項明細",byLost,"依實際補出數量統計，耗材正常消耗不計入。"),
+    tbl("採購品項明細",byBuy,"來源為出入庫登錄的「採購入庫」。")
   ];
   const A=agg[ms[ms.length-1]];
   const html=reportHTML("鉅誠驗屋 · 月度工具狀態報表",
