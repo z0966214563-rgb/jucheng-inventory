@@ -129,6 +129,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .step{display:flex;align-items:center;gap:8px}
 .step button{width:46px;height:46px;font-size:22px;border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer;font-family:var(--mono)}
 .step input{width:76px;text-align:center;font-family:var(--mono);font-size:19px;font-weight:600}
+.step.big button{width:54px;height:58px;font-size:26px}
+.step.big input{width:96px;height:58px;font-size:30px;font-weight:600;border-width:2px;border-color:var(--ink)}
+.deltahint{font-family:var(--tc);font-size:12.5px;color:var(--muted);line-height:1.3}
 
 table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
@@ -254,6 +257,8 @@ async function rpc(fn,args){
   }
   return txt?JSON.parse(txt):null;
 }
+// 雲端儲存的檔名只接受英數，中文車名要先轉碼
+const pathSafe=t=>String(t).replace(/[^A-Za-z0-9_-]/g,c=>"u"+c.charCodeAt(0).toString(16));
 async function uploadPhoto(path,dataUrl){
   const blob=await (await fetch(dataUrl)).blob();
   const res=await fetch(`${SB_URL}/storage/v1/object/count-photos/${encodeURI(path)}`,
@@ -322,7 +327,8 @@ async function applyState(st,urls){
   }));
   N.moves=(st.moves||[]).map(m=>({id:m.id,date:m.date,type:m.type,sku:m.item,qty:m.qty,
     reason:m.reason,person:m.person,note:m.note,vehicle:m.vehicle||"",
-    fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,car:m.reason==="遺失或損壞"?1:0}));
+    fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,
+    car:["遺失","損壞","遺失或損壞"].includes(m.reason)?1:0}));
   N.manual=(st.manual||[]).map(x=>({id:x.id,vehicle:x.vehicle,sku:x.item,itemId:x.item_id,
     qty:x.qty,note:x.note}));
   S=N;
@@ -598,11 +604,16 @@ function rowHTML(r){
   if(s.status==="abnormal"&&s.open){
     panel=`<div class="panel">
       <div class="seg">${["短缺","損壞","多出"].map(t=>`<button aria-pressed="${s.type===t}" onclick="setType('${r.rid}','${t}')">${t}</button>`).join("")}</div>
-      ${s.type?`<div class="lbl" style="margin-bottom:6px">${s.type==="損壞"?"損壞數量":"實際數量"}（標配 ${r.std}）</div>
-      <div class="step"><button onclick="bump('${r.rid}',-1)">−</button>
-        <input class="num" type="number" value="${s.actual===null?"":s.actual}" oninput="setActual('${r.rid}',this.value)">
-        <button onclick="bump('${r.rid}',1)">＋</button>
-        <span class="num" style="color:var(--alert);font-weight:600">${diffText(r,s)}</span></div>
+      ${s.type?`<div class="lbl" style="margin-bottom:7px">${deltaLabel(s.type)}？（標配 ${r.std} 個）</div>
+      <div class="step big">
+        <button onclick="bumpDelta('${r.rid}',-1)">−</button>
+        <input class="num" type="number" inputmode="numeric" min="0"
+          value="${deltaOf(r,s)===null?"":deltaOf(r,s)}" oninput="setDelta('${r.rid}',this.value);"
+          onchange="render()">
+        <button onclick="bumpDelta('${r.rid}',1)">＋</button>
+        <span class="deltahint">${deltaOf(r,s)===null?"":
+          s.type==="損壞"?`壞 ${deltaOf(r,s)} 個`:
+          s.type==="多出"?`車上有 ${s.actual} 個`:`車上剩 ${s.actual} 個`}</span></div>
       <div style="margin-top:10px"><input type="text" placeholder="備註（選填）" value="${s.note}" oninput="setNote('${r.rid}',this.value)"></div>
       ${byItem()?"":`<div class="shot">
         ${s.photo?`<img src="${s.photo}">`:""}
@@ -621,9 +632,9 @@ function rowHTML(r){
       <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)">
     </label>` : "";
   const lock = byItem() && !s.photo;
-  const meta = s.status==="abnormal" && s.actual!==null
-    ? `標配 ${r.std}　→　${s.type==="損壞"?`損壞 ${s.actual}`:`實有 ${s.actual}`}`
-    : `標配 ${r.std}`;
+  const dv = s.status==="abnormal" ? deltaOf(r,s) : null;
+  const meta = dv ? `標配 ${r.std}　·　${s.type==="短缺"?"少":s.type==="多出"?"多":"壞"} ${dv} 個`
+                  : `標配 ${r.std}`;
   return `<div>
     <div class="row">
       ${shotCell}
@@ -637,9 +648,25 @@ function rowHTML(r){
       </div>
     </div>${panel}</div>`;
 }
-function diffText(r,s){ if(s.actual===null||s.actual==="")return"";
-  if(s.type==="損壞")return`損壞 ${s.actual}`;
-  const d=Number(s.actual)-r.std;return d===0?"與標配相同":(d>0?`多 ${d}`:`缺 ${-d}`);}
+// 畫面上輸入的是「差幾個」，內部仍換算成實際數量
+function deltaOf(r,s){
+  if(s.actual===null||s.actual==="")return null;
+  if(s.type==="損壞")return Number(s.actual);
+  if(s.type==="多出")return Number(s.actual)-r.std;
+  return r.std-Number(s.actual);
+}
+function setDelta(rid,v){
+  const r=RW().find(x=>x.rid===rid), s=st(rid);
+  let d=Math.max(0,parseInt(v)||0);
+  if(s.type==="短缺"){ d=Math.min(d,r.std); s.actual=r.std-d; }
+  else if(s.type==="多出"){ s.actual=r.std+d; }
+  else { s.actual=d; }
+}
+function bumpDelta(rid,step){
+  const s=st(rid), r=RW().find(x=>x.rid===rid);
+  setDelta(rid,(deltaOf(r,s)||0)+step); render();
+}
+const deltaLabel=t=>t==="短缺"?"少了幾個":t==="多出"?"多了幾個":"壞了幾個";
 
 function pickV(v){draft.vehicle=draft.vehicle===v?"":v;render();}
 function firstPkg(){
@@ -681,16 +708,15 @@ function markBad(rid){
   else { s.status="abnormal"; s.open=true; }
   render();
 }
-function setType(rid,t){const s=st(rid),r=RW().find(x=>x.rid===rid);s.type=t;
-  if(s.actual===null)s.actual=t==="損壞"?1:(t==="多出"?r.std+1:Math.max(0,r.std-1));render();}
+function setType(rid,t){const s=st(rid);const prev=s.type;s.type=t;
+  if(s.actual===null||prev!==t) setDelta(rid,1);   // 預設差 1 個
+  render();}
 function setActual(rid,v){st(rid).actual=v===""?null:Math.max(0,parseInt(v)||0);}
-function bump(rid,d){const s=st(rid);s.actual=Math.max(0,(s.actual===null?0:Number(s.actual))+d);render();}
 function setNote(rid,v){st(rid).note=v;}
 function closePanel(rid){const s=st(rid),r=RW().find(x=>x.rid===rid);
   if(!s.type)return toast("請選擇異常類型");
   if(s.actual===null)return toast("請填數量");
-  if(s.type==="短缺"&&Number(s.actual)>=r.std)return toast("短缺的實際數量要少於標配");
-  if(s.type==="多出"&&Number(s.actual)<=r.std)return toast("多出的實際數量要大於標配");
+  if(!deltaOf(r,s))return toast(`請填「${deltaLabel(s.type)}」的數量`);
   if(!s.photo)return toast("異常項目需拍一張照片");
   s.open=false;render();}
 function resetDraft(){if(confirm("清空目前這張盤點單？")){draft=newDraft();curPkg=firstPkg();render();}}
@@ -711,7 +737,7 @@ async function submitCount(){
   try{
     const veh=draft.vehicle;
     const slot=await rpc("field_next_slot",{p_vehicle:veh});
-    const base=`${veh}/${slot}`;
+    const base=`${pathSafe(veh)}/${slot}`;
     let done=0;
     const total=(byItem()?RW().filter(r=>draft.items[r.rid].photo).length
                         :PKGS().reduce((t,p)=>t+((draft.pkgPhoto[p.id]||[]).length),0))
@@ -761,6 +787,25 @@ function setProgress(m){ progressMsg=m;
 
 /* ===================== 報表匯出 ===================== */
 let rng={preset:"month",from:"",to:""};
+let mq="", mPage=0, mHide=[];          // 搜尋字、頁碼、被排除的原因
+const PAGE=50;
+function setMq(v){mq=v;mPage=0;render();}
+function toggleReason(r){ mHide = mHide.includes(r)?mHide.filter(x=>x!==r):mHide.concat([r]); mPage=0; render(); }
+function setMPage(d){mPage=Math.max(0,mPage+d);window.scrollTo(0,0);render();}
+function reasonsOf(type){
+  const base=REASONS[type].map(x=>x.r);
+  const used=[...new Set((S.moves||[]).filter(m=>m.type===type).map(m=>m.reason))];
+  return [...new Set(base.concat(used))];
+}
+function movesFiltered(type){
+  const q=mq.trim().toLowerCase();
+  return movesInRange(type).filter(m=>{
+    if(mHide.includes(m.reason))return false;
+    if(!q)return true;
+    return [m.sku,m.reason,m.vehicle,m.person,m.note,m.date]
+      .some(x=>String(x||"").toLowerCase().includes(q));
+  });
+}
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 function todayD(){const [y,m,d]=today().split("-").map(Number);return new Date(y,m-1,d);}
 function rangeDates(){
@@ -879,7 +924,7 @@ function movesInRange(type){
     .slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts);
 }
 function exportMoves(fmt){
-  const type=mv.type, r=rangeDates(), list=movesInRange(type);
+  const type=mv.type, r=rangeDates(), list=movesFiltered(type);
   if(!list.length)return toast(`${r.label}沒有${type==="in"?"入庫":"出庫"}紀錄`);
   const heads=[{t:"日期",w:13,px:72,nw:1},{t:"原因",w:15,px:82},{t:"品項",w:21,px:118},
                {t:"位置",w:6,px:34,nw:1},{t:"數量",w:7,px:40,n:1},{t:"車別",w:6,px:34,nw:1},
@@ -890,6 +935,7 @@ function exportMoves(fmt){
   const byReason={}; list.forEach(m=>byReason[m.reason]=(byReason[m.reason]||0)+m.qty);
   const html=reportHTML(`鉅誠驗屋 · ${type==="in"?"入庫":"出庫"}報表`,
     [`期間：${r.from} ~ ${r.to}（${r.label}）`,`筆數：${list.length}`,`合計數量：${total}`,
+     ...(mq?[`搜尋：${mq}`]:[]), ...(mHide.length?[`已排除：${mHide.join("、")}`]:[]),
      `列印日期：${today()}`,`製表：${me?me.name:"—"}`],
     heads,rows,
     "原因小計　"+Object.entries(byReason).map(([k,v])=>`${k} ${v}`).join("　|　"));
@@ -927,9 +973,10 @@ function monthlyStats(){
   (S.moves||[]).forEach(m=>{
     const k=(m.date||"").slice(0,7); if(!agg[k])return;
     const sk=m.sku, isC=consumOf(sk), q=m.qty||0;
-    if(m.reason==="遺失或損壞"){
+    if(m.reason==="遺失"||m.reason==="損壞"||m.reason==="遺失或損壞"){
+      const kind=(m.reason==="遺失或損壞")?(m.loss||"遺失"):m.reason;
       if(isC){ agg[k].耗材+=q; }
-      else if(m.loss==="損壞"){ agg[k].損壞+=q;
+      else if(kind==="損壞"){ agg[k].損壞+=q;
         byDmg[sk]=byDmg[sk]||{}; byDmg[sk][k]=(byDmg[sk][k]||0)+q;
         byItem[sk]=byItem[sk]||{}; byItem[sk][k]=(byItem[sk][k]||0)+q; }
       else { agg[k].遺失+=q;
@@ -1229,7 +1276,8 @@ const REASONS={
        {r:"工具製作完成入庫",wh:1,car:0},
        {r:"車輛多出繳回",wh:1,car:0,needV:true,noCarQty:true},
        {r:"盤盈調整",wh:1,car:0} ],
-  out:[{r:"遺失或損壞",wh:-1,car:1,needV:true},
+  out:[{r:"遺失",wh:-1,car:1,needV:true},
+       {r:"損壞",wh:-1,car:1,needV:true},
        {r:"個人用品",wh:-1,car:0},
        {r:"工具製作領料",wh:-1,car:0},
        {r:"盤虧調整",wh:-1,car:0} ]
@@ -1243,8 +1291,10 @@ function viewMove(){
   const cCur=(S.onCar[v]||{})[mv.sku]||0, cAfter=cCur+d.car*q;
   const bad = after<0 || (d.car && cAfter<0);
   const r=rangeDates();
-  const mine=movesInRange(mv.type);
-  const list=mine.slice(0,50).map(m=>`<tr>
+  const mine=movesFiltered(mv.type);
+  const pages=Math.max(1,Math.ceil(mine.length/PAGE));
+  if(mPage>=pages)mPage=pages-1;
+  const list=mine.slice(mPage*PAGE,(mPage+1)*PAGE).map(m=>`<tr>
     <td>${m.date}<div class="lbl">${m.person||"—"}</div></td>
     <td><span class="pill ${m.type}">${m.reason}</span> ${m.sku}
       ${m.vehicle?`<span class="tag" style="margin-left:4px">${m.vehicle} 車</span>`:""}
@@ -1263,11 +1313,6 @@ function viewMove(){
       <label class="f"><span class="lbl">原因</span>
         <select onchange="setMv('reason',this.value)">${REASONS[mv.type].map(x=>
           `<option ${x.r===mv.reason?"selected":""}>${x.r}</option>`).join("")}</select></label>
-      ${mv.reason==="遺失或損壞"?`<div class="lbl" style="margin-bottom:6px">屬於哪一種</div>
-        <div class="g2" style="margin-bottom:13px">
-          <button class="btn ${(mv.loss||"遺失")==="遺失"?"amber":"ghost"}" onclick="setMv('loss','遺失')">遺失</button>
-          <button class="btn ${mv.loss==="損壞"?"amber":"ghost"}" onclick="setMv('loss','損壞')">損壞</button>
-        </div>`:""}
       ${d.needV?`<div class="lbl" style="margin-bottom:6px">
           ${d.car>0?"哪一台車（補到這台車上）":"哪一台車繳回"}</div>
         <div class="chips" style="margin-bottom:13px">${VEH().map(x=>
@@ -1282,7 +1327,7 @@ function viewMove(){
           <input type="text" value="${mv.person||(me?me.name:"")}" placeholder="誰處理的" onchange="setMv('person',this.value)"></label>
       </div>
       <label class="f"><span class="lbl">備註</span>
-        <input type="text" value="${mv.note}" placeholder="${mv.reason==="個人用品"?"領用人與用途，例如：新人小陳配發手電筒":"選填"}"
+        <input type="text" value="${mv.note}" placeholder="${mv.reason==="個人用品"?"領用人與用途，例如：新人小陳配發手電筒":mv.reason==="遺失"?"在哪裡不見的、誰的車":"選填"}"
           onchange="setMv('note',this.value)"></label>
       <div class="prev">
         <div class="lbl">登錄後</div>
@@ -1296,7 +1341,18 @@ function viewMove(){
       <button class="btn block" ${bad?"disabled":""} onclick="submitMove()">確認登錄</button>
     </div></div>
     <div class="card"><div class="hd"><h2>${mv.type==="in"?"入庫紀錄":"出庫紀錄"}</h2>
-      <span class="lbl" style="margin-left:auto">${mine.length} 筆${mine.length>50?"（顯示最近 50 筆）":""}</span></div>
+      <span class="lbl" style="margin-left:auto">${mine.length} 筆${pages>1?`　第 ${mPage+1}/${pages} 頁`:""}</span></div>
+      <div class="bd" style="border-bottom:1px solid var(--line2)">
+        <label class="f" style="margin-bottom:11px"><span class="lbl">搜尋（品項、原因、車別、經手人、備註）</span>
+          <input type="text" value="${mq}" placeholder="例：水平儀、A、冠揚"
+            oninput="clearTimeout(window._mqt);window._mqt=setTimeout(()=>setMq(this.value),350)"></label>
+        <div class="lbl" style="margin-bottom:7px">顯示哪些原因（點一下可隱藏）</div>
+        <div class="chips">${reasonsOf(mv.type).map(r=>
+          `<button class="chip" style="min-width:auto;padding:0 12px;height:38px;font-family:var(--tc);font-size:13px;font-weight:700"
+            aria-pressed="${!mHide.includes(r)}" onclick="toggleReason('${r}')">${r}</button>`).join("")}</div>
+        ${mHide.length?`<div class="lbl" style="margin-top:8px">已隱藏：${mHide.join("、")}　
+          <button class="btn ghost tiny" onclick="mHide=[];mPage=0;render()">全部顯示</button></div>`:""}
+      </div>
       <div class="bd" style="border-bottom:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:7px">統計期間</div>
         <div class="chips" style="margin-bottom:11px">${[["week","本週"],["month","本月"],["last","上個月"],["all","全部"]].map(([k,t])=>
@@ -1314,13 +1370,18 @@ function viewMove(){
           <button class="btn ghost" onclick="exportMoves('doc')">Word</button>
           <button class="btn amber" onclick="exportMoves('print')">直接列印</button></div>
       </div>
-      ${mine.length?`<div class="tw"><table><colgroup><col style="width:104px"><col><col style="width:70px"><col style="width:70px"><col style="width:62px"></colgroup><tr><th>日期 / 經手</th><th>原因 / 品項</th><th class="n">倉庫</th><th class="n">車上</th><th></th></tr>${list}</table></div>`
-      :`<div class="empty">還沒有${mv.type==="in"?"入庫":"出庫"}紀錄。</div>`}</div>
+      ${mine.length?`<div class="tw"><table><colgroup><col style="width:104px"><col><col style="width:70px"><col style="width:70px"><col style="width:62px"></colgroup><tr><th>日期 / 經手</th><th>原因 / 品項</th><th class="n">倉庫</th><th class="n">車上</th><th></th></tr>${list}</table></div>
+        ${pages>1?`<div class="bd" style="border-top:1px solid var(--line2);display:flex;align-items:center;gap:10px">
+          <button class="btn ghost sm" ${mPage===0?"disabled":""} onclick="setMPage(-1)">← 上一頁</button>
+          <span class="lbl" style="flex:1;text-align:center">第 ${mPage+1} / ${pages} 頁</span>
+          <button class="btn ghost sm" ${mPage>=pages-1?"disabled":""} onclick="setMPage(1)">下一頁 →</button>
+        </div>`:""}`
+      :`<div class="empty">${mq||mHide.length?"沒有符合條件的紀錄":`還沒有${mv.type==="in"?"入庫":"出庫"}紀錄`}。</div>`}</div>
   </div>`;
 }
 function setMv(k,v){
   mv[k]=k==="qty"?Math.max(1,parseInt(v)||1):v;
-  if(k==="type")mv.reason=REASONS[v][0].r;
+  if(k==="type"){mv.reason=REASONS[v][0].r; mPage=0; mHide=[];}
   if(!mv.vehicle)mv.vehicle=VEH()[0]||"";
   if(!mv.sku)mv.sku=ALLSKU()[0]||"";
   render();
@@ -1332,7 +1393,7 @@ async function submitMove(){
   await guard(async()=>{
     await rpc("mgr_move",{p_token:token,p_item:it.id,p_type:mv.type,p_reason:mv.reason,
       p_qty:q,p_vehicle:d.needV?v:null,p_note:mv.note.trim(),
-      p_loss:mv.reason==="遺失或損壞"?(mv.loss||"遺失"):null});
+      p_loss:null});
     const nm=mv.sku; mv.qty=1; mv.note="";
     await reload(); render();
     toast(`${nm} ${mv.reason} ${q}，倉庫剩 ${S.warehouse[nm]}`);
