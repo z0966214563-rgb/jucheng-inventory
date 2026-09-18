@@ -544,7 +544,7 @@ function viewField(){
       <div class="hd"><h2>${pkgName(curPkg)}</h2>
         <span class="lbl num" style="margin-left:auto">${s.done}/${s.total}</span></div>
       ${pkgRows(curPkg).some(r=>{const x=draft.items[r.rid];return x&&x.status==="abnormal"&&!rowDone(x);})
-        ?`<div class="err" style="padding:9px 12px;margin:0">有項目標記為異常但還沒選類型（短缺／損壞／多出），請點紅色按鈕補選</div>`:""}
+        ?`<div class="err" style="padding:9px 12px;margin:0">有項目標記為異常但還沒選類型（遺失／損壞／多出），請點紅色按鈕補選</div>`:""}
       ${!pkgRows(curPkg).length?`<div class="empty">這個包別目前沒有盤點項目<div class="lbl" style="margin-top:6px">
           可到「設定 → 盤點項目」新增，或直接把這個包別刪除</div></div>`
       :byItem()?`<div style="padding:9px 12px;border-bottom:1px solid var(--line2)" class="lbl">
@@ -603,7 +603,7 @@ function rowHTML(r){
   let panel="";
   if(s.status==="abnormal"&&s.open){
     panel=`<div class="panel">
-      <div class="seg">${["短缺","損壞","多出"].map(t=>`<button aria-pressed="${s.type===t}" onclick="setType('${r.rid}','${t}')">${t}</button>`).join("")}</div>
+      <div class="seg">${["遺失","損壞","多出"].map(t=>`<button aria-pressed="${s.type===t}" onclick="setType('${r.rid}','${t}')">${t}</button>`).join("")}</div>
       ${s.type?`<div class="lbl" style="margin-bottom:7px">${deltaLabel(s.type)}？（標配 ${r.std} 個）</div>
       <div class="step big">
         <button onclick="bumpDelta('${r.rid}',-1)">−</button>
@@ -633,7 +633,7 @@ function rowHTML(r){
     </label>` : "";
   const lock = byItem() && !s.photo;
   const dv = s.status==="abnormal" ? deltaOf(r,s) : null;
-  const meta = dv ? `標配 ${r.std}　·　${s.type==="短缺"?"少":s.type==="多出"?"多":"壞"} ${dv} 個`
+  const meta = dv ? `標配 ${r.std}　·　${s.type==="損壞"?"壞":s.type==="多出"?"多":"少"} ${dv} 個`
                   : `標配 ${r.std}`;
   return `<div>
     <div class="row">
@@ -653,20 +653,20 @@ function deltaOf(r,s){
   if(s.actual===null||s.actual==="")return null;
   if(s.type==="損壞")return Number(s.actual);
   if(s.type==="多出")return Number(s.actual)-r.std;
-  return r.std-Number(s.actual);
+  return r.std-Number(s.actual);   // 遺失（含舊資料的短缺）
 }
 function setDelta(rid,v){
   const r=RW().find(x=>x.rid===rid), s=st(rid);
   let d=Math.max(0,parseInt(v)||0);
-  if(s.type==="短缺"){ d=Math.min(d,r.std); s.actual=r.std-d; }
+  if(s.type==="損壞"){ s.actual=d; }
   else if(s.type==="多出"){ s.actual=r.std+d; }
-  else { s.actual=d; }
+  else { d=Math.min(d,r.std); s.actual=r.std-d; }   // 遺失（含舊資料的短缺）
 }
 function bumpDelta(rid,step){
   const s=st(rid), r=RW().find(x=>x.rid===rid);
   setDelta(rid,(deltaOf(r,s)||0)+step); render();
 }
-const deltaLabel=t=>t==="短缺"?"少了幾個":t==="多出"?"多了幾個":"壞了幾個";
+const deltaLabel=t=>t==="損壞"?"壞了幾個":t==="多出"?"多了幾個":"少了幾個";
 
 function pickV(v){draft.vehicle=draft.vehicle===v?"":v;render();}
 function firstPkg(){
@@ -1017,7 +1017,7 @@ function needList(){
     seen[r.vehicle]=true;
     (r.lines||[]).forEach(l=>{
       if(l.type==="多出")return;
-      const total=l.type==="損壞"?l.actual:(l.std-l.actual);
+      const total=l.type==="損壞"?l.actual:(l.std-l.actual);   // 遺失與舊的短缺算法相同
       const q=total-(l.done||0);               // 扣掉已經補過的
       if(q<=0)return;
       out.push({key:r.id+"|"+l.sku,vehicle:r.vehicle,sku:l.sku,itemId:l.itemId,qty:q,
