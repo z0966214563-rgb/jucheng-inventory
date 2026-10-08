@@ -1,0 +1,852 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#15181C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="鉅誠車輛">
+<title>鉅誠驗屋 · 車輛管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#15181C; --paper:#E9EBEE; --card:#FFF; --line:#D3D7DC; --line2:#E6E9ED;
+  --amber:#FFB020; --amber-d:#8A5A00; --ok:#2C7A5C; --ok-bg:#E8F3EE;
+  --alert:#CE3524; --alert-bg:#FBEAE7; --warn-bg:#FFF4E0; --muted:#6C737D;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --tc:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;overflow-x:hidden}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--tc);background:var(--paper);color:var(--ink);font-size:16px;line-height:1.5;padding-bottom:78px}
+body.norole{padding-bottom:0}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+header.top{position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;padding:11px 14px 9px;
+  border-bottom:3px solid var(--amber);display:flex;align-items:center;gap:10px}
+header.top h1{margin:0;font-size:14.5px;font-weight:900;letter-spacing:.05em}
+header.top .sub{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#98A0AA;margin-top:2px}
+header.top .sw{margin-left:auto;background:none;border:1px solid #4A525C;color:#C7CCD2;border-radius:3px;
+  padding:6px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.wrap{max-width:560px;margin:0 auto;padding:14px 14px 26px}
+.wide{max-width:860px}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ink);display:grid;
+  padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{border:0;background:none;color:#8E96A0;padding:10px 2px 11px;font-family:var(--tc);
+  font-size:11px;font-weight:700;cursor:pointer;border-top:3px solid transparent}
+nav.tabs button .ic{display:block;font-size:15px;margin-bottom:1px}
+nav.tabs button[aria-selected="true"]{color:#fff;border-top-color:var(--amber)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:3px;margin-bottom:12px}
+.card .hd{padding:11px 14px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:8px}
+.card .hd h2{margin:0;font-size:14px;font-weight:900;letter-spacing:.04em}
+.card .bd{padding:14px}
+.foot{padding:11px 14px;border-top:1px solid var(--line2);background:#FBFCFD}
+.note{background:#FFF7E6;border:1px solid #F0D9A0;border-radius:3px;padding:10px 12px;font-size:12.5px;color:#6B5417;margin-bottom:12px}
+.err{color:var(--alert);font-size:12.5px;font-weight:700;margin-top:7px}
+
+label.f{display:block;margin-bottom:13px}
+label.f .lbl{display:block;margin-bottom:6px}
+input[type=text],input[type=number],input[type=password],select,textarea{width:100%;font-family:var(--tc);
+  font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:3px;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-family:var(--mono);font-size:17px;font-weight:600;min-width:52px;height:48px;border:1px solid var(--line);
+  background:#fff;border-radius:3px;cursor:pointer;color:var(--ink);padding:0 10px}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:var(--tc);font-weight:700;
+  font-size:15px;padding:13px 18px;border-radius:3px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+.btn.amber{background:var(--amber);border-color:var(--amber);color:#241A00}
+.btn.ghost{background:#fff;color:var(--ink)}
+.btn.sm{padding:8px 12px;font-size:13px}
+.btn.tiny{padding:5px 9px;font-size:11.5px;font-weight:500}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.block{display:flex;width:100%}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+.gate{max-width:420px;margin:0 auto;padding:34px 18px}
+.gate h2{font-size:19px;font-weight:900;margin:0 0 4px}
+.gate p{color:var(--muted);font-size:13.5px;margin:0 0 22px}
+.role{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-left:4px solid var(--ink);
+  border-radius:3px;padding:16px;margin-bottom:11px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
+.role.amber{border-left-color:var(--amber)}
+.role b{display:block;font-size:16.5px;font-weight:900;margin-bottom:3px}
+.role span{font-size:13px;color:var(--muted)}
+
+/* 車輛卡 */
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.vcard{border:1px solid var(--line);border-radius:3px;background:#fff;padding:12px;border-left:4px solid var(--ok)}
+.vcard.warn{border-left-color:var(--amber);background:var(--warn-bg)}
+.vcard.bad{border-left-color:var(--alert);background:var(--alert-bg)}
+.vcard .id{font-family:var(--mono);font-size:26px;font-weight:600;line-height:1}
+.vcard .odo{font-family:var(--mono);font-size:13px;margin-top:6px}
+.vcard .st{font-size:12.5px;font-weight:700;margin-top:5px}
+.vcard .bar{height:6px;background:var(--line2);border-radius:2px;overflow:hidden;margin-top:7px}
+.vcard .bar i{display:block;height:100%;background:var(--ok)}
+.vcard.warn .bar i{background:var(--amber)}
+.vcard.bad .bar i{background:var(--alert)}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+.tw{overflow-x:auto}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);background:#F7F8FA;white-space:nowrap}
+th.n{text-align:right}
+td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;font-size:14px}
+tr:nth-of-type(even) td{background:#FBFCFD}
+tr.warn td,tr.warn:nth-of-type(even) td{background:var(--warn-bg)}
+tr.bad td,tr.bad:nth-of-type(even) td{background:var(--alert-bg)}
+tr.edit td{background:#FFFBF0!important;padding:16px 12px}
+.c-act{text-align:right;white-space:nowrap}
+.c-act .btn{margin-left:4px}
+
+.stats{display:flex;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line2);padding:18px 16px 20px}
+.stats>div{flex:1 1 132px;padding:16px;border:1px solid var(--line2);border-radius:3px;background:#FBFCFD}
+.stats .fig{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;line-height:1.1;margin-top:10px}
+
+/* 拍照 */
+.shotgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:9px;padding:12px}
+.shotbox{border:1px dashed var(--line);border-radius:3px;background:#F7F8FA;cursor:pointer;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;position:relative}
+.shotbox.has{border-style:solid;border-color:var(--ok)}
+.shotbox img{width:100%;height:100%;object-fit:cover}
+.shotbox .cam{font-size:24px;color:var(--muted);line-height:1}
+.shotbox .ct{font-size:12px;font-weight:700;color:var(--muted);margin-top:6px;text-align:center;padding:0 6px}
+.shotbox .redo{position:absolute;right:0;bottom:0;background:rgba(21,24,28,.82);color:#fff;
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;padding:2px 5px}
+.thumbs{display:flex;gap:5px;flex-wrap:wrap;padding:10px 14px}
+.thumbs figure{margin:0;width:78px}
+.thumbs img{width:78px;height:78px;object-fit:cover;border-radius:2px;border:1px solid var(--line);display:block;cursor:pointer}
+.thumbs figcaption{font-size:10.5px;color:var(--muted);text-align:center;margin-top:3px;line-height:1.2}
+
+.odoin{display:flex;align-items:center;gap:8px}
+.odoin input{font-family:var(--mono);font-size:32px;font-weight:600;text-align:center;height:62px;
+  border-width:2px;border-color:var(--ink)}
+.odoin .unit{font-family:var(--mono);font-size:15px;color:var(--muted)}
+
+.rechd{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border:0;
+  border-bottom:1px solid var(--line2);padding:12px 14px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
+.rechd .caret{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
+.lb{position:fixed;inset:0;z-index:80;background:rgba(10,12,15,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+.lbbox{background:#fff;border-radius:3px;max-width:520px;width:100%;max-height:88vh;overflow:auto}
+.lbbox img{width:100%;display:block;background:#000}
+.lbinfo{padding:12px 14px}
+.lbbar{display:flex;gap:8px;padding:0 14px 14px;justify-content:space-between}
+
+.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:26px 10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;z-index:99;background:var(--ink);color:#fff;
+  padding:12px 18px;border-radius:3px;font-size:14px;font-weight:700;border-left:4px solid var(--amber);max-width:88%}
+.hide{display:none!important}
+.big-alert{background:var(--alert-bg);border:1px solid var(--alert);border-left-width:4px;border-radius:3px;
+  padding:14px;margin-bottom:12px}
+.big-alert b{font-size:15px}
+</style>
+
+<header class="top" id="hdr"></header>
+<main id="app"></main>
+<nav class="tabs hide" id="nav"></nav>
+
+<script>
+/* ===================== 雲端連線層 ===================== */
+const SB_URL="https://tekawiwxutfpkyufooet.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2F3aXd4dXRmcGt5dWZvb2V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMjE2OTIsImV4cCI6MjEwMjY5NzY5Mn0.cA0pXAW0K4EpErrSL2HqrndcQc07u_n0brHHh1ms1_A";
+const BUCKET="fleet-photos";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+
+async function rpc(fn,args){
+  const res=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,
+    {method:"POST",headers:H,body:JSON.stringify(args||{})});
+  const txt=await res.text();
+  if(!res.ok){ let m=txt; try{const j=JSON.parse(txt); m=j.message||j.hint||txt;}catch(e){} throw new Error(m); }
+  return txt?JSON.parse(txt):null;
+}
+// 雲端檔名只收英數，中文車號先轉碼
+const pathSafe=t=>String(t).replace(/[^A-Za-z0-9_-]/g,c=>"u"+c.charCodeAt(0).toString(16));
+async function uploadPhoto(path,dataUrl){
+  const blob=await (await fetch(dataUrl)).blob();
+  const res=await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${encodeURI(path)}`,
+    {method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
+      "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
+  if(!res.ok) throw new Error("照片上傳失敗："+(await res.text()));
+  return path;
+}
+async function signUrls(paths){
+  const list=[...new Set(paths.filter(Boolean))];
+  if(!list.length) return {};
+  try{
+    const res=await fetch(`${SB_URL}/storage/v1/object/sign/${BUCKET}`,
+      {method:"POST",headers:H,body:JSON.stringify({paths:list,expiresIn:3600})});
+    if(!res.ok) return {};
+    const arr=await res.json(), map={};
+    arr.forEach(x=>{const u=x.signedURL||x.signedUrl; if(u) map[x.path]=SB_URL+"/storage/v1"+u;});
+    return map;
+  }catch(e){ return {}; }
+}
+const save=async()=>{};        // 資料即時寫入雲端
+function prune(){}             // 照片保留由資料庫處理
+
+function blankState(){
+  return {vehicles:[],trips:[],services:[],admins:[],
+          settings:{interval:10000,warnKm:3000,urgentKm:1000,keepTrips:20,
+                    photoItems:["車身左側","車身右側","儀表板里程"]}};
+}
+function mapSettings(x){
+  return {interval:x.interval_km,warnKm:x.warn_km,urgentKm:x.urgent_km,
+          keepTrips:x.keep_trips,photoItems:x.photo_items||[]};
+}
+function applyConfig(cfg){
+  S=blankState();
+  S.settings=mapSettings(cfg.settings||{});
+  S.vehicles=(cfg.vehicles||[]).map(v=>({code:v.code,odo:v.odo,next:v.next,
+    interval:v.interval,lastSvc:0}));
+}
+function applyState(st,urls){
+  const N=blankState();
+  N.settings=mapSettings(st.settings||{});
+  N.vehicles=(st.vehicles||[]).map(v=>({id:v.id,code:v.code,odo:v.odo,lastSvc:v.lastSvc,
+    next:v.next,interval:v.interval,used:v.used}));
+  const U=urls||{};
+  N.trips=(st.trips||[]).map(t=>{
+    const ph={};
+    (t.photos||[]).forEach(p=>{ if(U[p.path]) ph[p.label]=U[p.path]; });
+    return {id:t.id,vehicle:t.code,person:t.person,odo:t.odo,prev:t.prev,
+            date:t.date,time:t.time,pruned:t.pruned,photos:ph,
+            ts:new Date(t.created_at).getTime()};
+  });
+  N.services=(st.services||[]).map(x=>({id:x.id,vehicle:x.code,date:x.date,odo:x.odo,
+    next:x.next,note:x.note,person:x.person}));
+  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
+  S=N;
+}
+async function reload(){
+  const st=await rpc("fleet_state",{p_token:token,p_days:365});
+  if(!st||typeof st!=="object") throw new Error("讀取資料失敗，請重試");
+  const paths=[];
+  (st.trips||[]).forEach(t=>(t.photos||[]).forEach(p=>paths.push(p.path)));
+  applyState(st,await signUrls(paths));
+}
+async function guard(fn,okMsg){
+  try{ await fn(); if(okMsg)toast(okMsg); }
+  catch(e){ toast(e.message||"操作失敗"); }
+}
+
+/* ===================== 狀態 ===================== */
+let S=null, role=null, tab="trip", me=null, gate="pick", busy=false, toastT=null;
+let token=null, progressMsg=null;
+let setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
+let draft=null, editV=null, nVeh={code:"",odo:0,next:0}, svc=null, openRec=null, lightbox=null;
+let nItem="", keepDays=90;
+
+const DEFAULT_V=["A","B","C","D","E","F","G","H","Z"];
+const today=()=>new Date().toISOString().slice(0,10);
+const nowHM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
+const km=n=>Number(n||0).toLocaleString();
+const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
+const vehOf=c=>VEH().find(v=>v.code===c);
+
+async function boot(){
+  S=blankState(); render();
+  try{
+    applyConfig(await rpc("fleet_config"));
+    render();
+  }catch(e){
+    document.getElementById("app").innerHTML=
+      `<div class="wrap"><div class="card"><div class="bd">
+        <div style="font-weight:900;font-size:15px;margin-bottom:8px">連線失敗</div>
+        <div class="lbl" style="line-height:1.7">${e.message}</div>
+        <button class="btn block" style="margin-top:14px" onclick="location.reload()">重新載入</button>
+      </div></div></div>`;
+  }
+}
+function toast(m){document.querySelectorAll(".toast").forEach(t=>t.remove());
+  const e=document.createElement("div");e.className="toast";e.textContent=m;document.body.appendChild(e);
+  clearTimeout(toastT);toastT=setTimeout(()=>e.remove(),2800);}
+
+/* ===================== 保養狀態判定 ===================== */
+const intervalOf=v=>v.interval||S.settings.interval;
+function statusOf(v){
+  const remain=(v.next||0)-(v.odo||0);
+  let level="ok", text=`距離保養還有 ${km(remain)} 公里`;
+  if(remain<=0){ level="bad"; text=`已超過保養里程 ${km(-remain)} 公里`; }
+  else if(remain<=S.settings.urgentKm){ level="bad"; text=`剩 ${km(remain)} 公里，請盡快安排保養`; }
+  else if(remain<=S.settings.warnKm){ level="warn"; text=`剩 ${km(remain)} 公里，該安排保養了`; }
+  const span=intervalOf(v);
+  const pct=Math.max(0,Math.min(100,Math.round(((span-remain)/span)*100)));
+  return {remain,level,text,pct};
+}
+const alerts=()=>VEH().filter(v=>statusOf(v).level!=="ok").slice().sort(byCode);
+// 車別排序：英數在前（A、B、C…），中文等其他字元排後面
+const byCode=(a,b)=>{
+  const A=String(a.code), B=String(b.code);
+  const ascii=t=>/^[0-9A-Za-z]/.test(t)?0:1;
+  return (ascii(A)-ascii(B)) || A.localeCompare(B,"zh-Hant",{numeric:true});
+};
+
+/* ===================== 角色入口 ===================== */
+function viewGate(){
+  if(gate==="pickAdmin") return viewPickAdmin();
+  if(gate==="setup") return viewSetup();
+  return `<div class="gate">
+    <h2>選擇使用身分</h2>
+    <p>${VEH().length} 台車</p>
+    <button class="role amber" onclick="setRole('driver')">
+      <b>出車登記</b><span>登記今日里程、拍攝車況照片</span></button>
+    <button class="role" onclick="gotoAdmin()">
+      <b>車輛管理</b><span>保養提醒、保養登記、出車紀錄</span></button>
+  </div>`;
+}
+function setRole(r){ role=r; tab=r==="driver"?"trip":"fleet"; draft=null; window.scrollTo(0,0); render(); }
+async function gotoAdmin(){
+  await guard(async()=>{
+    const n=await rpc("op_count");
+    S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+    gate=n>0?"pickAdmin":"setup";
+    setup={name:"",pin:"",pin2:""}; login={id:"",pin:""}; render();
+  });
+}
+function viewPickAdmin(){
+  const who=S.admins.find(a=>a.id===login.id);
+  return `<div class="gate">
+    <h2>管理者登入</h2>
+    <p>選擇你的名字，輸入 PIN 碼</p>
+    <div class="lbl" style="margin-bottom:7px">管理者</div>
+    <div class="chips" style="margin-bottom:16px">${S.admins.map(a=>
+      `<button class="chip" style="min-width:auto;padding:0 15px;font-family:var(--tc);font-size:15px;font-weight:700"
+        aria-pressed="${login.id===a.id}" onclick="login.id='${a.id}';login.pin='';render()">${a.name}</button>`).join("")}</div>
+    <label class="f"><span class="lbl">PIN 碼（4 位數）</span>
+      <input type="password" inputmode="numeric" maxlength="4" class="num"
+        style="font-size:22px;letter-spacing:.5em;text-align:center"
+        value="${login.pin}" placeholder="••••" oninput="login.pin=this.value"></label>
+    <button class="btn block" ${who?"":"disabled"} onclick="asAdmin()">
+      ${who?`以 ${who.name} 的身分進入`:"請先選擇管理者"}</button>
+    <button class="btn ghost block" style="margin-top:12px" onclick="gate='pick';render()">返回</button>
+  </div>`;
+}
+function viewSetup(){
+  return `<div class="gate">
+    <h2>建立第一位管理者</h2>
+    <p>建立後，之後要新增人員必須先登入，在「設定」分頁裡新增。</p>
+    <label class="f"><span class="lbl">姓名</span>
+      <input type="text" value="${setup.name}" placeholder="例：冠揚" oninput="setup.name=this.value"></label>
+    <div class="g2">
+      <label class="f"><span class="lbl">設定 4 位數 PIN</span>
+        <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+          value="${setup.pin}" placeholder="••••" oninput="setup.pin=this.value"></label>
+      <label class="f"><span class="lbl">再輸入一次</span>
+        <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+          value="${setup.pin2}" placeholder="••••" oninput="setup.pin2=this.value"></label></div>
+    <button class="btn block" onclick="addAdmin()">建立</button>
+    <button class="btn ghost block" style="margin-top:10px" onclick="gate='pick';render()">返回</button>
+  </div>`;
+}
+async function asAdmin(){
+  if(busy)return;
+  const a=(S.admins||[]).find(x=>x.id===login.id);
+  if(!a)return toast("請選擇管理者");
+  busy=true; render();
+  try{
+    const res=await rpc("op_login",{p_id:login.id,p_pin:login.pin});
+    const row=Array.isArray(res)?res[0]:res;
+    token=row.token; me={id:row.operator_id,name:row.name};
+    await reload();
+    role="admin"; tab="fleet"; gate="pick"; login={id:"",pin:""};
+    window.scrollTo(0,0);
+  }catch(e){ toast(e.message||"登入失敗"); }
+  busy=false; render();
+}
+async function addAdmin(){
+  const n=(setup.name||"").trim();
+  if(!n)return toast("請填姓名");
+  if(!/^[0-9]{4}$/.test(setup.pin))return toast("PIN 請設 4 位數字");
+  if(setup.pin!==setup.pin2)return toast("兩次輸入的 PIN 不一致");
+  await guard(async()=>{
+    if(token){ await rpc("op_add",{p_token:token,p_name:n,p_pin:setup.pin}); await reload(); }
+    else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin});
+           S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+           gate="pickAdmin"; }
+    setup={name:"",pin:"",pin2:""}; render();
+  },"已建立管理者");
+}
+async function delAdmin(id){
+  if(me&&me.id===id)return toast("不能刪除目前使用中的自己");
+  if(!confirm("刪除這位管理者？"))return;
+  await guard(async()=>{ await rpc("op_delete",{p_token:token,p_id:id});
+    await reload(); render(); },"已刪除");
+}
+async function resetPin(id){
+  const a=S.admins.find(x=>x.id===id); if(!a)return;
+  const v=prompt(`重設「${a.name}」的 PIN 碼（4 位數字）`);
+  if(v===null)return;
+  if(!/^[0-9]{4}$/.test(v))return toast("PIN 請設 4 位數字");
+  await guard(async()=>{ await rpc("op_set_pin",{p_token:token,p_id:id,p_pin:v}); },"已重設 PIN");
+}
+function switchRole(){
+  if(draft&&draft.odo&&!confirm("目前的出車登記尚未送出，離開會遺失。要切換身分嗎？"))return;
+  if(token) rpc("op_logout",{p_token:token}).catch(()=>{});
+  role=null; me=null; token=null; draft=null; gate="pick"; render();
+}
+
+/* ===================== 出車登記 ===================== */
+const newDraft=()=>({person:"",vehicle:"",odo:"",photos:{}});
+function viewTrip(){
+  if(!draft)draft=newDraft();
+  if(!draft.person||!draft.vehicle)return viewTripStart();
+  const v=vehOf(draft.vehicle), st=statusOf(v);
+  const items=S.settings.photoItems;
+  const shot=items.map(t=>`<label class="shotbox ${draft.photos[t]?"has":""}">
+      ${draft.photos[t]?`<img src="${draft.photos[t]}"><span class="redo">重拍</span>`
+        :`<span class="cam">▣</span><span class="ct">${t}</span>`}
+      <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${t}',this)">
+    </label>`).join("");
+  const done=items.filter(t=>draft.photos[t]).length;
+  const odoNum=parseInt(String(draft.odo).replace(/\D/g,""))||0;
+  const diff=odoNum-(v.odo||0);
+  const ready=odoNum>0&&odoNum>=(v.odo||0)&&done===items.length;
+  return `<div class="wrap">
+    ${st.level!=="ok"?`<div class="big-alert">
+      <b>${v.code} 車 ${st.remain<=0?"已超過保養里程":"接近保養里程"}</b>
+      <div style="margin-top:5px;font-size:13.5px">${st.text}（下次保養 ${km(v.next)} 公里）</div>
+      <div class="lbl" style="margin-top:6px">請回報給設備管理人安排保養</div></div>`:""}
+
+    <div class="card"><div class="hd"><h2>${v.code} 車　出車登記</h2>
+      <span class="lbl" style="margin-left:auto">${draft.person}</span></div>
+      <div class="bd">
+        <div class="lbl" style="margin-bottom:7px">出車前里程（公里）</div>
+        <div class="odoin">
+          <input type="number" inputmode="numeric" value="${draft.odo}" placeholder="${km(v.odo)}"
+            oninput="draft.odo=this.value" onchange="render()">
+          <span class="unit">km</span>
+        </div>
+        <div class="lbl" style="margin-top:8px">
+          上次登記 ${km(v.odo)} 公里${odoNum>0&&diff>=0?`　·　今天多跑 ${km(diff)} 公里`:""}</div>
+        ${odoNum>0&&odoNum<(v.odo||0)?`<div class="err">里程不能小於上次登記的 ${km(v.odo)} 公里，請確認是否看錯</div>`:""}
+        ${diff>2000&&odoNum>0?`<div class="err">比上次多了 ${km(diff)} 公里，數字是否打錯？</div>`:""}
+      </div>
+    </div>
+
+    <div class="card"><div class="hd"><h2>出車前巡查</h2>
+      <span class="lbl" style="margin-left:auto">${done} / ${items.length}</span></div>
+      <div class="lbl" style="padding:9px 14px 0">每個項目都要拍一張，順便檢查輪胎與燈具</div>
+      <div class="shotgrid">${shot}</div>
+    </div>
+
+    <button class="btn block" ${ready&&!busy?"":"disabled"} onclick="submitTrip()">
+      <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
+        (ready?"送出出車登記":odoNum<=0?"請先輸入里程":odoNum<(v.odo||0)?"里程數字有誤":`還有 ${items.length-done} 張照片沒拍`)}</button>
+    <div style="margin-top:10px"><button class="btn ghost tiny" onclick="resetDraft()">清空重填</button></div>
+  </div>`;
+}
+function viewTripStart(){
+  return `<div class="wrap">
+    <div class="card"><div class="hd"><h2>開始出車登記</h2></div>
+      <div class="bd">
+        <label class="f"><span class="lbl">姓名</span>
+          <input type="text" id="pname" value="${draft.person}" placeholder="請填全名" oninput="draft.person=this.value"></label>
+        <div class="lbl" style="margin-bottom:6px">今天開哪一台</div>
+        <div class="chips">${VEH().slice().sort(byCode).map(v=>{
+          const st=statusOf(v);
+          return `<button class="chip" aria-pressed="${draft.vehicle===v.code}" onclick="pickV('${v.code}')"
+            style="${st.level==="bad"?"border-color:var(--alert);color:var(--alert)":st.level==="warn"?"border-color:var(--amber-d);color:var(--amber-d)":""}">${v.code}</button>`;}).join("")}</div>
+        <div class="lbl" style="margin-top:8px">紅色或黃色代表該車接近或已超過保養里程</div>
+        <div style="margin-top:16px"><button class="btn block" onclick="startTrip()">下一步</button></div>
+      </div></div>
+  </div>`;
+}
+function pickV(c){ draft.vehicle=draft.vehicle===c?"":c; render(); }
+function startTrip(){
+  const n=document.getElementById("pname"); if(n)draft.person=n.value.trim();
+  if(!draft.person)return toast("請先填姓名");
+  if(!draft.vehicle)return toast("請選擇車輛");
+  render();
+}
+function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
+  img.onload=()=>{const m=640,sc=Math.min(1,m/Math.max(img.width,img.height));
+    const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.6));};
+  img.src=fr.result;};fr.readAsDataURL(f);}
+function shoot(t,inp){ if(!inp.files[0])return; shrink(inp.files[0],d=>{draft.photos[t]=d;render();}); }
+function resetDraft(){ if(confirm("清空目前的登記？")){draft=newDraft();render();} }
+async function submitTrip(){
+  if(busy)return;
+  const v=vehOf(draft.vehicle); if(!v)return;
+  const odo=parseInt(String(draft.odo).replace(/\D/g,""))||0;
+  if(odo<=0)return toast("請輸入里程");
+  if(odo<(v.odo||0))return toast("里程不能小於上次登記");
+  for(const t of S.settings.photoItems){ if(!draft.photos[t])return toast(`「${t}」還沒拍`); }
+
+  busy=true; render();
+  try{
+    const slot=await rpc("fleet_next_slot",{p_code:v.code});
+    const base=`${pathSafe(v.code)}/${slot}`;
+    const photos=[]; let n=0;
+    for(const t of S.settings.photoItems){
+      const path=`${base}/${pathSafe(t)}.jpg`;
+      setProgress(`上傳照片 ${++n}/${S.settings.photoItems.length}`);
+      await uploadPhoto(path,draft.photos[t]);
+      photos.push({label:t,path});
+    }
+    setProgress("寫入登記…");
+    const r=await rpc("fleet_submit",{p:{code:v.code,person:draft.person,odo,
+      time:nowHM(),slot,photos}});
+    v.odo=odo;
+    draft=null; setProgress(null); busy=false; render();
+    if(r&&r.level!=="ok"){
+      toast(r.remain<=0?`已登記。${v.code} 車已超過保養里程 ${km(-r.remain)} 公里`
+                       :`已登記。${v.code} 車距離保養剩 ${km(r.remain)} 公里`);
+    } else toast(`${v.code} 車已登記 ${km(odo)} 公里`);
+  }catch(e){
+    setProgress(null); busy=false; render();
+    toast("送出失敗："+(e.message||""));
+  }
+}
+function setProgress(m){ progressMsg=m;
+  const el=document.getElementById("prog"); if(el) el.textContent=m||"";
+  if(!el) render(); }
+
+/* ===================== 管理端：車輛總覽 ===================== */
+function viewFleet(){
+  // 一律照車別排序，數字變動時位置才不會跳來跳去
+  const list=VEH().slice().sort(byCode);
+  const cards=list.map(v=>{
+    const st=statusOf(v);
+    return `<div class="vcard ${st.level==="ok"?"":st.level}">
+      <div class="id">${v.code}</div>
+      <div class="odo">目前 ${km(v.odo)} km</div>
+      <div class="st" style="color:${st.level==="bad"?"var(--alert)":st.level==="warn"?"var(--amber-d)":"var(--ok)"}">${st.text}</div>
+      <div class="bar"><i style="width:${st.pct}%"></i></div>
+      <div class="lbl" style="margin-top:6px">下次 ${km(v.next)} km</div>
+    </div>`;}).join("");
+  const al=alerts();
+  const rows=list.map(v=>{
+    const st=statusOf(v);
+    if(editV===v.code) return `<tr class="edit"><td colspan="6">
+      <div class="lbl" style="margin-bottom:9px">編輯 ${v.code} 車</div>
+      <div class="g2">
+        <label class="f"><span class="lbl">目前里程</span>
+          <input type="number" class="num" id="e_odo" value="${v.odo||0}"></label>
+        <label class="f"><span class="lbl">下次保養里程</span>
+          <input type="number" class="num" id="e_next" value="${v.next||0}"></label></div>
+      <label class="f"><span class="lbl">保養間隔（留空用預設 ${km(S.settings.interval)} 公里）</span>
+        <input type="number" class="num" id="e_int" value="${v.interval||""}" placeholder="${S.settings.interval}"></label>
+      <div class="g2"><button class="btn" onclick="saveVeh('${v.code}')">儲存</button>
+        <button class="btn ghost" onclick="editV=null;render()">取消</button></div></td></tr>`;
+    return `<tr class="${st.level==="ok"?"":st.level}">
+      <td class="num" style="font-size:17px;font-weight:600">${v.code}</td>
+      <td class="n">${km(v.odo)}</td>
+      <td class="n">${km(v.next)}</td>
+      <td class="n" style="font-weight:700;color:${st.level==="bad"?"var(--alert)":st.level==="warn"?"var(--amber-d)":"inherit"}">
+        ${st.remain<=0?"超過 "+km(-st.remain):km(st.remain)}</td>
+      <td class="n" style="color:var(--muted)">${km(intervalOf(v))}</td>
+      <td class="c-act">
+        <button class="btn ghost tiny" onclick="editV='${v.code}';render()">編輯</button>
+        <button class="btn ghost tiny" onclick="delVeh('${v.code}')">刪除</button></td></tr>`;}).join("");
+  return `<div class="wrap wide">
+    ${al.length?`<div class="big-alert">
+      <b>${al.length} 台車需要安排保養</b>
+      <div style="margin-top:6px;font-size:13.5px">
+        ${al.map(v=>`${v.code} 車：${statusOf(v).text}`).join("<br>")}</div></div>`:""}
+
+    <div class="card"><div class="hd"><h2>車輛狀態</h2>
+      <span class="lbl" style="margin-left:auto">${VEH().length} 台</span></div>
+      <div class="stats">
+        <div><div class="lbl">車輛總數</div><div class="fig">${VEH().length}</div></div>
+        <div><div class="lbl">需安排保養</div>
+          <div class="fig" style="color:${al.length?"var(--alert)":"var(--ok)"}">${al.length}</div></div>
+        <div><div class="lbl">今日已登記</div>
+          <div class="fig">${new Set(S.trips.filter(t=>t.date===today()).map(t=>t.vehicle)).size}</div></div>
+      </div>
+      <div class="bd"><div class="fleet">${cards}</div></div>
+      <div class="tw"><table>
+        <colgroup><col style="width:58px"><col style="width:92px"><col style="width:92px"><col style="width:92px"><col style="width:82px"><col style="width:124px"></colgroup>
+        <tr><th>車別</th><th class="n">目前里程</th><th class="n">下次保養</th><th class="n">還剩</th><th class="n">間隔</th><th></th></tr>
+        ${rows}</table></div>
+      <div class="foot"><span class="lbl">
+        剩 ${km(S.settings.warnKm)} 公里內轉黃、剩 ${km(S.settings.urgentKm)} 公里內或已超過轉紅（可在設定調整）</span></div></div>
+
+    <div class="card"><div class="hd"><h2>新增車輛</h2></div><div class="bd">
+      <div class="g2">
+        <label class="f"><span class="lbl">車輛代號</span>
+          <input type="text" maxlength="3" value="${nVeh.code}" placeholder="例：I、中1" onchange="nVeh.code=this.value"></label>
+        <label class="f"><span class="lbl">目前里程</span>
+          <input type="number" class="num" value="${nVeh.odo}" onchange="nVeh.odo=this.value"></label></div>
+      <label class="f"><span class="lbl">下次保養里程（留空自動推算）</span>
+        <input type="number" class="num" value="${nVeh.next||""}"
+          placeholder="目前里程 + ${km(S.settings.interval)}" onchange="nVeh.next=this.value"></label>
+      <button class="btn block" onclick="addVeh()">新增車輛</button>
+    </div></div>
+  </div>`;
+}
+async function saveVeh(code){
+  const v=vehOf(code); if(!v)return;
+  const g=id=>document.getElementById(id);
+  await guard(async()=>{
+    await rpc("fleet_vehicle_update",{p_token:token,p_id:v.id,
+      p_odo:Math.max(0,parseInt(g("e_odo").value)||0),
+      p_next:Math.max(0,parseInt(g("e_next").value)||0),
+      p_interval:parseInt(g("e_int").value)||0});
+    editV=null; await reload(); render();
+  },`${code} 車已更新`);
+}
+async function addVeh(){
+  const c=(nVeh.code||"").trim().toUpperCase();
+  if(!c)return toast("請填車輛代號");
+  if(VEH().some(v=>v.code===c))return toast(`${c} 車已經存在`);
+  await guard(async()=>{
+    await rpc("fleet_vehicle_add",{p_token:token,p_code:c,
+      p_odo:Math.max(0,parseInt(nVeh.odo)||0),
+      p_next:Math.max(0,parseInt(nVeh.next)||0)});
+    nVeh={code:"",odo:0,next:0}; await reload(); render();
+  },`已新增 ${c} 車`);
+}
+async function delVeh(code){
+  const v=vehOf(code); if(!v)return;
+  if(!confirm(`刪除 ${code} 車？`))return;
+  await guard(async()=>{ await rpc("fleet_vehicle_delete",{p_token:token,p_id:v.id});
+    await reload(); render(); },`已刪除 ${code} 車`);
+}
+
+/* ===================== 管理端：保養 ===================== */
+function viewService(){
+  if(!svc) svc={vehicle:VEH()[0]?VEH()[0].code:"",odo:"",next:"",note:""};
+  const v=vehOf(svc.vehicle);
+  const odoNum=parseInt(svc.odo)||0;
+  const autoNext=odoNum?odoNum+(v?intervalOf(v):S.settings.interval):0;
+  const list=S.services.slice(0,40).map(x=>`<tr>
+    <td>${x.date}<div class="lbl">${x.person||"—"}</div></td>
+    <td class="num" style="font-weight:600">${x.vehicle}</td>
+    <td class="n">${km(x.odo)}</td>
+    <td class="n" style="color:var(--muted)">${km(x.next)}</td>
+    <td>${x.note||""}</td>
+    <td class="n"><button class="btn ghost tiny" onclick="delSvc('${x.id}')">刪除</button></td></tr>`).join("");
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>登記保養完成</h2></div><div class="bd">
+      <div class="lbl" style="margin-bottom:6px">哪一台車</div>
+      <div class="chips" style="margin-bottom:13px">${VEH().slice().sort(byCode).map(x=>
+        `<button class="chip" aria-pressed="${svc.vehicle===x.code}"
+          onclick="svc.vehicle='${x.code}';render()">${x.code}</button>`).join("")}</div>
+      ${v?`<div class="lbl" style="margin-bottom:11px">${v.code} 車目前 ${km(v.odo)} 公里　·　原訂下次保養 ${km(v.next)} 公里</div>`:""}
+      <div class="g2">
+        <label class="f"><span class="lbl">本次保養里程</span>
+          <input type="number" class="num" value="${svc.odo}" placeholder="${v?v.odo:0}"
+            oninput="svc.odo=this.value" onchange="render()"></label>
+        <label class="f"><span class="lbl">下次保養里程</span>
+          <input type="number" class="num" value="${svc.next}" placeholder="${autoNext||""}"
+            oninput="svc.next=this.value"></label></div>
+      <div class="lbl" style="margin-bottom:13px">
+        下次留空的話，自動設為本次 ＋ ${km(v?intervalOf(v):S.settings.interval)} 公里${autoNext?`＝ ${km(autoNext)}`:""}</div>
+      <label class="f"><span class="lbl">備註</span>
+        <input type="text" value="${svc.note}" placeholder="例：換機油與機油芯、輪胎調位" oninput="svc.note=this.value"></label>
+      <button class="btn block" onclick="addSvc()">登記保養完成</button>
+    </div></div>
+
+    <div class="card"><div class="hd"><h2>保養紀錄</h2>
+      <span class="lbl" style="margin-left:auto">${S.services.length} 筆</span></div>
+      ${S.services.length?`<div class="tw"><table>
+        <colgroup><col style="width:104px"><col style="width:58px"><col style="width:88px"><col style="width:88px"><col><col style="width:62px"></colgroup>
+        <tr><th>日期 / 登記人</th><th>車別</th><th class="n">保養里程</th><th class="n">下次</th><th>備註</th><th></th></tr>
+        ${list}</table></div>`:`<div class="empty">還沒有保養紀錄。</div>`}</div>
+  </div>`;
+}
+async function addSvc(){
+  const v=vehOf(svc.vehicle); if(!v)return toast("請選擇車輛");
+  const odo=parseInt(svc.odo)||0;
+  if(odo<=0)return toast("請填本次保養里程");
+  const next=parseInt(svc.next)||0;
+  await guard(async()=>{
+    await rpc("fleet_service_add",{p_token:token,p_code:v.code,p_odo:odo,
+      p_next:next,p_note:svc.note.trim()});
+    const code=v.code;
+    svc={vehicle:code,odo:"",next:"",note:""};
+    await reload(); render();
+    const nv=vehOf(code);
+    toast(`${code} 車已登記保養，下次 ${km(nv?nv.next:next)} 公里`);
+  });
+}
+async function delSvc(id){
+  if(!confirm("刪除這筆保養紀錄？車輛的下次保養里程不會自動還原。"))return;
+  await guard(async()=>{ await rpc("fleet_service_delete",{p_token:token,p_id:id});
+    await reload(); render(); },"已刪除");
+}
+
+/* ===================== 管理端：出車紀錄 ===================== */
+function viewTrips(){
+  const recs=S.trips.slice(0,60).map(t=>{
+    const open=openRec===t.id;
+    const pics=Object.keys(t.photos||{});
+    const head=`<button class="rechd" onclick="openRec=openRec==='${t.id}'?null:'${t.id}';render()">
+      <div style="flex:1;min-width:0;text-align:left">
+        <div style="font-size:14.5px;font-weight:900">${t.vehicle} 車　${km(t.odo)} km</div>
+        <div class="lbl" style="margin-top:2px">${t.date} ${t.time}　·　${t.person}
+          ${t.prev?`　·　較上次 +${km(t.odo-t.prev)}`:""}
+          ${pics.length?`　·　${pics.length} 張`:"　·　照片已清除"}</div></div>
+      <span class="caret">${open?"收合 ▲":"展開 ▼"}</span></button>`;
+    if(!open) return `<div class="card">${head}</div>`;
+    return `<div class="card">${head}
+      ${pics.length?`<div class="thumbs">${pics.map((k,i)=>`<figure>
+        <img src="${t.photos[k]}" onclick="lightbox={id:'${t.id}',i:${i}};render()">
+        <figcaption>${k}</figcaption></figure>`).join("")}</div>`
+        :`<div class="lbl" style="padding:10px 14px">超過 ${keepDays} 天的照片已自動清除</div>`}
+      <div class="bd" style="border-top:1px solid var(--line2);text-align:right">
+        <button class="btn ghost tiny" onclick="delTrip('${t.id}')">刪除這筆登記</button></div></div>`;
+  }).join("");
+  const todayN=new Set(S.trips.filter(t=>t.date===today()).map(t=>t.vehicle));
+  const noTrip=VEH().filter(v=>!todayN.has(v.code)).slice().sort(byCode).map(v=>v.code);
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>今日出車</h2>
+      <span class="lbl" style="margin-left:auto">${today()}</span></div>
+      <div class="bd">
+        <div class="lbl">已登記：${todayN.size ? [...todayN].join("、") : "尚無"}</div>
+        ${noTrip.length?`<div class="lbl" style="margin-top:6px">未登記：${noTrip.join("、")}</div>`:""}
+      </div></div>
+    ${S.trips.length?recs:`<div class="card"><div class="empty">還沒有出車登記。</div></div>`}
+    ${lightbox?lbHTML():""}
+  </div>`;
+}
+async function delTrip(id){
+  if(!confirm("刪除這筆出車登記？若刪的是最新一筆，車輛里程會回到前一筆。"))return;
+  await guard(async()=>{ await rpc("fleet_trip_delete",{p_token:token,p_id:id});
+    openRec=null; await reload(); render(); },"已刪除");
+}
+function lbHTML(){
+  const t=S.trips.find(x=>x.id===lightbox.id); if(!t)return "";
+  const keys=Object.keys(t.photos||{}); const k=keys[lightbox.i]; if(!k)return "";
+  return `<div class="lb" onclick="lightbox=null;render()">
+    <div class="lbbox" onclick="event.stopPropagation()">
+      <img src="${t.photos[k]}">
+      <div class="lbinfo"><div style="font-weight:900;font-size:15px">${k}</div>
+        <div class="lbl" style="margin-top:3px">${t.vehicle} 車 · ${t.date} ${t.time} · ${t.person} · ${km(t.odo)} km</div></div>
+      <div class="lbbar">
+        <button class="btn ghost sm" onclick="lbStep(-1)">← 上一張</button>
+        <button class="btn ghost sm" onclick="lightbox=null;render()">關閉</button>
+        <button class="btn ghost sm" onclick="lbStep(1)">下一張 →</button></div>
+    </div></div>`;
+}
+function lbStep(d){
+  const t=S.trips.find(x=>x.id===lightbox.id); if(!t)return;
+  const n=Object.keys(t.photos||{}).length; if(!n)return;
+  lightbox.i=(lightbox.i+d+n)%n; render();
+}
+
+/* ===================== 管理端：設定 ===================== */
+function viewSettings(){
+  const items=S.settings.photoItems;
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>保養提醒設定</h2></div><div class="bd">
+      <label class="f"><span class="lbl">預設保養間隔（公里）</span>
+        <input type="number" class="num" value="${S.settings.interval}"
+          onchange="saveSettings({interval:this.value})"></label>
+      <div class="g2">
+        <label class="f"><span class="lbl">提前幾公里轉黃燈</span>
+          <input type="number" class="num" value="${S.settings.warnKm}"
+            onchange="saveSettings({warn:this.value})"></label>
+        <label class="f"><span class="lbl">剩幾公里轉紅燈</span>
+          <input type="number" class="num" value="${S.settings.urgentKm}"
+            onchange="saveSettings({urgent:this.value})"></label></div>
+      <div class="lbl" style="line-height:1.7">
+        目前設定：距離保養 ${km(S.settings.warnKm)} 公里內轉黃、${km(S.settings.urgentKm)} 公里內或已超過轉紅。<br>
+        例如下次保養 50,000 公里，跑到 ${km(50000-S.settings.warnKm)} 就會開始提醒。<br>
+        個別車輛若保養週期不同，可在「車輛」分頁單獨設定間隔。</div>
+    </div></div>
+
+    <div class="card"><div class="hd"><h2>出車前拍照項目</h2>
+      <span class="lbl" style="margin-left:auto">${items.length} 張</span></div>
+      <div class="tw"><table><colgroup><col><col style="width:120px"></colgroup>
+        <tr><th>項目</th><th></th></tr>
+        ${items.map((t,i)=>`<tr><td>${t}</td>
+          <td class="c-act">
+            <button class="btn ghost tiny" ${i===0?"disabled":""} onclick="moveItem(${i},-1)">上移</button>
+            <button class="btn ghost tiny" onclick="delItem(${i})">刪除</button></td></tr>`).join("")}
+      </table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <label class="f"><span class="lbl">新增拍照項目</span>
+          <input type="text" value="${nItem}" placeholder="例：左前輪、右後輪、車頭大燈"
+            onchange="nItem=this.value"></label>
+        <button class="btn block" onclick="addItem()">新增</button>
+        <div class="lbl" style="margin-top:8px">
+          項目幾個，出車前就要拍幾張。建議 2～4 張，太多外勤會擺爛</div>
+      </div></div>
+
+    <div class="card"><div class="hd"><h2>管理者</h2>
+      <span class="lbl" style="margin-left:auto">${S.admins.length} 位</span></div>
+      <div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:120px"></colgroup>
+        <tr><th>姓名</th><th>狀態</th><th></th></tr>
+        ${S.admins.map(a=>`<tr><td style="font-weight:700">${a.name}</td>
+          <td style="color:var(--muted);font-size:13px">${me&&me.id===a.id?"使用中":"—"}</td>
+          <td class="c-act">
+            <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
+            ${me&&me.id===a.id?"":`<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`}</td></tr>`).join("")}
+      </table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="lbl" style="margin-bottom:9px">新增管理者</div>
+        <label class="f"><span class="lbl">姓名</span>
+          <input type="text" value="${setup.name}" onchange="setup.name=this.value"></label>
+        <div class="g2">
+          <label class="f"><span class="lbl">4 位數 PIN</span>
+            <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+              value="${setup.pin}" onchange="setup.pin=this.value"></label>
+          <label class="f"><span class="lbl">再輸入一次</span>
+            <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
+              value="${setup.pin2}" onchange="setup.pin2=this.value"></label></div>
+        <button class="btn block" onclick="addAdmin()">新增管理者</button></div>
+      <div class="foot"><span class="lbl">原型階段 PIN 存在本機，僅用於區分操作者，不是正式權限控管</span></div></div>
+  </div>`;
+}
+async function saveSettings(o){
+  await guard(async()=>{
+    await rpc("fleet_settings_update",{p_token:token,
+      p_interval:o.interval!==undefined?Math.max(1000,parseInt(o.interval)||10000):null,
+      p_warn:o.warn!==undefined?Math.max(0,parseInt(o.warn)||0):null,
+      p_urgent:o.urgent!==undefined?Math.max(0,parseInt(o.urgent)||0):null,
+      p_items:o.items||null});
+    await reload(); render();
+  });
+}
+async function addItem(){
+  const t=(nItem||"").trim();
+  if(!t)return toast("請填項目名稱");
+  if(S.settings.photoItems.includes(t))return toast("已經有這個項目了");
+  const items=S.settings.photoItems.concat([t]);
+  nItem=""; await saveSettings({items}); toast(`已新增：${t}`);
+}
+async function delItem(i){
+  if(S.settings.photoItems.length<=1)return toast("至少要保留一個拍照項目");
+  const t=S.settings.photoItems[i];
+  if(!confirm(`刪除拍照項目「${t}」？`))return;
+  const items=S.settings.photoItems.filter((_,k)=>k!==i);
+  await saveSettings({items});
+}
+async function moveItem(i,d){
+  const a=S.settings.photoItems.slice(), j=i+d;
+  if(j<0||j>=a.length)return;
+  [a[i],a[j]]=[a[j],a[i]];
+  await saveSettings({items:a});
+}
+
+/* ===================== 導覽 ===================== */
+const TABS={driver:[["trip","▣","出車登記"]],
+  admin:[["fleet","▤","車輛"],["service","⚑","保養"],["trips","▦","出車紀錄"],["set","⚙","設定"]]};
+function render(){
+  const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
+  document.body.classList.toggle("norole",!role);
+  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 車輛管理</h1><div class="sub">FLEET</div></div>`;
+    nv.className="tabs hide"; app.innerHTML=viewGate(); return; }
+  const al=alerts().length;
+  hdr.innerHTML=`<div><h1>${role==="driver"?"出車登記":`車輛管理${me?" · "+me.name:""}`}</h1>
+    <div class="sub">${VEH().length} 台車${al?` / ${al} 台待保養`:""}</div></div>
+    <button class="sw" onclick="switchRole()">切換身分</button>`;
+  const t=TABS[role];
+  if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
+    nv.innerHTML=t.map(([k,i,l])=>`<button aria-selected="${tab===k}" onclick="go('${k}')"><span class="ic">${i}</span>${l}</button>`).join("");
+    document.body.classList.remove("norole");
+  } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
+  app.innerHTML = role==="driver" ? viewTrip()
+    : tab==="service" ? viewService() : tab==="trips" ? viewTrips()
+    : tab==="set" ? viewSettings() : viewFleet();
+}
+function go(k){ tab=k; openRec=null; lightbox=null; editV=null; window.scrollTo(0,0); render(); }
+boot();
+</script>
