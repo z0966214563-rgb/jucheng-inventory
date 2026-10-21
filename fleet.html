@@ -242,7 +242,7 @@ let draft=null, editV=null, nVeh={code:"",odo:0,next:0}, svc=null, openRec=null,
 let nItem="", keepDays=90;
 
 const DEFAULT_V=["A","B","C","D","E","F","G","H","Z"];
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
 const nowHM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
 const km=n=>Number(n||0).toLocaleString();
 const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
