@@ -357,7 +357,7 @@ let rs={vehicle:"",sku:"",qty:1,note:""};
 let nItem={name:"",qty:0,safe:1,loc:"未設定"};
 let editSku=null, editRow=null, openRec=null, lightbox=null;
 let nVeh={code:"",preload:false};
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
 const nowHM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
 const dayDiff=d=>Math.round((new Date(today())-new Date(d))/864e5);
 
