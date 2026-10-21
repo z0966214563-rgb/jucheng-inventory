@@ -78,6 +78,8 @@ input:focus,select:focus,button:focus-visible{outline:2px solid var(--amber);out
 .role span{font-size:13px;color:var(--muted)}
 
 /* 車輛卡 */
+.plate-cell{font-family:var(--mono);font-size:14px;letter-spacing:.5px;white-space:nowrap;color:var(--ink)}
+.plate-cell.empty{color:var(--muted)}
 .fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
 .vcard{border:1px solid var(--line);border-radius:3px;background:#fff;padding:12px;border-left:4px solid var(--ok)}
 .vcard.warn{border-left-color:var(--amber);background:var(--warn-bg)}
@@ -238,11 +240,12 @@ async function guard(fn,okMsg){
 let S=null, role=null, tab="trip", me=null, gate="pick", busy=false, toastT=null;
 let token=null, progressMsg=null;
 let setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
-let draft=null, editV=null, nVeh={code:"",odo:0,next:0}, svc=null, openRec=null, lightbox=null;
+let draft=null, editV=null, nVeh={code:"",plate:"",odo:0,next:0}, svc=null, openRec=null, lightbox=null;
 let nItem="", keepDays=90;
 
 const DEFAULT_V=["A","B","C","D","E","F","G","H","Z"];
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const nowHM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
 const km=n=>Number(n||0).toLocaleString();
 const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
@@ -523,8 +526,10 @@ function viewFleet(){
   const al=alerts();
   const rows=list.map(v=>{
     const st=statusOf(v);
-    if(editV===v.code) return `<tr class="edit"><td colspan="6">
+    if(editV===v.code) return `<tr class="edit"><td colspan="7">
       <div class="lbl" style="margin-bottom:9px">編輯 ${v.code} 車</div>
+      <label class="f"><span class="lbl">車牌號碼（可留空）</span>
+        <input type="text" id="e_plate" maxlength="12" value="${esc(v.plate||"")}" placeholder="例：ABC-1234"></label>
       <div class="g2">
         <label class="f"><span class="lbl">目前里程</span>
           <input type="number" class="num" id="e_odo" value="${v.odo||0}"></label>
@@ -536,6 +541,7 @@ function viewFleet(){
         <button class="btn ghost" onclick="editV=null;render()">取消</button></div></td></tr>`;
     return `<tr class="${st.level==="ok"?"":st.level}">
       <td class="num" style="font-size:17px;font-weight:600">${v.code}</td>
+      <td class="plate-cell${v.plate?"":" empty"}">${v.plate?esc(v.plate):"—"}</td>
       <td class="n">${km(v.odo)}</td>
       <td class="n">${km(v.next)}</td>
       <td class="n" style="font-weight:700;color:${st.level==="bad"?"var(--alert)":st.level==="warn"?"var(--amber-d)":"inherit"}">
@@ -561,8 +567,8 @@ function viewFleet(){
       </div>
       <div class="bd"><div class="fleet">${cards}</div></div>
       <div class="tw"><table>
-        <colgroup><col style="width:58px"><col style="width:92px"><col style="width:92px"><col style="width:92px"><col style="width:82px"><col style="width:124px"></colgroup>
-        <tr><th>車別</th><th class="n">目前里程</th><th class="n">下次保養</th><th class="n">還剩</th><th class="n">間隔</th><th></th></tr>
+        <colgroup><col style="width:58px"><col style="width:104px"><col style="width:92px"><col style="width:92px"><col style="width:92px"><col style="width:78px"><col style="width:124px"></colgroup>
+        <tr><th>車別</th><th>車牌號碼</th><th class="n">目前里程</th><th class="n">下次保養</th><th class="n">還剩</th><th class="n">間隔</th><th></th></tr>
         ${rows}</table></div>
       <div class="foot"><span class="lbl">
         剩 ${km(S.settings.warnKm)} 公里內轉黃、剩 ${km(S.settings.urgentKm)} 公里內或已超過轉紅（可在設定調整）</span></div></div>
@@ -570,9 +576,11 @@ function viewFleet(){
     <div class="card"><div class="hd"><h2>新增車輛</h2></div><div class="bd">
       <div class="g2">
         <label class="f"><span class="lbl">車輛代號</span>
-          <input type="text" maxlength="3" value="${nVeh.code}" placeholder="例：I、中1" onchange="nVeh.code=this.value"></label>
-        <label class="f"><span class="lbl">目前里程</span>
-          <input type="number" class="num" value="${nVeh.odo}" onchange="nVeh.odo=this.value"></label></div>
+          <input type="text" maxlength="3" value="${esc(nVeh.code)}" placeholder="例：I、中1" onchange="nVeh.code=this.value"></label>
+        <label class="f"><span class="lbl">車牌號碼（可留空）</span>
+          <input type="text" maxlength="12" value="${esc(nVeh.plate||"")}" placeholder="例：ABC-1234" onchange="nVeh.plate=this.value"></label></div>
+      <label class="f"><span class="lbl">目前里程</span>
+        <input type="number" class="num" value="${nVeh.odo}" onchange="nVeh.odo=this.value"></label>
       <label class="f"><span class="lbl">下次保養里程（留空自動推算）</span>
         <input type="number" class="num" value="${nVeh.next||""}"
           placeholder="目前里程 + ${km(S.settings.interval)}" onchange="nVeh.next=this.value"></label>
@@ -585,6 +593,7 @@ async function saveVeh(code){
   const g=id=>document.getElementById(id);
   await guard(async()=>{
     await rpc("fleet_vehicle_update",{p_token:token,p_id:v.id,
+      p_plate:(g("e_plate").value||"").trim(),
       p_odo:Math.max(0,parseInt(g("e_odo").value)||0),
       p_next:Math.max(0,parseInt(g("e_next").value)||0),
       p_interval:parseInt(g("e_int").value)||0});
@@ -597,9 +606,10 @@ async function addVeh(){
   if(VEH().some(v=>v.code===c))return toast(`${c} 車已經存在`);
   await guard(async()=>{
     await rpc("fleet_vehicle_add",{p_token:token,p_code:c,
+      p_plate:(nVeh.plate||"").trim(),
       p_odo:Math.max(0,parseInt(nVeh.odo)||0),
       p_next:Math.max(0,parseInt(nVeh.next)||0)});
-    nVeh={code:"",odo:0,next:0}; await reload(); render();
+    nVeh={code:"",plate:"",odo:0,next:0}; await reload(); render();
   },`已新增 ${c} 車`);
 }
 async function delVeh(code){
