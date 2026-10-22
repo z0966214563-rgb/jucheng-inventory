@@ -710,7 +710,8 @@ async function readReceipt(){
     let j={}; try{ j=JSON.parse(txt); }catch(e){}
     if(!res.ok){
       if(res.status===404) throw new Error("還沒有安裝辨識功能，可以先手動填明細");
-      throw new Error(j.error||txt.slice(0,120)||`辨識失敗（${res.status}）`);
+      throw new Error((j.error||txt.slice(0,120)||`辨識失敗（${res.status}）`)
+        +(j.detail?`\n${String(j.detail).slice(0,120)}`:""));
     }
     const items=(j.items||[]).map(i=>({name:i.name||"",qty:Number(i.qty)||0,price:Number(i.price)||0}));
     if(!items.length){ toast("這張單沒讀到明細，請手動填"); }
