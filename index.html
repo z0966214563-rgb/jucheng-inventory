@@ -264,6 +264,57 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
   .mvr{grid-template-columns:5px 74px 1fr 60px 38px;gap:0 8px}
   .mvr .tag{font-size:11.5px} .mvr .q{font-size:16px}
 }
+
+/* 月報表 v2 */
+.mrtabs{display:flex;border-bottom:1px solid var(--line2);background:#fff;overflow-x:auto}
+.mrtabs button{flex:1;min-width:92px;appearance:none;border:0;background:#fff;color:var(--muted);
+  font-family:var(--tc);font-size:14.5px;padding:13px 8px;cursor:pointer;white-space:nowrap}
+.mrtabs button+button{border-left:1px solid var(--line2)}
+.mrtabs button[aria-selected="true"]{color:var(--ink);font-weight:700;box-shadow:inset 0 -3px 0 var(--ink)}
+.mrtabs .n{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:5px}
+.mrk{display:grid;grid-template-columns:1fr 92px 130px;gap:12px;align-items:center;
+  padding:13px 14px;border-bottom:1px solid var(--line2)}
+.mrkh{display:grid;grid-template-columns:1fr 92px 130px;gap:12px;padding:9px 14px;
+  background:#F7F8FA;border-bottom:1px solid var(--line2)}
+.mrkh span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.mrkh span:nth-child(2){text-align:right}
+.mrk .nm{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.mrk .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+.mrk .cnt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;text-align:right;color:var(--muted)}
+.mrk .cnt b{color:var(--ink);font-size:17px;font-weight:700}
+.mrbar{height:10px;border-radius:5px;overflow:hidden;background:var(--alert-bg)}
+.mrbar i{display:block;height:100%;border-radius:5px;background:var(--alert)}
+.mrbar.amber{background:#FDF3E0} .mrbar.amber i{background:var(--amber-d)}
+.mrbar.grey{background:#EDEFF2} .mrbar.grey i{background:#8A9099}
+.mrbar.blue{background:#E8F0F8} .mrbar.blue i{background:#1F5C9E}
+.mrcap{font-family:var(--mono);font-variant-numeric:tabular-nums;margin-top:4px;font-size:13px;color:var(--muted)}
+.mrflag{font-size:11px;font-family:var(--mono);padding:2px 6px;border-radius:3px;
+  background:var(--alert-bg);color:var(--alert);white-space:nowrap}
+.mrflag.warn{background:#FDF3E0;color:var(--amber-d)}
+.mrnone{background:#FAFBFC;padding:12px 14px;border-bottom:1px solid var(--line2)}
+.mrnone .nm{font-size:13.5px;color:var(--muted)}
+.mrcols{display:flex;align-items:flex-end;gap:9px;height:128px}
+.mrcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;height:100%}
+.mrcol .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700}
+.mrcol i{display:block;width:100%;max-width:52px;border-radius:4px 4px 0 0;min-height:3px;background:var(--alert)}
+.mrcol.amber i{background:var(--amber-d)} .mrcol.grey i{background:#8A9099} .mrcol.blue i{background:#1F5C9E}
+.mrcol.dim i{opacity:.45}
+.mrcol .m{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.tw table td.c-name{word-break:keep-all}
+td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;
+  border-left:2px solid #fff;border-right:2px solid #fff}
+.mrveh{display:grid;grid-template-columns:30px 1fr 52px;gap:10px;align-items:center;margin-bottom:9px}
+.mrveh .c{font-family:var(--mono);font-size:15px;font-weight:700}
+.mrveh .v{font-family:var(--mono);font-size:13px;text-align:right;color:var(--muted)}
+.mrobs{margin:0;padding:0;list-style:none}
+.mrobs li{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2);font-size:14px}
+.mrobs li:last-child{border-bottom:0}
+.mrobs .ic{width:22px;height:22px;border-radius:3px;flex:none;display:grid;place-items:center;
+  font-family:var(--mono);font-size:12px;font-weight:700;background:var(--alert-bg);color:var(--alert)}
+.mrobs li.s2 .ic{background:#FDF3E0;color:var(--amber-d)}
+@media (max-width:560px){
+  .mrk,.mrkh{grid-template-columns:1fr 72px 96px;gap:9px}
+}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -894,7 +945,7 @@ const esc=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 const TH_S='background:#DCE1E6;border:1px solid #6E7680;padding:4px 5px;font-size:10pt;font-weight:bold;';
 const TD_S='border:1px solid #98A0AA;padding:4px 5px;font-size:10pt;vertical-align:middle;word-wrap:break-word;';
 const PP='margin:0;padding:0;font-size:10pt;line-height:1.25;mso-line-height-rule:exactly;';
-function reportHTML(title,meta,cols,rows,foot,extra){
+function reportHTML(title,meta,cols,rows,foot,extra,mainTitle){
   const PW=640;   // A4 直式可用寬度（px），確保 Word/Excel 依比例撐滿
   const colg=cols.map(c=>`<col style="width:${c.w}%" width="${Math.round(c.w*PW/100)}">`).join("");
   const head=cols.map(c=>`<th style="${TH_S}text-align:${c.c?"center":c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("");
@@ -926,6 +977,7 @@ thead{display:table-header-group}
 </style></head><body><div class="WordSection1">
 <div style="font-size:14pt;font-weight:bold;letter-spacing:.5pt;margin-bottom:3pt">${esc(title)}</div>
 <div style="font-size:8pt;color:#444;margin-bottom:6pt;line-height:1.4">${meta.map(esc).join("　　")}</div>
+${mainTitle?`<div style="font-size:11pt;font-weight:bold;margin:4pt 0 4pt">${esc(mainTitle)}</div>`:""}
 <table border="1" cellspacing="0" cellpadding="0"
  style="border-collapse:collapse;width:100%;table-layout:fixed;mso-cellspacing:0">
 <colgroup>${colg}</colgroup>
@@ -1013,6 +1065,7 @@ function exportMoves(fmt){
 
 /* ===================== 月報統計 ===================== */
 let mRange=6;   // 顯示最近幾個月
+let mTab="lost", mCell="cnt", mScope="cur";   // 月報：分頁、格子顯示、統計範圍
 const consumOf=k=>{const r=RW().find(x=>cur(x.sku)===k);return r?!!r.consum:false;};
 function monthKeys(){
   const set=new Set();
@@ -1033,14 +1086,15 @@ function monthKeys(){
 function monthlyStats(){
   // 以實際補料／出入庫為準，每筆只算一次，不會因為連續盤到同一筆而重複
   const ms=monthKeys(), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0});
-  const agg={}, byItem={}, byLost={}, byDmg={}, byBuy={};
+  const agg={}, byItem={}, byLost={}, byDmg={}, byBuy={}, byCons={};
   ms.forEach(k=>agg[k]=z());
   (S.moves||[]).forEach(m=>{
     const k=(m.date||"").slice(0,7); if(!agg[k])return;
     const sk=m.sku, isC=consumOf(sk), q=m.qty||0;
     if(m.reason==="遺失"||m.reason==="損壞"||m.reason==="遺失或損壞"){
       const kind=(m.reason==="遺失或損壞")?(m.loss||"遺失"):m.reason;
-      if(isC){ agg[k].耗材+=q; }
+      if(isC){ agg[k].耗材+=q;
+        byCons[sk]=byCons[sk]||{}; byCons[sk][k]=(byCons[sk][k]||0)+q; }
       else if(kind==="損壞"){ agg[k].損壞+=q;
         byDmg[sk]=byDmg[sk]||{}; byDmg[sk][k]=(byDmg[sk][k]||0)+q;
         byItem[sk]=byItem[sk]||{}; byItem[sk][k]=(byItem[sk][k]||0)+q; }
@@ -1054,7 +1108,7 @@ function monthlyStats(){
     else if(m.reason==="個人用品") agg[k].個人+=q;
     else if(m.reason.indexOf("工具製作")===0) agg[k].製作+=q;
   });
-  return {ms,agg,byItem,byLost,byDmg,byBuy};
+  return {ms,agg,byItem,byLost,byDmg,byBuy,byCons};
 }
 const METRICS=[
   ["遺失","工具遺失，實際補出去的數量",1],
@@ -1747,114 +1801,254 @@ async function delRow(rid){
 
 
 /* ---- 月報頁 ---- */
+/* ===== 月報表 v2 ===== */
+const MRMETA={
+  lost:  {t:"工具遺失", cls:"",      col:"#CE3524", rate:true,
+          d:"比例＝期間遺失數 ÷ 全隊配置數（每車標配 × 車數）。只看件數，數量多的品項永遠排前面；看比例才知道哪一項真的在消失。"},
+  dmg:   {t:"工具損壞", cls:"amber", col:"#8A5A00", rate:true,
+          d:"損壞反映使用方式與工具壽命，和遺失分開看。比例算法與遺失相同。"},
+  consum:{t:"耗材消耗", cls:"grey",  col:"#8A9099", rate:false,
+          d:"耗材屬正常消耗，看的是用量與節奏，不列入遺失管理，也不計算比例。"},
+  buy:   {t:"採購入庫", cls:"blue",  col:"#1F5C9E", rate:false,
+          d:"當期採購入庫的數量。右側對照同期遺失件數，可以看出採購是追著遺失跑，還是定期補充。"}
+};
+// 全隊配置數＝該品項在所有包別的標配總和 × 車輛數
+function cfgOf(sku){
+  const per=(S.rows||[]).filter(r=>r.sku===sku).reduce((t,r)=>t+(Number(r.std)||0),0);
+  return per*VEH().length;
+}
+function stdOf(sku){
+  return (S.rows||[]).filter(r=>r.sku===sku).reduce((t,r)=>t+(Number(r.std)||0),0);
+}
+function mrRows(src,ms,other){
+  return Object.keys(src).map(k=>{
+    const series=ms.map(m=>src[k][m]||0);
+    const cfg=cfgOf(k);
+    let streak=0;
+    for(let i=series.length-1;i>=0;i--){ if(series[i]>0)streak++; else break; }
+    return {sku:k,series,cfg,std:stdOf(k),cur:series[series.length-1]||0,
+            prev:series.length>1?series[series.length-2]:0,
+            tot:series.reduce((a,b)=>a+b,0),streak,
+            other:other?ms.reduce((t,m)=>t+((other[k]||{})[m]||0),0):0};
+  }).filter(x=>x.tot>0);
+}
+function mrSrc(st){
+  return {lost:st.byLost, dmg:st.byDmg, consum:st.byCons, buy:st.byBuy}[mTab];
+}
+function lostByVeh(mk){
+  const out={}; VEH().forEach(v=>out[v]=0);
+  (S.moves||[]).forEach(m=>{
+    if((m.date||"").slice(0,7)!==mk)return;
+    if(!(m.reason==="遺失"||m.reason==="遺失或損壞"))return;
+    if(m.reason==="遺失或損壞"&&m.loss==="損壞")return;
+    if(consumOf(m.sku))return;
+    if(!m.vehicle)return;
+    out[m.vehicle]=(out[m.vehicle]||0)+(m.qty||0);
+  });
+  return out;
+}
 function viewMonthly(){
-  const {ms,agg,byItem,byLost,byDmg,byBuy}=monthlyStats();
+  const st=monthlyStats(), ms=st.ms;
   if(!ms.length) return `<div class="wrap wide"><div class="card">
     <div class="empty">還沒有資料。送出幾張盤點單、登錄一些出入庫之後，這裡就會出現月度趨勢。</div></div></div>`;
   const last=ms[ms.length-1], prev=ms.length>1?ms[ms.length-2]:null;
-  const A=agg[last], P=prev?agg[prev]:null;
+  const A=st.agg[last], P=prev?st.agg[prev]:null;
+  const M=MRMETA[mTab];
+  const rows=mrRows(mrSrc(st),ms,mTab==="buy"?st.byLost:null);
+  const cur=mScope==="cur";
+  const key=r=>M.rate?(cur?(r.cfg?r.cur/r.cfg:0):(r.cfg?r.tot/(r.cfg*ms.length):0)):(cur?r.cur:r.tot);
+  const cnt=r=>cur?r.cur:r.tot;
+  const den=r=>cur?r.cfg:r.cfg*ms.length;
 
-  const cards=[["遺失",1],["損壞",1],["耗材",0]].map(([k,bad])=>{
+  /* KPI */
+  const kpi=[["遺失","lost",1],["損壞","dmg",1],["耗材","consum",0],["採購","buy",0]].map(([k,id,bad])=>{
     const t=trend(A[k],P?P[k]:null,bad);
     return `<div><div class="lbl">${last} ${k}</div>
-      <div class="fig">${A[k]}<span style="font-size:13px;margin-left:7px;color:${t.c}">${t.t}</span></div></div>`;}).join("");
+      <div class="fig">${A[k]}<span style="font-size:13px;margin-left:7px;color:${bad?t.c:"var(--muted)"}">${t.t}</span></div></div>`;
+  }).join("");
 
-  const head=`<tr><th>項目</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>`;
-  const body=METRICS.map(([k,desc,bad])=>{
-    const tot=ms.reduce((t,m)=>t+agg[m][k],0);
-    return `<tr class="${bad&&A[k]>(P?P[k]:0)?"warn":""}">
-      <td class="c-name">${k}<div class="lbl">${desc}</div></td>
-      ${ms.map((m,i)=>{
-        const v=agg[m][k], pv=i>0?agg[ms[i-1]][k]:null, t=trend(v,pv,bad);
-        return `<td class="n">${v}${i>0&&t.t!=="—"?`<div class="lbl" style="color:${t.c}">${t.t}</div>`:""}</td>`;}).join("")}
-      <td class="n c-num">${tot}</td></tr>`;}).join("");
+  /* 排行 */
+  const sorted=rows.slice().sort((a,b)=>key(b)-key(a)||cnt(b)-cnt(a));
+  const shown=sorted.filter(r=>cnt(r)>0), zeros=sorted.filter(r=>cnt(r)===0);
+  const mx=Math.max.apply(null,shown.map(key).concat([0.0001]));
+  const rank=shown.map(r=>{
+    let f="";
+    if(M.rate&&r.streak>=3) f=`<span class="mrflag">連 ${r.streak} 個月</span>`;
+    else if(M.rate&&cur&&r.cur>r.prev) f='<span class="mrflag warn">比上月多</span>';
+    const meta=M.rate&&r.cfg?`每車標配 ${r.std}　·　全隊配置 ${den(r)} 件`
+      :`${r.std?`每車標配 ${r.std}　·　`:""}近 ${ms.length} 個月共 ${r.tot} 件`;
+    return `<div class="mrk">
+      <div><div class="nm">${esc(r.sku)}${f}</div><div class="meta">${meta}</div></div>
+      <div class="cnt">${M.rate&&r.cfg?`<b>${cnt(r)}</b> / ${den(r)}`:`<b>${cnt(r)}</b> 件`}</div>
+      <div><div class="mrbar ${M.cls}"><i style="width:${key(r)?Math.max(3,key(r)/mx*100).toFixed(1):0}%"></i></div>
+        <div class="mrcap">${M.rate&&r.cfg?Math.round(key(r)*100)+"%":cnt(r)+" 件"}</div></div></div>`;
+  }).join("")+(zeros.length?`<div class="mrnone"><div class="nm">本期沒有紀錄的品項（${zeros.length} 項）
+      <div class="meta" style="margin-top:3px">${zeros.map(r=>esc(r.sku)).join("、")}</div></div></div>`:"");
 
-  const mkList=src=>Object.keys(src).map(k=>({k,tot:ms.reduce((t,m)=>t+(src[k][m]||0),0)}))
-    .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
-  const lostList=mkList(byLost), dmgList=mkList(byDmg);
-  const detailCard=(title,src,list,note)=>`
-    <div class="card"><div class="hd"><h2>${title}</h2>
-      <span class="lbl" style="margin-left:auto">${list.length} 項 · 合計 ${list.reduce((t,x)=>t+x.tot,0)} 個</span></div>
-      ${list.length?`<div class="tw"><table>
-        <colgroup><col>${ms.map(()=>`<col style="width:66px">`).join("")}<col style="width:72px"></colgroup>
-        <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>
-        ${list.map(x=>`<tr>
-          <td class="c-name">${x.k}</td>
-          ${ms.map(m=>`<td class="n">${src[x.k][m]||"—"}</td>`).join("")}
-          <td class="n c-num">${x.tot}</td></tr>`).join("")}
-        </table></div>${note?`<div class="foot"><span class="lbl">${note}</span></div>`:""}`
-      :`<div class="empty">這段期間沒有紀錄。</div>`}</div>`;
+  /* 每月柱狀 */
+  const totByM=ms.map((m,i)=>rows.reduce((a,r)=>a+r.series[i],0));
+  const cmx=Math.max.apply(null,totByM.concat([1]));
+  const cols=`<div class="mrcols">${totByM.map((v,i)=>
+    `<div class="mrcol ${M.cls}${cur&&i<totByM.length-1?" dim":""}">
+      <div class="v">${v}</div><i style="height:${Math.max(3,v/cmx*92)}%"></i>
+      <div class="m">${ms[i].slice(5)}月</div></div>`).join("")}</div>`;
+
+  /* 逐月矩陣 */
+  const asRate=(mCell==="rate"&&M.rate);
+  const mrows=rows.slice().sort((a,b)=>asRate
+      ?((b.cfg?b.tot/b.cfg:0)-(a.cfg?a.tot/a.cfg:0))
+      :(b.tot-a.tot));
+  const cellV=(r,i)=>asRate?(r.cfg?r.series[i]/r.cfg:0):r.series[i];
+  const cmax=Math.max.apply(null,mrows.flatMap(r=>r.series.map((_,i)=>cellV(r,i))).concat([0.0001]));
+  const mw=150+ms.length*58+70+(mTab==="buy"?72:0);
+  const matrix=mrows.length?`<div class="tw"><table style="min-width:${mw}px">
+    <colgroup><col style="width:150px">${ms.map(()=>`<col style="width:58px">`).join("")}<col style="width:70px">${mTab==="buy"?`<col style="width:72px">`:""}</colgroup>
+    <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th>
+      ${mTab==="buy"?`<th class="n">同期遺失</th>`:""}</tr>
+    ${mrows.map(r=>`<tr><td class="c-name">${esc(r.sku)}</td>
+      ${r.series.map((v,i)=>{
+        const x=cellV(r,i), a=x/cmax;
+        const bg=v?`background:${M.col}${Math.round(18+a*72).toString(16).padStart(2,"0")}`:"";
+        const fg=a>0.62?";color:#fff":"";
+        return `<td class="mrcell" style="${bg}${fg}">${v?(asRate?Math.round(x*100)+"%":v):"·"}</td>`;}).join("")}
+      <td class="n c-num">${asRate?(r.cfg?Math.round(r.tot/(r.cfg*ms.length)*100)+"%":"·"):r.tot}</td>
+      ${mTab==="buy"?`<td class="n" style="color:var(--muted)">${r.other}</td>`:""}</tr>`).join("")}
+    </table></div>`:`<div class="empty">這段期間沒有紀錄。</div>`;
+
+  /* 遺失專屬 */
+  let extra="";
+  if(mTab==="lost"){
+    const vv=lostByVeh(last), vmx=Math.max.apply(null,Object.values(vv).concat([1]));
+    const vtot=Object.values(vv).reduce((a,b)=>a+b,0);
+    extra+=`<div class="card"><div class="hd"><h2>遺失發生在哪台車</h2></div><div class="bd">
+      <p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
+        ${last} 共 ${vtot} 件遺失的車別分布。集中在特定車輛時，通常是習慣或流程問題，不是工具本身。</p>
+      ${Object.keys(vv).sort().map(k=>`<div class="mrveh"><div class="c">${k}</div>
+        <div class="mrbar"><i style="width:${vv[k]?Math.max(3,vv[k]/vmx*100).toFixed(0):0}%"></i></div>
+        <div class="v">${vv[k]} 件</div></div>`).join("")}</div></div>`;
+    const byRate=shown.slice().sort((a,b)=>(b.cfg?b.cur/b.cfg:0)-(a.cfg?a.cur/a.cfg:0));
+    const byCnt=shown.slice().sort((a,b)=>b.cur-a.cur);
+    const sts=rows.filter(r=>r.streak>=Math.min(3,ms.length));
+    const obs=[];
+    if(byRate.length&&byRate[0].cfg) obs.push(`<li><span class="ic">1</span><div>
+      <b>${esc(byRate[0].sku)}</b> 是本月遺失比例最高的品項：全隊配置 ${byRate[0].cfg} 件，
+      本月少了 ${byRate[0].cur} 件（${Math.round(byRate[0].cur/byRate[0].cfg*100)}%）。</div></li>`);
+    if(byCnt.length) obs.push(`<li class="s2"><span class="ic">2</span><div>
+      <b>${esc(byCnt[0].sku)}</b> 件數最多（${byCnt[0].cur} 件）${byCnt[0].cfg?`，但全隊配置有 ${byCnt[0].cfg} 件，比例是 ${Math.round(byCnt[0].cur/byCnt[0].cfg*100)}%`:""}。
+      數量大的品項容易佔版面，看比例才知道嚴不嚴重。</div></li>`);
+    if(sts.length) obs.push(`<li><span class="ic">3</span><div>
+      ${sts.map(r=>esc(r.sku)).join("、")} 連續 ${Math.min.apply(null,sts.map(r=>r.streak))} 個月以上每月都有遺失，
+      屬於持續性問題，不是偶發，建議列入改善追蹤。</div></li>`);
+    if(obs.length) extra+=`<div class="card"><div class="hd"><h2>需要注意的</h2></div>
+      <div class="bd"><ul class="mrobs">${obs.join("")}</ul></div></div>`;
+  }
 
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>月度工具狀態</h2>
-      <span class="lbl" style="margin-left:auto">${ms[0]} ~ ${last}</span></div>
-      <div class="stats">${cards}</div>
+    <div class="card">
+      <div class="mrtabs" role="tablist">
+        ${[["lost","遺失",A.遺失],["dmg","損壞",A.損壞],["consum","耗材",A.耗材],["buy","採購",A.採購]].map(([k,t,n])=>
+          `<button role="tab" aria-selected="${mTab===k}" onclick="setMTab('${k}')">${t}<span class="n">${n} 件</span></button>`).join("")}
+      </div>
+      <div class="stats">${kpi}</div>
+      <div class="foot"><span class="lbl">耗材屬正常消耗，不計入遺失　·　箭頭為與上個月相比</span></div>
+    </div>
+
+    <div class="card"><div class="hd"><h2>${M.t}</h2>
+      <span class="lbl" style="margin-left:auto">${cur?last:`${ms[0]} ~ ${last}`}　·　全隊 ${VEH().length} 台車</span></div>
       <div class="bd" style="border-bottom:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:7px">統計範圍</div>
+        <div class="chips" style="margin-bottom:11px">
+          <button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
+            aria-pressed="${mScope==="cur"}" onclick="setMScope('cur')">本月</button>
+          <button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
+            aria-pressed="${mScope==="all"}" onclick="setMScope('all')">近 ${ms.length} 個月累計</button>
+        </div>
+        <div class="lbl" style="margin-bottom:7px">顯示幾個月</div>
         <div class="chips">${[[3,"近 3 個月"],[6,"近 6 個月"],[12,"近 12 個月"],["all","全部"]].map(([v,t])=>
           `<button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
             aria-pressed="${String(mRange)===String(v)}" onclick="setMRange('${v}')">${t}</button>`).join("")}</div>
+        <p class="sub" style="font-size:13px;color:var(--muted);margin:12px 0 0">${M.d}</p>
       </div>
-      <div class="tw"><table>
-        <colgroup><col>${ms.map(()=>`<col style="width:72px">`).join("")}<col style="width:72px"></colgroup>
-        ${head}${body}</table></div>
-      <div class="foot"><span class="lbl">
-        箭頭為與前一個月相比。遺失與損壞往上是壞事（紅色），往下是好事（綠色）；耗材屬正常消耗，不判好壞。<br>
-        數字以<b>實際補料</b>為準（補了幾個就是損失幾個），同一筆損失不會因為連續盤到而重複計算；
-        盤到但尚未補料的，會算在實際補料的那個月</span></div></div>
+      <div class="mrkh"><span>品項</span><span>${M.rate?"數量 / 配置":"數量"}</span><span>${M.rate?"比例":"相對多寡"}</span></div>
+      ${shown.length||zeros.length?rank:`<div class="empty">這段期間沒有紀錄。</div>`}
+      <div class="foot"><span class="lbl">${M.rate
+        ?"比例 ＝ 期間數量 ÷ 全隊配置數（每車標配 × 車數），不是用車上實際數量算"
+        :"耗材與採購不計算比例"}</span></div></div>
 
-    ${detailCard("損壞品項明細",byDmg,dmgList,"依實際汰換數量統計。數字大的代表這項工具特別容易壞，可考慮換品牌或改變使用方式。")}
-    ${detailCard("遺失品項明細",byLost,lostList,"依實際補出數量統計。")}
+    <div class="card"><div class="hd"><h2>每個月各多少</h2>
+      <span class="lbl" style="margin-left:auto">近 ${ms.length} 個月</span></div>
+      <div class="bd">${cols}</div></div>
 
-    <div class="card"><div class="hd"><h2>採購品項明細</h2>
-      <span class="lbl" style="margin-left:auto">${Object.keys(byBuy).length} 項</span></div>
-      ${Object.keys(byBuy).length?`<div class="tw"><table>
-        <colgroup><col>${ms.map(()=>`<col style="width:72px">`).join("")}<col style="width:72px"></colgroup>
-        <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th></tr>
-        ${Object.keys(byBuy).map(k=>({k,tot:ms.reduce((t,m)=>t+(byBuy[k][m]||0),0)}))
-          .sort((a,b)=>b.tot-a.tot).slice(0,20).map(x=>`<tr>
-          <td class="c-name">${x.k}</td>
-          ${ms.map(m=>`<td class="n">${byBuy[x.k][m]||"—"}</td>`).join("")}
-          <td class="n c-num">${x.tot}</td></tr>`).join("")}</table></div>`
-      :`<div class="empty">這段期間沒有採購入庫紀錄。</div>`}</div>
+    <div class="card"><div class="hd"><h2>逐月明細（品項 × 月份）</h2>
+      ${M.rate?`<div class="chips" style="margin-left:auto">
+        <button class="chip" style="min-width:auto;padding:0 12px;font-family:var(--tc);font-size:13px;font-weight:700"
+          aria-pressed="${mCell!=="rate"}" onclick="setMCell('cnt')">件數</button>
+        <button class="chip" style="min-width:auto;padding:0 12px;font-family:var(--tc);font-size:13px;font-weight:700"
+          aria-pressed="${mCell==="rate"}" onclick="setMCell('rate')">比例</button></div>`:""}</div>
+      <div class="bd" style="padding-bottom:0"><p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
+        ${asRate?"每一格是<b>當月的比例</b>＝當月件數 ÷ 全隊配置數。"
+                :"每一格是當月件數。"}顏色越深代表越多，「·」代表當月沒有紀錄。</p></div>
+      ${matrix}</div>
 
-    <div class="card"><div class="hd"><h2>匯出月報</h2></div><div class="bd">
+    ${extra}
+
+    <div class="card"><div class="hd"><h2>匯出${M.t}月報</h2></div><div class="bd">
       <div class="g3">
         <button class="btn ghost" onclick="exportMonthly('xls')">Excel</button>
         <button class="btn ghost" onclick="exportMonthly('doc')">Word</button>
         <button class="btn amber" onclick="exportMonthly('print')">直接列印</button></div>
-      <div class="lbl" style="margin-top:9px">含月度比較表、損壞品項明細、遺失品項明細、採購品項明細，可直接列印給主管</div>
+      <div class="lbl" style="margin-top:9px">只匯出目前這一頁（${M.t}），含排行與逐月明細。要印其他類別請先切到那一頁</div>
     </div></div>
   </div>`;
 }
+function setMTab(k){mTab=k;render();}
+function setMCell(k){mCell=k;render();}
+function setMScope(k){mScope=k;render();}
 function setMRange(v){mRange=(v==="all")?"all":Number(v);render();}
 function exportMonthly(fmt){
-  const {ms,agg,byItem,byLost,byDmg,byBuy}=monthlyStats();
+  const st=monthlyStats(), ms=st.ms;
   if(!ms.length)return toast("還沒有可統計的資料");
-  const w1=Math.max(14,Math.floor(58/Math.max(1,ms.length)));
-  const cols=[{t:"項目",w:100-w1*ms.length-14,px:110}]
-    .concat(ms.map(m=>({t:m.slice(5)+"月",w:w1,px:52,c:1})))
-    .concat([{t:"合計",w:14,px:52,c:1}]);
-  const rows=METRICS.map(([k,desc])=>({c:[k].concat(ms.map(m=>agg[m][k]))
-    .concat([ms.reduce((t,m)=>t+agg[m][k],0)])}));
-  const mk=src=>Object.keys(src).map(k=>({k,tot:ms.reduce((t,m)=>t+(src[k][m]||0),0)}))
-    .filter(x=>x.tot>0).sort((a,b)=>b.tot-a.tot);
-  const tbl=(title,src,foot)=>({title,cols,
-    rows:mk(src).map(x=>({c:[x.k].concat(ms.map(m=>src[x.k][m]||"")).concat([x.tot])})),foot});
-  const extra=[
-    tbl("損壞品項明細",byDmg,"依實際汰換數量統計。數字大的代表該項工具特別容易損壞。"),
-    tbl("遺失品項明細",byLost,"依實際補出數量統計，耗材正常消耗不計入。"),
-    tbl("採購品項明細",byBuy,"來源為出入庫登錄的「採購入庫」。")
-  ];
-  const A=agg[ms[ms.length-1]];
-  const html=reportHTML("鉅誠驗屋 · 月度工具狀態報表",
-    [`統計期間：${ms[0]} ~ ${ms[ms.length-1]}`,`車輛數：${VEH().length}`,
-     `本月遺失 ${A.遺失}　損壞 ${A.損壞}　耗材 ${A.耗材}　採購 ${A.採購}`,
+  const M=MRMETA[mTab];
+  const rows=mrRows(mrSrc(st),ms,mTab==="buy"?st.byLost:null);
+  if(!rows.length)return toast(`這段期間沒有${M.t}紀錄`);
+  const cur=mScope==="cur";
+  const cnt=r=>cur?r.cur:r.tot;
+  const den=r=>cur?r.cfg:r.cfg*ms.length;
+  const rate=r=>{const d=den(r);return d?Math.round(cnt(r)/d*100)+"%":"—";};
+
+  // 一、排行
+  const rkCols=M.rate
+    ? [{t:"品項",w:46,px:150},{t:"數量",w:14,px:52,n:1},{t:"全隊配置",w:20,px:62,n:1},{t:"比例",w:20,px:52,n:1}]
+    : [{t:"品項",w:60,px:190},{t:"數量",w:40,px:62,n:1}];
+  const rkRows=rows.slice().filter(r=>cnt(r)>0)
+    .sort((a,b)=>(M.rate?( (b.cfg?cnt(b)/b.cfg:0)-(a.cfg?cnt(a)/a.cfg:0) ):(cnt(b)-cnt(a))))
+    .map(r=>({c:M.rate?[r.sku,cnt(r),den(r)||"—",rate(r)]:[r.sku,cnt(r)]}));
+
+  // 二、逐月明細
+  const w1=Math.max(10,Math.floor(50/Math.max(1,ms.length)));
+  const mCols=[{t:"品項",w:100-w1*ms.length-14,px:140},{t:"合計",w:14,px:48,n:1}]
+    .concat(ms.map(m=>({t:m.slice(5)+"月",w:w1,px:44,n:1})));
+  const mRows=rows.slice().sort((a,b)=>b.tot-a.tot)
+    .map(r=>({c:[r.sku,r.tot].concat(r.series.map(v=>v||""))}));
+
+  const A=st.agg[ms[ms.length-1]];
+  const extra=[{title:"二、逐月明細",cols:mCols,rows:mRows,
+    foot:M.rate?"比例＝期間數量 ÷ 全隊配置數（每車標配 × 車數）。":""}];
+  if(mTab==="buy") extra.push({title:"三、採購與遺失對照",
+    cols:[{t:"品項",w:50,px:160},{t:"採購",w:25,px:60,n:1},{t:"同期遺失",w:25,px:60,n:1}],
+    rows:rows.slice().sort((a,b)=>b.tot-a.tot).map(r=>({c:[r.sku,r.tot,r.other]})),
+    foot:"採購遠高於遺失通常是定期補貨；兩者接近則是追著遺失跑。"});
+
+  const html=reportHTML(`鉅誠驗屋 · ${M.t}月報表`,
+    [`統計期間：${cur?ms[ms.length-1]:`${ms[0]} ~ ${ms[ms.length-1]}`}`,
+     `車輛數：${VEH().length}`,
+     `本月　遺失 ${A.遺失}　損壞 ${A.損壞}　耗材 ${A.耗材}　採購 ${A.採購}`,
      `列印日期：${today()}`,`製表：${me?me.name:"—"}`],
-    cols,rows,
-    "數字以實際補料為準：遺失與損壞為工具實際補出／汰換的數量，耗材為耗材補充量。同一筆損失只計一次。",extra);
+    rkCols,rkRows,
+    "數字以實際補料為準：遺失與損壞為工具實際補出／汰換的數量，耗材為耗材補充量。同一筆損失只計一次。",
+    extra,"一、排行");
   if(fmt==="print")return printReport(html);
-  const fn=`月度工具狀態_${stamp(ms[0])}-${stamp(ms[ms.length-1])}`;
+  const fn=`${M.t}月報_${stamp(ms[0])}-${stamp(ms[ms.length-1])}`;
   fmt==="doc"?download(fn+".doc","application/msword",html)
              :download(fn+".xls","application/vnd.ms-excel",html);
 }
