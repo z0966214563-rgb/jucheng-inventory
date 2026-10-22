@@ -315,6 +315,65 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 @media (max-width:560px){
   .mrk,.mrkh{grid-template-columns:1fr 72px 96px;gap:9px}
 }
+
+/* 外勤場次 */
+.ses2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ses2 button{border:1px solid var(--line);background:#fff;border-radius:4px;padding:15px 12px;
+  font-family:var(--tc);cursor:pointer;text-align:left;color:var(--ink)}
+.ses2 button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}
+.ses2 button[disabled]{opacity:.45;cursor:default}
+.ses2 .h{font-size:16px;font-weight:700}
+.ses2 .s{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6}
+.alertbox{border:1px solid var(--alert);background:var(--alert-bg);border-radius:4px;
+  padding:13px 14px;margin-bottom:12px}
+.alertbox b{color:var(--alert);font-size:15px}
+.alertbox ul{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
+.alertbox .note2{margin-top:8px;font-size:12.5px;color:#8A2318;line-height:1.7}
+.okbox{border:1px solid var(--ok);background:var(--ok-bg);border-radius:4px;
+  padding:13px 14px;margin-bottom:12px;font-size:14px;color:#1E5A42}
+@media (max-width:420px){ .ses2{grid-template-columns:1fr} }
+
+/* 盤點結果 v2 */
+.fleet2{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:11px}
+.vc2{border:1px solid var(--line);border-left-width:5px;border-radius:3px;padding:11px 12px;
+  cursor:pointer;background:#fff}
+.vc2:hover{background:#FAFBFC}
+.vc2[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink);border-color:var(--ink)}
+.vc2 .id{font-family:var(--mono);font-size:21px;font-weight:700;line-height:1}
+.vc2.ok{border-left-color:var(--ok)} .vc2.part{border-left-color:var(--amber)} .vc2.none{border-left-color:var(--alert)}
+.vses{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12.5px}
+.vses .t{font-family:var(--mono);font-size:11px;color:var(--muted);width:30px;flex:none}
+.vses .s{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.vdot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+.d-ok{background:var(--ok)} .d-ab{background:var(--alert)} .d-no{background:#C9CED4}
+.d-miss{background:#fff;border:2px solid var(--alert)}
+.lg2{display:flex;flex-wrap:wrap;gap:13px;margin-top:12px;font-size:12px;color:var(--muted)}
+.lg2 span{display:inline-flex;align-items:center;gap:5px}
+.rgrp{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#F7F8FA;
+  border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)}
+.rgrp .v{font-family:var(--mono);font-size:16px;font-weight:700}
+.rgrp .n{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.shr{display:grid;grid-template-columns:76px 1fr 92px;gap:12px;align-items:center;
+  padding:12px 14px;border-bottom:1px solid var(--line2);cursor:pointer}
+.shr:hover{background:#FAFBFC}
+.sestag{font-size:12.5px;font-weight:700;text-align:center;padding:4px 0;border-radius:3px}
+.s-am{background:#EAF2FB;color:#1F5C9E} .s-pm{background:#F2F0EA;color:#6B5A2E}
+.sti{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:3px}
+.shr .who{font-size:14.5px;font-weight:600}
+.shr .smeta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:3px}
+.sbadge{font-family:var(--mono);font-size:12px;padding:3px 8px;border-radius:3px;text-align:center;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)} .b-ab{background:var(--alert-bg);color:var(--alert)}
+.sdetail{background:#FBFCFD;border-bottom:1px solid var(--line2)}
+@media (max-width:560px){ .shr{grid-template-columns:66px 1fr 76px;gap:9px} }
+
+/* 上午場清單 */
+.amhd{padding:10px 14px;background:#F7F8FA;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)}
+.amrow{display:grid;grid-template-columns:1fr 78px 70px;gap:11px;align-items:center;
+  padding:11px 14px;border-bottom:1px solid var(--line2)}
+.amrow .nm{font-size:15px;font-weight:600}
+.amrow .sub2{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+.amrow .rt{font-family:var(--mono);font-size:13px;text-align:right;color:var(--muted)}
+.amrow .btn{white-space:nowrap}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -323,8 +382,14 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 
 <script>
 /* ===================== 資料來源：全部來自雲端 ===================== */
-const RW=()=>(S&&S.rows)?S.rows:[];
-const PKGS=()=>(S&&S.pkgs)?S.pkgs:[];
+const AMSET=()=>new Set((S&&S.amItems)||[]);
+const amMode=()=>role==="field"&&draft&&draft.session==="am"&&AMSET().size>0;
+const ALLRW=()=>(S&&S.rows)?S.rows:[];
+const RW=()=>{ const all=ALLRW(); if(!amMode())return all;
+  const am=AMSET(); return all.filter(r=>am.has(r.sku)); };
+const PKGS=()=>{ const all=(S&&S.pkgs)?S.pkgs:[];
+  if(!amMode())return all;
+  const ids=new Set(RW().map(r=>r.pkg)); return all.filter(p=>ids.has(p.id)); };
 const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
 const ITEMS=()=>(S&&S.items)?S.items:[];
 const ALLSKU=()=>ITEMS().map(i=>i.sku);
@@ -384,7 +449,8 @@ function prune(){}               // 照片保留由資料庫處理
 /* ---- 伺服器資料 → 畫面用的資料結構 ---- */
 function blankState(){
   return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],
-          items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg"};
+          items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",
+          amItems:[],amIds:[],needs:[]};
 }
 function applyConfig(cfg){
   S=S||blankState();
@@ -394,6 +460,7 @@ function applyConfig(cfg){
   S.rows=(cfg.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
     name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
     valuable:!!r.valuable,consum:!!r.consumable}));
+  S.amItems=cfg.am_items||[];
 }
 async function applyState(st,urls){
   // 先組好一份完整資料，最後才整個換掉；中途失敗不會把畫面清空
@@ -414,7 +481,7 @@ async function applyState(st,urls){
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
   const U=urls||{};
   N.records=(st.sheets||[]).map(x=>({
-    id:x.id,vehicle:x.vehicle,person:x.person,date:x.date,time:x.time,
+    id:x.id,vehicle:x.vehicle,person:x.person,date:x.date,time:x.time,session:x.session||"pm",
     okCount:x.ok_count,fixed:x.fixed,pruned:x.pruned,ts:new Date(x.created_at).getTime(),
     lines:(x.lines||[]).map(l=>({sku:l.name,name:l.name,pkg:l.pkg,std:l.std,actual:l.actual,
       type:l.status,diff:l.status==="損壞"?-l.actual:l.actual-l.std,
@@ -428,6 +495,10 @@ async function applyState(st,urls){
     reason:m.reason,person:m.person,note:m.note,vehicle:m.vehicle||"",
     fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,
     car:["遺失","損壞","遺失或損壞"].includes(m.reason)?1:0}));
+  N.amItems=(st.am_items||[]).map(x=>x.name);
+  N.amIds=(st.am_items||[]).map(x=>({id:x.id,name:x.name}));
+  N.needs=(st.needs||[]).map(n=>({vehicle:n.vehicle,sku:n.item,itemId:n.item_id,
+    qty:n.qty,kind:n.kind,done:n.done,date:n.date,session:n.session}));
   N.manual=(st.manual||[]).map(x=>({id:x.id,vehicle:x.vehicle,sku:x.item,itemId:x.item_id,
     qty:x.qty,note:x.note}));
   S=N;
@@ -455,6 +526,8 @@ let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"
 let rs={vehicle:"",sku:"",qty:1,note:""};
 let nItem={name:"",qty:0,safe:1,loc:"未設定"};
 let editSku=null, editRow=null, openRec=null, lightbox=null;
+let lastSubmit=null;   // 剛送出的盤點單摘要（上午場用來提醒）
+let rDate=null, rVeh=null;   // 盤點結果頁：看哪一天、只看哪台車
 let nVeh={code:"",preload:false};
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
 const nowHM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;};
@@ -599,7 +672,7 @@ function switchRole(){
 }
 
 /* ===================== 盤點人員頁 ===================== */
-const newDraft=()=>({person:"",vehicle:"",date:today(),items:{},pkgPhoto:{}});  // pkgPhoto[包別id] = [照片1, 照片2]
+const newDraft=()=>({person:"",vehicle:"",date:today(),session:"pm",items:{},pkgPhoto:{}});  // pkgPhoto[包別id] = [照片1, 照片2]
 function st(rid){ if(!draft.items[rid])draft.items[rid]={status:"pending",type:"",actual:null,note:"",photo:null,open:false};
   return draft.items[rid]; }
 const pkgRows=id=>RW().filter(r=>r.pkg===id);
@@ -676,8 +749,26 @@ function viewField(){
     </div>
   </div>`;
 }
+function amCount(){ const am=AMSET(); return ALLRW().filter(r=>am.has(r.sku)).length; }
+function pickSes(v){ draft.session=v; render(); }
+function dismissLast(){ lastSubmit=null; render(); }
+function lastSubmitBox(){
+  if(!lastSubmit) return "";
+  const L=lastSubmit, am=L.session==="am";
+  if(!L.bad.length) return `<div class="okbox">
+    ${L.vehicle} 車${am?"上午場":"下午場"}已送出，全部正常。
+    <button class="btn ghost tiny" style="margin-left:8px" onclick="dismissLast()">知道了</button></div>`;
+  return `<div class="alertbox">
+    <b>${L.vehicle} 車${am?"上午場":"下午場"}少了 ${L.bad.length} 項${am?"，請趁還在案場確認":""}</b>
+    <ul>${L.bad.map(x=>`<li>${esc(x.name)}　標配 ${x.std}，實際 ${x.actual}（${esc(x.status)}）</li>`).join("")}</ul>
+    <div class="note2">${am
+      ?"找到的話回頭再盤一次就會更正；確定找不到就會列入待補料。"
+      :"這些已經列入待補料，管理者補貨時會看到。"}</div>
+    <button class="btn ghost tiny" style="margin-top:9px" onclick="dismissLast()">知道了</button></div>`;
+}
 function viewStart(){
   return `<div class="wrap">
+    ${lastSubmitBox()}
     <div class="card"><div class="hd"><h2>開始盤點</h2><span class="lbl" style="margin-left:auto">${REGION}</span></div>
       <div class="bd">
         <label class="f"><span class="lbl">盤點人姓名</span>
@@ -690,7 +781,18 @@ function viewStart(){
         </div>
         <div class="lbl" style="margin-bottom:6px">車別</div>
         <div class="chips">${VEH().map(v=>`<button class="chip" aria-pressed="${draft.vehicle===v}" onclick="pickV('${v}')">${v}</button>`).join("")}</div>
-        <div style="margin-top:16px"><button class="btn block" onclick="startCount()">進入盤點（${byItem()?`逐項拍照 · ${RW().length} 張`:`每包一張 · ${PKGS().length} 張`}）</button></div>
+
+        <div class="lbl" style="margin:16px 0 6px">這次是哪一場</div>
+        <div class="ses2">
+          <button aria-pressed="${draft.session==="am"}" onclick="pickSes('am')" ${amCount()?"":"disabled"}>
+            <div class="h">上午場</div>
+            <div class="s">${amCount()?`只盤 ${amCount()} 項高風險工具<br>趁還在案場時發現`:"管理者還沒設定清單"}</div></button>
+          <button aria-pressed="${draft.session!=="am"}" onclick="pickSes('pm')">
+            <div class="h">下午場</div>
+            <div class="s">完整 ${ALLRW().length} 項<br>收工前的正式盤點</div></button>
+        </div>
+
+        <div style="margin-top:16px"><button class="btn block" onclick="startCount()">進入${draft.session==="am"?"上午場":"下午場"}盤點（${byItem()?`逐項拍照 · ${RW().length} 張`:`每包一張 · ${PKGS().length} 張`}）</button></div>
       </div></div>
   </div>`;
 }
@@ -868,12 +970,15 @@ async function submitCount(){
         status:ab?st0.type:"正常",note:st0.note||"",photo_path:path});
     }
     setProgress("寫入盤點單…");
+    const ses=draft.session||"pm";
     await rpc("field_submit",{p:{vehicle_code:veh,person:draft.person,
-      time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos}});
-    const n=lines.filter(l=>l.status!=="正常").length;
+      time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos,session:ses}});
+    const bad=lines.filter(l=>l.status!=="正常");
+    lastSubmit={vehicle:veh,session:ses,
+      bad:bad.map(l=>({name:l.item_name,std:l.std,actual:l.actual,status:l.status}))};
     draft=null; curPkg=firstPkg();
     setProgress(null); busy=false; render();
-    toast(`${veh} 車已送出，${n} 項異常`);
+    toast(`${veh} 車${ses==="am"?"上午場":"下午場"}已送出，${bad.length} 項異常`);
   }catch(e){
     setProgress(null); busy=false; render();
     toast("送出失敗："+(e.message||""));
@@ -1130,23 +1235,17 @@ function trend(cur,prev,bad){
 const abLines=r=>r.lines.filter(l=>l.type!=="正常");
 // 待補明細：盤點自動產生 ＋ 管理者手動輸入
 function needList(){
-  const out=[], seen={};
-  S.records.slice().sort((a,b)=>b.ts-a.ts).filter(r=>!r.fixed).forEach(r=>{
-    if(seen[r.vehicle])return;                 // 每台車只看最新一次盤點
-    seen[r.vehicle]=true;
-    (r.lines||[]).forEach(l=>{
-      if(l.type==="多出")return;
-      const total=l.type==="損壞"?l.actual:(l.std-l.actual);   // 遺失與舊的短缺算法相同
-      const q=total-(l.done||0);               // 扣掉已經補過的
-      if(q<=0)return;
-      out.push({key:r.id+"|"+l.sku,vehicle:r.vehicle,sku:l.sku,itemId:l.itemId,qty:q,
-                src:`盤點 ${l.type}${l.done?`（已補 ${l.done}）`:""}`,auto:true});
-    });
-  });
+  // 待補料由資料庫直接算（每個品項取「最後一張有盤到它的單」），
+  // 畫面與實際扣帳用同一套規則，不會各說各話
+  const out=(S.needs||[]).map(n=>({
+    key:n.vehicle+"|"+n.sku, vehicle:n.vehicle, sku:n.sku, itemId:n.itemId,
+    qty:n.qty, src:`盤點 ${n.kind}${n.done?`（已補 ${n.done}）`:""}${n.session==="am"?"　·　上午場":""}`,
+    auto:true}));
   (S.manual||[]).forEach(m=>out.push({key:m.id,vehicle:m.vehicle,sku:m.sku,itemId:m.itemId,qty:m.qty,
     src:m.note?`手動 · ${m.note}`:"手動新增",auto:false,id:m.id}));
   return out;
 }
+
 function needByVehicle(){const g={};
   needList().forEach(n=>{(g[n.vehicle]=g[n.vehicle]||[]).push(n);});return g;}
 function needBySku(){const m={};
@@ -1554,58 +1653,125 @@ async function fulfill(vehicle){
   },vehicle?`${vehicle} 車已補料`:"補料完成，庫存已扣");
 }
 
-function viewResult(){
-  const cards=VEH().map(v=>{
-    const r=S.records.find(x=>x.vehicle===v);
-    if(!r)return `<div class="vcard red"><div class="id">${v}</div><div class="st">尚無盤點紀錄</div><div class="who">—</div></div>`;
-    const d=dayDiff(r.date),n=abLines(r).length;
-    const cls=d===0?"":d===1?"amber":"red", stx=d===0?"今日已盤":d===1?"昨日盤點":`已 ${d} 天未盤`;
-    return `<div class="vcard ${cls}"><div class="id">${v}</div>
-      <div class="st">${stx}${r.time?`<span class="lbl" style="margin-left:5px">${r.time}</span>`:""}</div>
-      <div class="who">${r.person}　${n?`<span style="color:var(--alert);font-weight:700">${n} 項異常</span>`:"全部正常"}</div></div>`;}).join("");
+/* ===== 盤點結果 v2 ===== */
+function resDate(){ return rDate||today(); }
+function setRDate(d){ rDate=d; rVeh=null; openRec=null; render(); }
+function pickRVeh(v){ rVeh=(rVeh===v)?null:v; openRec=null; render(); }
+const SESNAME={am:"上午場",pm:"下午場"};
+const sesOf=r=>r.session==="am"?"am":"pm";
 
-  const recs=S.records.slice(0,20).map(r=>{
-    const ab=abLines(r), open=openRec===r.id;
-    const nShots=(r.pkgPhotos||[]).length+((r.photoLines||[]).filter(l=>l.photo).length||r.lines.filter(l=>l.photo).length);
-    const head=`<button class="rechd" onclick="toggleRec('${r.id}')">
-      <div style="flex:1;min-width:0;text-align:left">
-        <div style="font-size:14.5px;font-weight:900">${r.vehicle} 車　${r.date}${r.time?" "+r.time:""}</div>
-        <div class="lbl" style="margin-top:2px">${r.person}　·　正常 ${r.okCount}/${r.lines.length}
-          ${ab.length?`　·　<span style="color:var(--alert)">${ab.length} 項異常</span>`:""}
-          ${nShots?`　·　${nShots} 張照片`:"　·　照片已清除"}</div></div>
-      <span class="caret">${open?"收合 ▲":"展開 ▼"}</span></button>`;
-    if(!open) return `<div class="card">${head}</div>`;
-    const delBar=`<div class="bd" style="border-top:1px solid var(--line2);text-align:right">
-      <button class="btn ghost tiny" onclick="delSheet('${r.id}')">刪除這張盤點單</button></div>`;
-
-    const abTable=ab.length?`<div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
+function sheetCard(r){
+  const ab=abLines(r), open=openRec===r.id;
+  const ses=sesOf(r);
+  const nShots=(r.pkgPhotos||[]).length+((r.photoLines||[]).filter(l=>l.photo).length||r.lines.filter(l=>l.photo).length);
+  const scope=ses==="am"?`精簡 ${r.lines.length+r.okCount} 項`:`完整 ${r.lines.length+r.okCount} 項`;
+  const head=`<div class="shr" onclick="toggleRec('${r.id}')">
+      <div><div class="sestag s-${ses}">${SESNAME[ses]}</div><div class="sti">${r.time||"—"}</div></div>
+      <div><div class="who">${esc(r.person)}</div>
+        <div class="smeta">${scope}　·　正常 ${r.okCount}　·　${nShots?nShots+" 張照片":"照片已清除"}</div></div>
+      <div class="sbadge ${ab.length?"b-ab":"b-ok"}">${ab.length?ab.length+" 項異常":"全部正常"}</div>
+    </div>`;
+  if(!open) return head;
+  const abTable=ab.length?`<div class="tw"><table>
+      <colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
       <tr><th>品項</th><th>包別</th><th class="n">標配</th><th class="n">實際</th><th class="n">狀況</th></tr>
-      ${ab.map(l=>`<tr class="warn"><td>${l.name}${l.note?`<div class="lbl">${l.note}</div>`:""}</td>
-        <td style="color:var(--muted)">${l.pkg}</td><td class="n">${l.std}</td><td class="n">${l.actual}</td>
-        <td class="n" style="color:var(--alert);font-weight:700">${l.type}</td></tr>`).join("")}</table></div>`
-      :`<div style="padding:12px 14px;color:var(--ok);font-size:13.5px">全部正常</div>`;
+      ${ab.map(l=>`<tr class="warn"><td>${esc(l.name)}${l.note?`<div class="lbl">${esc(l.note)}</div>`:""}</td>
+        <td style="color:var(--muted)">${esc(l.pkg)}</td><td class="n">${l.std}</td><td class="n">${l.actual}</td>
+        <td class="n" style="color:var(--alert);font-weight:700">${esc(l.type)}</td></tr>`).join("")}</table></div>`
+    :`<div style="padding:12px 14px;color:var(--ok);font-size:13.5px">全部正常</div>`;
+  const shots=[];
+  (r.pkgPhotos||[]).forEach(p=>shots.push({src:p.url,t:p.pkg,s:"本包照片",bad:false}));
+  (r.photoLines||r.lines.filter(l=>l.photo)).filter(l=>l.photo).forEach(l=>shots.push({src:l.photo,t:l.name,
+    s:l.type==="正常"?`${l.pkg}　${l.std} 個`:`${l.type} ${l.type==="損壞"?l.actual:Math.abs(l.diff)}`,
+    bad:l.type!=="正常"}));
+  const grid=shots.length?`<div class="grid">${shots.map((x,k)=>`
+      <div class="cell ${x.bad?"bad":""}" onclick="zoom('${r.id}',${k})">
+        <img src="${x.src}"><div class="cap">${esc(x.t)}</div><div class="cap2">${esc(x.s)}</div></div>`).join("")}</div>`
+    :`<div class="lbl" style="padding:10px 14px">照片已刪除（每車只保留最新 ${KEEP} 組）</div>`;
+  return head+`<div class="sdetail">
+      <div class="lbl" style="padding:10px 14px 0">異常明細</div>${abTable}
+      <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">照片　點圖可放大</div>
+      ${grid}
+      <div class="bd" style="text-align:right;border-top:1px solid var(--line2)">
+        <button class="btn ghost tiny" onclick="delSheet('${r.id}')">刪除這張盤點單</button></div></div>`;
+}
 
-    const shots=[];
-    (r.pkgPhotos||[]).forEach(p=>shots.push({src:p.url,t:p.pkg,s:"本包照片",bad:false}));
-    (r.photoLines||r.lines.filter(l=>l.photo)).filter(l=>l.photo).forEach(l=>shots.push({src:l.photo,t:l.name,
-      s:l.type==="正常"?`${l.pkg}　${l.std} 個`:`${l.type} ${l.type==="損壞"?l.actual:Math.abs(l.diff)}`,
-      bad:l.type!=="正常"}));
-    const grid=shots.length?`<div class="grid">${shots.map((x,i)=>`
-      <div class="cell ${x.bad?"bad":""}" onclick="zoom('${r.id}',${i})">
-        <img src="${x.src}"><div class="cap">${x.t}</div><div class="cap2">${x.s}</div></div>`).join("")}</div>`
-      :`<div class="lbl" style="padding:10px 14px">照片已刪除（每車只保留最新 ${KEEP} 組）</div>`;
-    return `<div class="card">${head}
-      <div class="lbl" style="padding:10px 14px 0">異常明細</div>
-      ${abTable}
-      <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">
-        照片　${(r.pkgPhotos||[]).length?`${(r.pkgPhotos||[]).length} 張本包照 ＋ `:""}${(r.photoLines||[]).filter(l=>l.photo).length} 張項目照　·　點圖可放大</div>
-      ${grid}${delBar}</div>`;}).join("");
+function viewResult(){
+  const D=resDate();
+  const dayRecs=S.records.filter(r=>r.date===D);
+  const amDone=VEH().filter(v=>dayRecs.some(r=>r.vehicle===v&&sesOf(r)==="am")).length;
+  const pmDone=VEH().filter(v=>dayRecs.some(r=>r.vehicle===v&&sesOf(r)==="pm")).length;
+  const dayAb=dayRecs.reduce((a,r)=>a+abLines(r).length,0);
+
+  const cards=VEH().map(v=>{
+    const rs=dayRecs.filter(r=>r.vehicle===v);
+    const am=rs.find(r=>sesOf(r)==="am"), pm=rs.find(r=>sesOf(r)==="pm");
+    const cls=(am&&pm)?"ok":(am||pm)?"part":"none";
+    const line=(r,lab,must)=>{
+      if(!r) return `<div class="vses"><span class="vdot ${must?"d-miss":"d-no"}"></span>
+        <span class="t">${lab}</span><span class="s"${must?' style="color:var(--alert);font-weight:700"':""}>未盤點</span></div>`;
+      const bad=abLines(r).length;
+      return `<div class="vses"><span class="vdot ${bad?"d-ab":"d-ok"}"></span><span class="t">${lab}</span>
+        <span class="s">${r.time||"—"}　${bad?`<b style="color:var(--alert)">${bad} 項異常</b>`:"正常"}</span></div>`;
+    };
+    return `<div class="vc2 ${cls}" aria-pressed="${rVeh===v}" onclick="pickRVeh('${v}')">
+      <div class="id">${v}</div>${line(am,"上午",true)}${line(pm,"下午",false)}</div>`;}).join("");
+
+  let rows="";
+  if(rVeh){
+    const mine=S.records.filter(r=>r.vehicle===rVeh);
+    if(!mine.length) rows=`<div class="empty">${rVeh} 車還沒有盤點紀錄。</div>`;
+    else{
+      [...new Set(mine.map(r=>r.date))].sort().reverse().slice(0,30).forEach(d=>{
+        const rs=mine.filter(r=>r.date===d).sort((a,b)=>sesOf(a)>sesOf(b)?1:-1);
+        rows+=`<div class="rgrp"><span class="v">${d}</span>
+          <span class="n">${rs.length} 場　·　${rs.reduce((a,r)=>a+abLines(r).length,0)} 項異常</span></div>`
+          +rs.map(sheetCard).join("");
+      });
+    }
+  }else{
+    VEH().forEach(v=>{
+      const rs=dayRecs.filter(r=>r.vehicle===v).sort((a,b)=>sesOf(a)>sesOf(b)?1:-1);
+      if(!rs.length){
+        rows+=`<div class="rgrp"><span class="v">${v}</span>
+          <span class="n" style="color:var(--alert)">這一天沒有盤點紀錄</span></div>`;
+        return;
+      }
+      const bad=rs.reduce((a,r)=>a+abLines(r).length,0);
+      rows+=`<div class="rgrp"><span class="v">${v}</span>
+        <span class="n">${rs.length} 場　${bad?`· <b style="color:var(--alert)">${bad} 項異常</b>`:"· 全部正常"}</span></div>`
+        +rs.map(sheetCard).join("");
+    });
+  }
+
+  const yest=(()=>{const d=new Date(D);d.setDate(d.getDate()-1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>各車狀態</h2><span class="lbl" style="margin-left:auto">${today()}</span></div>
-      <div class="bd"><div class="fleet">${cards}</div>
-        <div class="lbl" style="margin-top:12px">綠＝今日已盤　黃＝昨日　紅＝2 天以上未盤</div></div></div>
-    ${S.records.length?recs:`<div class="card"><div class="empty">還沒有盤點紀錄。</div></div>`}
+    <div class="card"><div class="hd"><h2>各車狀態</h2>
+      <span class="lbl" style="margin-left:auto">${D}</span></div>
+      <div class="mvf">
+        <button class="mvchip" aria-pressed="${D===today()}" onclick="setRDate('${today()}')">今天</button>
+        <button class="mvchip" aria-pressed="${D===yest&&D!==today()}" onclick="setRDate('${yest}')">前一天</button>
+        <input type="date" class="mvdate" value="${D}" onchange="setRDate(this.value)">
+        ${rVeh?`<button class="mvchip" aria-pressed="true" onclick="pickRVeh('${rVeh}')">只看 ${rVeh} 車　✕</button>`:""}
+      </div>
+      <div class="bd"><div class="fleet2">${cards}</div>
+        <div class="lg2">
+          <span><i class="vdot d-ok"></i>已盤且正常</span>
+          <span><i class="vdot d-ab"></i>已盤有異常</span>
+          <span><i class="vdot d-miss"></i>上午場未做（每日必做）</span>
+          <span><i class="vdot d-no"></i>下午場未做</span>
+          <span>點車輛卡片＝只看那台車</span></div></div>
+      <div class="mvsum">
+        <div><b style="color:${amDone<VEH().length?"var(--alert)":"var(--ink)"}">${amDone}</b>/${VEH().length} 台完成上午場</div>
+        <div><b>${pmDone}</b>/${VEH().length} 台完成下午場</div>
+        <div><b style="color:${dayAb?"var(--alert)":"var(--ink)"}">${dayAb}</b> 項異常</div>
+      </div></div>
+
+    <div class="card"><div class="hd"><h2>${rVeh?rVeh+" 車的盤點紀錄":"當日盤點紀錄"}</h2>
+      <span class="lbl" style="margin-left:auto">${rVeh?"依日期排列":"依車別排列"}</span></div>
+      ${S.records.length?rows:`<div class="empty">還沒有盤點紀錄。</div>`}</div>
     ${lightbox?lbHTML():""}
   </div>`;
 }
@@ -2054,6 +2220,76 @@ function exportMonthly(fmt){
 }
 
 /* ---- 車輛管理（獨立分頁） ---- */
+function amCand(){
+  // 系統建議：近 6 個月有遺失的非耗材品項，依遺失率排序，排除已在清單裡的
+  const st=monthlyStats(), ms=st.ms, inList=new Set(S.amItems||[]);
+  return Object.keys(st.byLost||{}).map(k=>{
+    const tot=ms.reduce((t,m)=>t+((st.byLost[k]||{})[m]||0),0);
+    const cfg=cfgOf(k); let streak=0;
+    for(let x=ms.length-1;x>=0;x--){ if((st.byLost[k]||{})[ms[x]]) streak++; else break; }
+    return {sku:k,tot,cfg,rate:cfg?tot/(cfg*Math.max(1,ms.length)):0,streak};
+  }).filter(x=>x.tot>0&&!inList.has(x.sku))
+    .sort((a,b)=>b.rate-a.rate||b.tot-a.tot).slice(0,6);
+}
+function amListCard(){
+  const list=(S.amIds||[]).slice().sort((a,b)=>a.name<b.name?-1:1);
+  const cand=amCand();
+  const pool=(S.items||[]).filter(i=>!(S.amItems||[]).includes(i.sku))
+    .map(i=>i.sku).sort();
+  const row=(name,id,right,sub,btn)=>`<div class="amrow">
+    <div><div class="nm">${esc(name)}</div>${sub?`<div class="sub2">${sub}</div>`:""}</div>
+    <div class="rt">${right}</div>
+    <div>${btn}</div></div>`;
+  return `<div class="card"><div class="hd"><h2>上午場盤點清單</h2>
+      <span class="lbl" style="margin-left:auto">已選 ${list.length} 項</span></div>
+    <div class="bd" style="padding-bottom:0"><p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
+      上午場只盤這份清單，約兩分鐘。系統只<b>建議</b>，不會自動加入；移除就直接從清單消失。
+      建議控制在 5～10 項。</p></div>
+
+    <div class="lbl amhd">目前清單　${list.length} 項</div>
+    ${list.length?list.map(x=>row(x.name,x.id,
+        `${stdOf(x.name)?`標配 ${stdOf(x.name)}／車`:""}`,"",
+        `<button class="btn ghost tiny" onclick="amDel('${x.id}')">移除</button>`)).join("")
+      :`<div class="empty" style="padding:22px 14px">清單是空的，外勤選不到上午場。<br>
+        <span class="lbl">從下面的建議或手動加入挑幾樣進來</span></div>`}
+
+    <div class="lbl amhd">系統建議　依近 6 個月遺失狀況</div>
+    ${cand.length?cand.map(c=>{
+        const it=(S.items||[]).find(i=>i.sku===c.sku);
+        const why=c.streak>=3?`連 ${c.streak} 個月都有遺失`:`近 6 個月遺失 ${c.tot} 件`;
+        return row(c.sku,it?it.id:"",
+          `<span style="color:${c.rate>=0.15?"var(--alert)":"var(--muted)"};font-weight:700">${Math.round(c.rate*100)}%</span>`,
+          why, it?`<button class="btn ghost tiny" onclick="amAdd('${it.id}')">加入</button>`:"");
+      }).join("")
+      :`<div class="empty" style="padding:22px 14px">近 6 個月沒有明顯的遺失集中，沒有要建議的品項。<br>
+        <span class="lbl">遺失狀況低的時候這裡就會是空的</span></div>`}
+
+    <div class="lbl amhd">手動加入　高價值或你想盯的品項</div>
+    <div class="bd">
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <select id="ampick" style="flex:1;min-width:170px;border:1px solid var(--line);border-radius:3px;padding:9px 11px;font-size:15px">
+          ${pool.length?pool.map(p=>`<option>${esc(p)}</option>`).join("")
+            :`<option>（所有品項都已在清單裡）</option>`}</select>
+        <button class="btn" ${pool.length?"":"disabled"} onclick="amAddByName()">加入清單</button></div>
+      <p class="sub" style="font-size:13px;color:var(--muted);margin:10px 0 0">
+        系統沒有單價資料，判斷不了什麼叫「高價值」，這類品項請自己加。</p>
+    </div>
+    <div class="foot"><span class="lbl">清單改了之後，外勤下一次進上午場就會跟著換</span></div></div>`;
+}
+async function amAdd(id){
+  await guard(async()=>{ await rpc("mgr_am_add",{p_token:token,p_item:id});
+    await reload(); render(); },"已加入上午場清單");
+}
+async function amDel(id){
+  await guard(async()=>{ await rpc("mgr_am_del",{p_token:token,p_item:id});
+    await reload(); render(); },"已從上午場清單移除");
+}
+async function amAddByName(){
+  const el=document.getElementById("ampick"); if(!el)return;
+  const it=(S.items||[]).find(i=>i.sku===el.value);
+  if(!it)return toast("查無此品項");
+  await amAdd(it.id);
+}
 function viewVehicles(){
   const vlist=VEH().map(v=>{
     const used=S.records.some(r=>r.vehicle===v);
@@ -2133,6 +2369,8 @@ function viewVehicles(){
       <button class="btn block" onclick="addVehicle()">新增車輛</button>
       <div class="lbl" style="margin-top:8px">不勾選則車上在庫從 0 起算，之後用出入庫的「遺失或損壞」逐項配上去</div>
     </div></div>
+  </div>
+    ${amListCard()}
   </div>`;
 }
 
