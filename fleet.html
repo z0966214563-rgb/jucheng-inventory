@@ -209,8 +209,8 @@ function applyConfig(cfg){
 function applyState(st,urls){
   const N=blankState();
   N.settings=mapSettings(st.settings||{});
-  N.vehicles=(st.vehicles||[]).map(v=>({id:v.id,code:v.code,odo:v.odo,lastSvc:v.lastSvc,
-    next:v.next,interval:v.interval,used:v.used}));
+  N.vehicles=(st.vehicles||[]).map(v=>({id:v.id,code:v.code,plate:v.plate||"",odo:v.odo,
+    lastSvc:v.lastSvc,next:v.next,interval:v.interval,used:v.used}));
   const U=urls||{};
   N.trips=(st.trips||[]).map(t=>{
     const ph={};
