@@ -252,7 +252,9 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
 .k-lost .edge{background:var(--alert)} .k-lost .tag{background:var(--alert-bg);color:var(--alert)}
 .k-dmg  .edge{background:var(--amber-d)} .k-dmg  .tag{background:#FDF3E0;color:var(--amber-d)}
 .k-adj  .edge{background:var(--muted)} .k-adj  .tag{background:#EDEFF2;color:#4A5059}
-.k-etc  .edge{background:#9AA1AA} .k-etc  .tag{background:#F2F4F6;color:#4A5059}
+.k-etc  .edge{background:#C0C6CC} .k-etc  .tag{background:#F4F6F8;color:#5A6069}
+.k-make .edge{background:#5B6B7A} .k-make .tag{background:#EDF1F4;color:#3C4854}
+.k-person .edge{background:#9AA1AA} .k-person .tag{background:#F2F4F6;color:#4A5059}
 .k-buy  .edge{background:#1F5C9E} .k-buy  .tag{background:#E8F0F8;color:#1F5C9E}
 .k-ret  .edge{background:var(--ok)} .k-ret  .tag{background:var(--ok-bg);color:var(--ok)}
 .mvpin{display:inline-flex;align-items:center;background:#EEF1F4;border-radius:3px;
@@ -1002,13 +1004,15 @@ function reasonsOf(type){
   return [...new Set(base.concat(used))];
 }
 const MKIND={"遺失":["lost","遺失"],"損壞":["dmg","損壞"],"遺失或損壞":["lost","遺失或損壞"],
-  "個人用品":["etc","個人用品"],"工具製作領料":["etc","製作領料"],"工具製作完成入庫":["buy","製作完成"],
+  "個人用品":["person","個人用品"],"工具製作領料":["make","製作領料"],
+  "工具製作完成入庫":["buy","製作完成"],
   "盤虧調整":["adj","盤點調整"],"盤盈調整":["adj","盤點調整"],
   "採購入庫":["buy","採購"],"車輛多出繳回":["ret","車輛繳回"]};
 const kindOf=r=>(MKIND[r]||["etc",r])[0];
 const shortOf=r=>(MKIND[r]||["etc",r])[1];
 const MCATS={out:[["all","全部",""],["lost","遺失","var(--alert)"],["dmg","損壞","var(--amber-d)"],
-    ["adj","盤點調整","var(--muted)"],["etc","其他領用","#9AA1AA"]],
+    ["adj","盤點調整","var(--muted)"],["make","工具製作領料","#5B6B7A"],
+    ["person","個人用品","#9AA1AA"],["etc","其他","#C0C6CC"]],
   in:[["all","全部",""],["buy","採購／製作","#1F5C9E"],["ret","車輛繳回","var(--ok)"],
     ["adj","盤點調整","var(--muted)"]]};
 const WDAY=["日","一","二","三","四","五","六"];
@@ -1585,10 +1589,13 @@ function viewMove(){
 
       <div class="mvf">${MCATS[mv.type].map(([k,t,col])=>{
           const n=(k==="all"?inR:inR.filter(m=>kindOf(m.reason)===k)).length;
+          if(!n&&k!=="all"&&mCat!==k) return "";   // 這個期間沒有的類別就不佔版面
           return `<button class="mvchip" aria-pressed="${mCat===k}" onclick="setMCat('${k}')">
             ${col?`<span class="sw" style="background:${col}"></span>`:""}${t}<span class="c">${n}</span></button>`;}).join("")}
-        <input class="mvsearch" value="${esc(mq)}" placeholder="搜尋品項、車別、經手人、備註…"
-          oninput="clearTimeout(window._mqt);window._mqt=setTimeout(()=>setMq(this.value),350)">
+        <input class="mvsearch" id="mvsearch" value="${esc(mq)}" placeholder="搜尋品項、車別、經手人、備註…"
+          oncompositionstart="mqComposing=true"
+          oncompositionend="mqComposing=false;mqInput(this)"
+          oninput="mqInput(this)">
       </div>
 
       <div class="mvsum">
@@ -1615,6 +1622,22 @@ function viewMove(){
         <button class="btn ghost" onclick="setRng('preset','half')">看近六個月</button></div>`:""}
     </div>
   </div>`;
+}
+let mqComposing=false, mqRestore=null;
+// 中文輸入法在組字時不要重畫畫面，否則選字視窗會被打斷
+function mqInput(el){
+  if(mqComposing) return;
+  clearTimeout(window._mqt);
+  const pos=el.selectionStart;
+  window._mqt=setTimeout(()=>{ mqRestore={pos}; setMq(el.value); },350);
+}
+function restoreSearch(){
+  if(!mqRestore) return;
+  const el=document.getElementById("mvsearch");
+  if(el){ el.focus();
+    const p=Math.min(mqRestore.pos==null?el.value.length:mqRestore.pos, el.value.length);
+    try{ el.setSelectionRange(p,p); }catch(e){} }
+  mqRestore=null;
 }
 function setMCat(k){mCat=k;mPage=0;render();}
 function setMv(k,v){
@@ -2396,6 +2419,7 @@ function render(){
     : tab==="veh" ? viewVehicles() : tab==="items" ? viewItems()
     : tab==="month" ? viewMonthly()
     : tab==="stock" ? viewStock() : viewRestock();
+  restoreSearch();
 }
 function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;window.scrollTo(0,0);render();}
 boot();
