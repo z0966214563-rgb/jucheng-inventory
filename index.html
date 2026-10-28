@@ -376,6 +376,32 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 .amrow .sub2{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
 .amrow .rt{font-family:var(--mono);font-size:13px;text-align:right;color:var(--muted)}
 .amrow .btn{white-space:nowrap}
+
+/* 設定頁：每位操作者的可管區域 */
+.rgrant{display:flex;gap:4px;flex-wrap:wrap}
+.rgrant button{border:1px solid var(--line2);background:#fff;color:var(--muted);
+  border-radius:999px;padding:3px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.rgrant button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:700}
+.rgrant button[disabled]{opacity:.35;cursor:not-allowed}
+
+/* 區域切換 */
+.regsw{display:flex;gap:6px;margin-left:auto;margin-right:9px}
+.swshort{display:none}
+.regsw button{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;
+  border-radius:999px;padding:0 13px;min-height:36px;font-family:var(--tc);font-size:13px;
+  cursor:pointer;white-space:nowrap;display:flex;align-items:center}
+.regsw button[aria-pressed="true"]{background:#fff;color:var(--ink);border-color:#fff;font-weight:700}
+.regsw button[disabled]{opacity:.3;cursor:not-allowed}
+@media (max-width:560px){ .regsw{gap:5px;margin-right:7px} .regsw button{padding:0 10px;font-size:12px} }
+@media (max-width:380px){
+  header.top{padding-left:10px;padding-right:10px}
+  header.top .sw{padding:6px 8px}
+  .swlong{display:none} .swshort{display:inline}
+  .regsw{margin-right:5px;gap:4px}
+  .regsw button{padding:0 7px;font-size:11.5px}
+  header.top h1{font-size:14px;white-space:nowrap}
+  header.top .sub{font-size:9px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}
+}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -406,7 +432,17 @@ const pkgName=id=>{const p=PKGS().find(x=>x.id===id);return p?p.name:"";};
 const NEEDM=()=>{const m={};RW().forEach(r=>{m[r.sku]=(m[r.sku]||0)+r.std;});return m;};
 const LOCS=["未設定"].concat(Array.from({length:18},(_,i)=>String(i+1)))
   .concat(["貨架上方","陽台","廁所浴缸"]).concat("ABCDEFGHIJ".split(""));
-const REGION="北區";
+/* ---------- 區域 ---------- */
+let REGIONS=[];                        // 由 region_list() 載入
+let REG=null;                          // 目前所在區（例如 "北區"）
+let myRegions=[];                      // 這位管理者可管的區
+const regName=c=>c||"";
+const slugOf=c=>((REGIONS.find(r=>r.code===c)||{}).slug)||"x";
+function saveReg(c){ REG=c; try{localStorage.setItem("jc_reg",c);}catch(e){} }
+function loadReg(){
+  // 存到不認得的區域（例如舊版留下的值）就當作沒選過，回到選區畫面
+  try{ const c=localStorage.getItem("jc_reg");
+       return REGIONS.some(r=>r.code===c)?c:null; }catch(e){ return null; } }
 
 /* ===================== 雲端連線層 ===================== */
 const SB_URL="https://tekawiwxutfpkyufooet.supabase.co";
@@ -480,7 +516,8 @@ async function applyState(st,urls){
   N.vehicleUsed={}; (st.vehicles||[]).forEach(v=>N.vehicleUsed[v.code]=v.used);
   N.onCar=st.vehicle_stock||{};
   N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
-  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
+  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[]}));
+  if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
   const U=urls||{};
   N.records=(st.sheets||[]).map(x=>({
     id:x.id,vehicle:x.vehicle,person:x.person,date:x.date,time:x.time,session:x.session||"pm",
@@ -506,7 +543,7 @@ async function applyState(st,urls){
   S=N;
 }
 async function reload(){
-  const st=await rpc("mgr_state",{p_token:token,p_days:400});
+  const st=await rpc("mgr_state",{p_token:token,p_region:REG,p_days:400});
   if(!st||typeof st!=="object") throw new Error("讀取資料失敗，請重試");
   const paths=[];
   (st.sheets||[]).forEach(x=>{
@@ -537,13 +574,31 @@ const dayDiff=d=>Math.round((new Date(today())-new Date(d))/864e5);
 
 async function boot(){
   S=blankState();
-  render();
   try{
-    const cfg=await rpc("field_config");
+    REGIONS=await rpc("region_list");
+  }catch(e){
+    document.getElementById("app").innerHTML=
+      `<div class="wrap"><div class="card"><div class="bd">
+        <div style="font-weight:900;font-size:15px;margin-bottom:8px">連線失敗</div>
+        <div class="lbl" style="line-height:1.7">${esc(e.message||"")}</div>
+        <button class="btn block" style="margin-top:14px" onclick="location.reload()">重新載入</button>
+      </div></div></div>`;
+    return;
+  }
+  REG=loadReg();
+  gate=REG?"pick":"pickRegion";
+  render();
+  if(!REG) return;
+  await loadRegion();
+}
+async function loadRegion(){
+  try{
+    const cfg=await rpc("field_config",{p_region:REG});
     applyConfig(cfg);
     curPkg=firstPkg();
-    S.opCount=await rpc("op_count");
+    S.opCount=await rpc("op_count",{p_region:REG});
     render();
+    checkResume();
   }catch(e){
     document.getElementById("app").innerHTML=
       `<div class="wrap"><div class="card"><div class="bd">
@@ -553,30 +608,182 @@ async function boot(){
       </div></div></div>`;
   }
 }
+/* ============ 盤點單自動暫存：被重整、被 LINE 關掉都不會掉 ============
+   存在手機本機（IndexedDB，不行就退回 localStorage），不會上傳。
+   只存「還沒送出」的那一張；送出成功的瞬間立刻刪掉。 */
+const DKEY=()=>"jcdraft:"+(REG||"北");
+const DMAX=24*3600*1000;                       // 超過 24 小時的暫存自動作廢
+let _idb=null;
+function idb(){
+  if(_idb) return _idb;
+  _idb=new Promise(res=>{
+    try{
+      const q=indexedDB.open("jc_inv",1);
+      q.onupgradeneeded=()=>{ try{q.result.createObjectStore("kv");}catch(e){} };
+      q.onsuccess=()=>res(q.result);
+      q.onerror=()=>res(null);
+      q.onblocked=()=>res(null);
+      setTimeout(()=>res(null),2500);          // 太久沒回應就當作不能用
+    }catch(e){ res(null); }
+  });
+  return _idb;
+}
+async function kvSet(k,v){
+  const db=await idb();
+  if(db){ try{ await new Promise((ok,no)=>{ const t=db.transaction("kv","readwrite");
+    t.objectStore("kv").put(v,k); t.oncomplete=ok; t.onerror=()=>no(t.error); t.onabort=()=>no(t.error); });
+    return true; }catch(e){} }
+  // IndexedDB 不能用才走這裡；照片多的時候可能塞不下，塞不下就只留盤點進度
+  try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){}
+  try{
+    const lite=JSON.parse(JSON.stringify(v)); lite.lite=true;
+    Object.values(lite.draft.items||{}).forEach(x=>{ x.photo=null; });
+    lite.draft.pkgPhoto={};
+    localStorage.setItem(k,JSON.stringify(lite)); return true;
+  }catch(e){ return false; }
+}
+async function kvGet(k){
+  const db=await idb();
+  if(db){ try{ const v=await new Promise((ok,no)=>{ const t=db.transaction("kv","readonly");
+    const r=t.objectStore("kv").get(k); r.onsuccess=()=>ok(r.result); r.onerror=()=>no(r.error); });
+    if(v) return v; }catch(e){} }
+  try{ const x=localStorage.getItem(k); return x?JSON.parse(x):null; }catch(e){ return null; }
+}
+async function kvDel(k){
+  const db=await idb();
+  if(db){ try{ await new Promise(ok=>{ const t=db.transaction("kv","readwrite");
+    t.objectStore("kv").delete(k); t.oncomplete=ok; t.onerror=ok; t.onabort=ok; }); }catch(e){} }
+  try{ localStorage.removeItem(k); }catch(e){}
+}
+let _dT=null, savedAt=null, _sig="";
+// 便宜的變動指紋：沒變就不用重寫一次（照片多的時候一張單可能到 2～3MB）
+function draftSig(){
+  if(!draft) return "";
+  let n=0,ph=0,s="";
+  for(const k in (draft.items||{})){ const x=draft.items[k]; n++;
+    s+=k.slice(0,4)+x.status+(x.actual??"")+(x.type||"")+(x.photo?"P"+x.photo.length:"")+"|"; }
+  for(const k in (draft.pkgPhoto||{})) ph+=(draft.pkgPhoto[k]||[]).filter(Boolean).length;
+  return `${draft.person}/${draft.vehicle}/${draft.date}/${draft.session}/${n}/${ph}/${s.length}/${s.slice(-120)}`;
+}
+function saveDraftSoon(){
+  if(role!=="field"||!hasProgress()) return;
+  clearTimeout(_dT); _dT=setTimeout(saveDraftNow,400);
+}
+function saveDraftNow(force){
+  if(role!=="field"||!hasProgress()) return;
+  clearTimeout(_dT);
+  const sig=draftSig();
+  if(!force&&sig===_sig) return;              // 沒有任何變動就不重寫
+  _sig=sig;
+  kvSet(DKEY(),{v:1,reg:REG,at:Date.now(),curPkg,draft}).then(ok=>{
+    if(ok){ savedAt=nowHM(); const el=document.getElementById("savetag");
+            if(el) el.textContent="已自動存檔 "+savedAt; }
+  });
+}
+function clearDraft(){ clearTimeout(_dT); savedAt=null; _sig=""; kvDel(DKEY()); }
+
+let resume=null;                               // 等待使用者決定要不要接續的那一張
+async function checkResume(){
+  resume=null;
+  const p=await kvGet(DKEY());
+  if(!p||!p.draft||p.reg!==REG) return;
+  if(Date.now()-(p.at||0)>DMAX){ kvDel(DKEY()); return; }
+  const d=p.draft;
+  const n=Object.keys(d.items||{}).length;
+  const ph=Object.values(d.pkgPhoto||{}).reduce((t,a)=>t+(a||[]).filter(Boolean).length,0);
+  if(!n&&!ph){ kvDel(DKEY()); return; }
+  resume={pack:p,n,ph};
+  if(role==="field") render();
+}
+function resumeBox(){
+  if(!resume) return "";
+  const d=resume.pack.draft;
+  const when=new Date(resume.pack.at);
+  const hm=String(when.getHours()).padStart(2,"0")+":"+String(when.getMinutes()).padStart(2,"0");
+  return `<div class="card" style="border-color:var(--amber);border-width:2px">
+    <div class="hd"><h2>有一張還沒送出的盤點單</h2></div>
+    <div class="bd">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">
+        ${esc(d.vehicle||"未選車")} 車 · ${esc(d.date||"")} ${d.session==="am"?"上午場":"下午場"}</div>
+      <div class="lbl" style="line-height:1.8">
+        盤點人：${esc(d.person||"（未填）")}<br>
+        已盤 ${resume.n} 項${resume.ph?`，已拍 ${resume.ph} 張本包照片`:""}<br>
+        最後存檔時間：${hm}</div>
+      <button class="btn block" style="margin-top:12px" onclick="doResume()">接續這張單</button>
+      <button class="btn ghost block" style="margin-top:8px" onclick="dropResume()">不要了，重新開始</button>
+    </div></div>`;
+}
+function doResume(){
+  const p=resume.pack;
+  _sig="";
+  draft=p.draft; curPkg=p.curPkg||firstPkg();
+  if(!PKGS().some(x=>x.id===curPkg)) curPkg=firstPkg();
+  resume=null; window.scrollTo(0,0); render();
+  toast("已接續上次的盤點單");
+}
+function dropResume(){
+  if(!confirm("確定要丟掉上次那張未送出的盤點單？丟掉之後就要重新盤一次。")) return;
+  resume=null; clearDraft(); render(); toast("已清除");
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") saveDraftNow(true); });
+window.addEventListener("pagehide",()=>saveDraftNow(true));
+
 function toast(m){document.querySelectorAll(".toast").forEach(t=>t.remove());
   const e=document.createElement("div");e.className="toast";e.textContent=m;document.body.appendChild(e);
   clearTimeout(toastT);toastT=setTimeout(()=>e.remove(),2600);}
 
 /* ===================== 角色入口 ===================== */
+function viewRegion(back){
+  return `<div class="gate">
+    <h2>選擇區域</h2>
+    <p>${back?"切換到其他區":"這台裝置會記住你的選擇，之後可以隨時更換"}</p>
+    ${REGIONS.map(r=>`<button class="role ${r.code===REG?"amber":""}" onclick="chooseRegion('${r.code}')">
+      <b>${esc(r.code)}</b><span>${r.vehicles} 台車　·　${r.items} 個品項</span></button>`).join("")}
+    ${back?`<button class="btn ghost block" style="margin-top:12px" onclick="gate='pick';render()">返回</button>`:""}
+  </div>`;
+}
+async function chooseRegion(k){
+  saveReg(k); gate="pick"; role=null; me=null; token=null; myRegions=[];
+  S=blankState(); render();
+  await loadRegion();
+}
 function viewGate(){
+  if(gate==="pickRegion") return viewRegion(false);
+  if(gate==="switchRegion") return viewRegion(true);
   if(!S||!S.pkgs) return `<div class="gate"><p>載入中…</p></div>`;
   if(gate==="pickAdmin") return viewPickAdmin();
   if(gate==="setup") return viewSetup();
   return `<div class="gate">
     <h2>選擇使用身分</h2>
-    <p>${S.rows.length} 項標配 · ${S.vehicles.length} 台車</p>
+    <p><b>${regName(REG)}</b>　·　${S.rows.length} 項標配 · ${S.vehicles.length} 台車</p>
+    <button class="btn ghost block" style="margin-bottom:16px" onclick="gate='switchRegion';render()">
+      目前是${regName(REG)}，換一區</button>
     <button class="role amber" onclick="setRole('field')">
       <b>盤點人員</b><span>逐項拍照記錄，送出當日盤點單</span></button>
     <button class="role" onclick="gotoAdmin()">
       <b>設備管理人</b><span>庫存、出入庫、待補料與盤點結果</span></button>
   </div>`;
 }
+async function hdrRegion(k){
+  if(k===REG) return;
+  if(role==="admin"&&!myRegions.includes(k)) return toast(`你沒有${regName(k)}的權限`);
+  if(role==="field"&&hasProgress()&&
+     !confirm("目前這張盤點單尚未送出，換區會遺失已盤的項目。確定要換區嗎？")) return;
+  if(role==="field"&&hasProgress()) clearDraft();
+  draft=null; resume=null;
+  saveReg(k); S=blankState(); render();
+  await loadRegion();
+  if(role==="admin"&&token){ await guard(async()=>{ await reload(); render(); }); }
+  else render();
+  toast(`已切換到${regName(k)}`);
+}
 function setRole(r){ role=r; tab=r==="field"?"count":"restock"; draft=null;
   curPkg=firstPkg(); window.scrollTo(0,0); render(); }
 async function gotoAdmin(){
   await guard(async()=>{
-    S.opCount=await rpc("op_count");
-    S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+    S.opCount=await rpc("op_count",{p_region:REG});
+    S.admins=(await rpc("op_names",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
+    S.anyOp=await rpc("op_any");
     gate=S.opCount>0?"pickAdmin":"setup";
     setup={name:"",pin:"",pin2:""}; login={id:"",pin:""};
     render();
@@ -585,8 +792,8 @@ async function gotoAdmin(){
 function viewPickAdmin(){
   const who=(S.admins||[]).find(a=>a.id===login.id);
   return `<div class="gate">
-    <h2>設備管理登入</h2>
-    <p>選擇你的名字，輸入自己的 PIN 碼</p>
+    <h2>${regName(REG)} · 設備管理登入</h2>
+    <p>只會列出${regName(REG)}的管理者，輸入自己的 PIN 碼</p>
     <div class="lbl" style="margin-bottom:7px">操作者</div>
     <div class="chips" style="margin-bottom:16px">${(S.admins||[]).map(a=>
       `<button class="chip" style="min-width:auto;padding:0 15px;font-family:var(--tc);font-size:15px;font-weight:700"
@@ -603,6 +810,16 @@ function viewPickAdmin(){
   </div>`;
 }
 function viewSetup(){
+  // 這一區還沒有管理者，但系統其他區已經有人 → 不能從這裡建立，要由有權限的人加開
+  if(S.anyOp){
+    return `<div class="gate">
+      <h2>${regName(REG)}還沒有管理者</h2>
+      <p style="line-height:1.8">請用你在其他區的帳號登入，到「設定」分頁的操作者清單，
+         把這個人的「${regName(REG)}」打開；或是在${regName(REG)}新增一位操作者。</p>
+      <button class="btn ghost block" style="margin-top:12px" onclick="gate='switchRegion';render()">換一區登入</button>
+      <button class="btn ghost block" style="margin-top:8px" onclick="gate='pick';render()">返回</button>
+    </div>`;
+  }
   return `<div class="gate">
     <h2>建立第一位操作者</h2>
     <p>系統還沒有任何操作者。建立後，之後要再新增人員必須先登入，在「設定」分頁裡新增。</p>
@@ -629,6 +846,7 @@ async function asAdmin(){
     const res=await rpc("op_login",{p_id:login.id,p_pin:login.pin});
     const row=Array.isArray(res)?res[0]:res;
     token=row.token; me={id:row.operator_id,name:row.name};
+    myRegions=Array.isArray(row.regions)?row.regions:[REG];
     await reload();
     role="admin"; tab="restock"; gate="pick"; login={id:"",pin:""}; mv.person=me.name;
     window.scrollTo(0,0);
@@ -641,9 +859,9 @@ async function addAdmin(){
   if(!/^[0-9]{4}$/.test(setup.pin))return toast("PIN 請設 4 位數字");
   if(setup.pin!==setup.pin2)return toast("兩次輸入的 PIN 不一致");
   await guard(async()=>{
-    if(token){ await rpc("op_add",{p_token:token,p_name:n,p_pin:setup.pin}); await reload(); }
-    else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin});
-           S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+    if(token){ await rpc("op_add",{p_token:token,p_region:REG,p_name:n,p_pin:setup.pin}); await reload(); }
+    else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin,p_region:REG});
+           S.admins=(await rpc("op_names",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
            gate="pickAdmin"; }
     setup={name:"",pin:"",pin2:""}; render();
   },"已建立操作者");
@@ -656,9 +874,17 @@ async function delAdmin(id){
 async function setPhotoMode(m){
   if(S.photoMode===m)return;
   await guard(async()=>{
-    await rpc("mgr_settings",{p_token:token,p_photo_mode:m,p_keep_sets:null});
+    await rpc("mgr_settings",{p_token:token,p_region:REG,p_photo_mode:m,p_keep_sets:null});
     await reload(); render();
   },m==="item"?`已改為每項一張（每車 ${RW().length} 張）`:`已改為每包一張（每車 ${PKGS().length} 張）`);
+}
+async function toggleGrant(id,region,on){
+  if(me&&me.id===id&&!on) return toast("不能收回自己的權限");
+  if(!on&&!confirm(`收回「${region}」的管理權限？`)) return;
+  await guard(async()=>{
+    await rpc("op_grant",{p_token:token,p_id:id,p_region:region,p_on:on});
+    await reload(); render();
+  }, on?`已加開 ${region}`:`已收回 ${region}`);
 }
 async function resetPin(id){
   const v=prompt("設定新的 PIN 碼（4 位數字）");
@@ -667,7 +893,8 @@ async function resetPin(id){
   await guard(async()=>{ await rpc("op_set_pin",{p_token:token,p_id:id,p_pin:v}); },"已重設 PIN");
 }
 function switchRole(){
-  if(draft&&doneCount()>0&&!confirm("目前這張盤點單尚未送出，離開會遺失。要切換身分嗎？"))return;
+  if(hasProgress()&&!confirm("目前這張盤點單尚未送出，離開會遺失已盤的項目。要切換身分嗎？"))return;
+  if(hasProgress()) clearDraft();
   if(token) rpc("op_logout",{p_token:token}).catch(()=>{});
   role=null; me=null; token=null; draft=null; gate="pick"; login={id:"",pin:""};
   render();
@@ -694,6 +921,9 @@ function pkgStat(id){const rs=pkgRows(id);let d=0,b=0;
   return{done:d,bad:b,total:rs.length,photo,ok:(d===rs.length)&&photo};}
 const doneCount=()=>PKGS().filter(p=>pkgStat(p.id).ok).length;
 const allDone=()=>doneCount()===PKGS().length;
+// 這張單有沒有動過（只要勾過任何一項或拍過任何一張就算）
+const hasProgress=()=>!!draft&&(Object.keys(draft.items||{}).length>0
+  ||Object.values(draft.pkgPhoto||{}).some(a=>(a||[]).some(Boolean)));
 
 function viewField(){
   if(!draft)draft=newDraft();
@@ -746,8 +976,9 @@ function viewField(){
     <button class="btn block" ${allDone()&&!busy?"":"disabled"} onclick="submitCount()">
       <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
         (allDone()?"送出盤點單":(byItem()?`還有 ${RW().length-RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} 項未拍照`:`還有 ${PKGS().length-doneCount()} 個包別未完成`))}</button>
-    <div style="margin-top:10px">
+    <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
       <button class="btn ghost tiny" onclick="resetDraft()">清空重填</button>
+      <span class="lbl" id="savetag" style="font-size:11px">${savedAt?"已自動存檔 "+savedAt:"會自動存檔，重整也不會掉"}</span>
     </div>
   </div>`;
 }
@@ -770,8 +1001,9 @@ function lastSubmitBox(){
 }
 function viewStart(){
   return `<div class="wrap">
+    ${resumeBox()}
     ${lastSubmitBox()}
-    <div class="card"><div class="hd"><h2>開始盤點</h2><span class="lbl" style="margin-left:auto">${REGION}</span></div>
+    <div class="card"><div class="hd"><h2>開始盤點</h2><span class="lbl" style="margin-left:auto">${regName(REG)}</span></div>
       <div class="bd">
         <label class="f"><span class="lbl">盤點人姓名</span>
           <input type="text" id="pname" value="${draft.person}" placeholder="請填全名" oninput="draft.person=this.value"></label>
@@ -922,7 +1154,7 @@ function closePanel(rid){const s=st(rid),r=RW().find(x=>x.rid===rid);
   if(!deltaOf(r,s))return toast(`請填「${deltaLabel(s.type)}」的數量`);
   if(!s.photo)return toast("異常項目需拍一張照片");
   s.open=false;render();}
-function resetDraft(){if(confirm("清空目前這張盤點單？")){draft=newDraft();curPkg=firstPkg();render();}}
+function resetDraft(){if(confirm("清空目前這張盤點單？")){clearDraft();draft=newDraft();curPkg=firstPkg();resume=null;render();}}
 async function submitCount(){
   if(busy)return;
   for(const p of PKGS()){
@@ -939,8 +1171,8 @@ async function submitCount(){
   busy=true; render();
   try{
     const veh=draft.vehicle;
-    const slot=await rpc("field_next_slot",{p_vehicle:veh});
-    const base=`${pathSafe(veh)}/${slot}`;
+    const slot=await rpc("field_next_slot",{p_region:REG,p_vehicle:veh});
+    const base=`${slugOf(REG)}/${pathSafe(veh)}/${slot}`;   // 三個區都有 A 車，路徑要分開
     let done=0;
     const total=(byItem()?RW().filter(r=>draft.items[r.rid].photo).length
                         :PKGS().reduce((t,p)=>t+((draft.pkgPhoto[p.id]||[]).length),0))
@@ -973,12 +1205,13 @@ async function submitCount(){
     }
     setProgress("寫入盤點單…");
     const ses=draft.session||"pm";
-    await rpc("field_submit",{p:{vehicle_code:veh,person:draft.person,
+    await rpc("field_submit",{p:{region:REG,vehicle_code:veh,person:draft.person,
       time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos,session:ses}});
     const bad=lines.filter(l=>l.status!=="正常");
     lastSubmit={vehicle:veh,session:ses,
       bad:bad.map(l=>({name:l.item_name,std:l.std,actual:l.actual,status:l.status}))};
-    draft=null; curPkg=firstPkg();
+    clearDraft();                               // 送出成功才刪暫存；失敗會留著讓他接續再送
+    draft=null; curPkg=firstPkg(); resume=null;
     setProgress(null); busy=false; render();
     toast(`${veh} 車${ses==="am"?"上午場":"下午場"}已送出，${bad.length} 項異常`);
   }catch(e){
@@ -1137,7 +1370,7 @@ function exportStock(fmt){
     return {low:h<sf, c:[it.loc,it.sku,h,sf]};});
   const lowN=sorted.filter(it=>(S.warehouse[it.sku]||0)<(S.safety[it.sku]||0)).length;
   const html=reportHTML("鉅誠驗屋 · 倉庫庫存報表",
-    [`列印日期：${today()}`,`區域：${REGION}`,`品項總數：${sorted.length}`,`低於安全庫存：${lowN} 項`,
+    [`列印日期：${today()}`,`區域：${regName(REG)}`,`品項總數：${sorted.length}`,`低於安全庫存：${lowN} 項`,
      `製表：${me?me.name:"—"}`],
     heads,rows,"依儲位順序排列。灰底列代表倉庫數量低於安全庫存，需要補貨。");
   if(fmt==="print") return printReport(html);
@@ -1442,7 +1675,7 @@ async function addSku(){
   if(!n)return toast("請填品項名稱");
   if(ALLSKU().includes(n))return toast(`「${n}」已經在庫存表裡了`);
   await guard(async()=>{
-    await rpc("mgr_item_add",{p_token:token,p_name:n,p_loc:nItem.loc||"未設定",
+    await rpc("mgr_item_add",{p_token:token,p_region:REG,p_name:n,p_loc:nItem.loc||"未設定",
       p_qty:Number(nItem.qty)||0,p_safety:Number(nItem.safe)||0});
     nItem={name:"",qty:0,safe:1,loc:"未設定"};
     await reload(); render();
@@ -1479,7 +1712,7 @@ async function addVehicle(){
   if(c.length>3)return toast("代號請在 3 個字以內");
   if(VEH().includes(c))return toast(`${c} 車已經存在`);
   await guard(async()=>{
-    await rpc("mgr_vehicle_add",{p_token:token,p_code:c,p_preload:!!nVeh.preload});
+    await rpc("mgr_vehicle_add",{p_token:token,p_region:REG,p_code:c,p_preload:!!nVeh.preload});
     nVeh={code:"",preload:false}; await reload(); render();
   },`已新增 ${c} 車`);
 }
@@ -1671,7 +1904,7 @@ async function fulfill(vehicle){
   const list=needList().filter(n=>!vehicle||n.vehicle===vehicle);
   if(!list.length)return;
   await guard(async()=>{
-    await rpc("mgr_fulfill",{p_token:token,p_vehicle:vehicle||null});
+    await rpc("mgr_fulfill",{p_token:token,p_region:REG,p_vehicle:vehicle||null});
     await reload(); render();
   },vehicle?`${vehicle} 車已補料`:"補料完成，庫存已扣");
 }
@@ -1942,7 +2175,7 @@ async function addPkg(){
   const n=(nPkg||"").trim();
   if(!n)return toast("請填包別名稱");
   if(PKGS().some(p=>p.name===n))return toast(`「${n}」已經存在`);
-  await guard(async()=>{ await rpc("mgr_pkg_add",{p_token:token,p_name:n});
+  await guard(async()=>{ await rpc("mgr_pkg_add",{p_token:token,p_region:REG,p_name:n});
     nPkg=""; await reload(); render(); },`已新增包別：${n}`);
 }
 async function savePkg(id){
@@ -2361,16 +2594,28 @@ function viewVehicles(){
 
     <div class="card"><div class="hd"><h2>操作者</h2>
       <span class="lbl" style="margin-left:auto">${S.admins.length} 位</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:80px"></colgroup>
-        <tr><th>姓名</th><th>狀態</th><th></th></tr>
-        ${S.admins.map(a=>`<tr><td class="c-name" style="font-weight:700">${a.name}</td>
-          <td style="color:var(--muted);font-size:13px">${me&&me.id===a.id?"使用中":"—"}</td>
+      <div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:80px"></colgroup>
+        <tr><th>姓名</th><th>可管區域</th><th></th></tr>
+        ${S.admins.map(a=>{
+          const mine=a.regions||[];
+          const cant=mine.filter(r=>!myRegions.includes(r));
+          return `<tr><td class="c-name" style="font-weight:700">${esc(a.name)}
+            ${me&&me.id===a.id?`<span class="lbl" style="font-weight:400">（使用中）</span>`:""}</td>
+          <td><div class="rgrant">${REGIONS.map(r=>{
+              const has=mine.includes(r.code), can=myRegions.includes(r.code);
+              return `<button aria-pressed="${has}" ${can?"":"disabled"}
+                title="${can?(has?"點一下收回":"點一下加開"):"你沒有這一區的權限"}"
+                onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.code)}</button>`;
+            }).join("")}</div></td>
           <td class="n" style="white-space:nowrap">
             <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
-            ${me&&me.id===a.id?"":`<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`}</td></tr>`).join("")}
+            ${me&&me.id===a.id?"":(cant.length
+              ? `<span class="lbl">不可刪除</span>`
+              : `<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`)}</td></tr>`;}).join("")}
       </table></div>
+      <div class="foot"><span class="lbl">只能加開或收回你自己管得到的區；對方還管著你沒有的區時，不能刪除也不能改他的 PIN</span></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
-        <div class="lbl" style="margin-bottom:9px">新增操作者</div>
+        <div class="lbl" style="margin-bottom:9px">新增操作者到<b style="color:var(--ink)">${regName(REG)}</b>（建立後可以再加開其他區）</div>
         <label class="f"><span class="lbl">姓名</span>
           <input type="text" value="${setup.name}" placeholder="例：冠揚" onchange="setup.name=this.value"></label>
         <div class="g2">
@@ -2381,7 +2626,7 @@ function viewVehicles(){
             <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
               value="${setup.pin2}" placeholder="••••" onchange="setup.pin2=this.value"></label></div>
         <button class="btn block" onclick="addAdmin()">新增操作者</button></div>
-      <div class="foot"><span class="lbl">PIN 存在本機、用於區分操作者並擋掉隨手誤入，不是正式的資安機制；正式版接後端帳號系統時可直接沿用這份名單</span></div></div>
+      <div class="foot"><span class="lbl">PIN 以加密方式存在雲端資料庫，不會存在手機或網頁裡；登入後的憑證 12 小時自動失效</span></div></div>
 
     <div class="card"><div class="hd"><h2>新增車輛</h2></div><div class="bd">
       <label class="f"><span class="lbl">車輛代號（3 字以內）</span>
@@ -2404,11 +2649,16 @@ const TABS={field:[["count","☑","盤點"]],
 function render(){
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
-  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">${REGION}</div></div>`;
+  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">${REG?regName(REG):"請先選擇區域"}</div></div>`;
     nv.className="tabs hide"; app.innerHTML=viewGate(); return; }
+  const canSwitch=role==="field"?REGIONS.map(r=>r.code):(myRegions.length?myRegions:[REG]);
   hdr.innerHTML=`<div><h1>${role==="field"?"設備盤點":`設備管理${me?" · "+me.name:""}`}</h1>
-    <div class="sub">${REGION} / ${role==="field"?RW().length+" 項":VEH().join(" ")}</div></div>
-    <button class="sw" onclick="switchRole()">切換身分</button>`;
+    <div class="sub">${role==="field"?RW().length+" 項標配":VEH().join(" ")}</div></div>
+    <div class="regsw">${REGIONS.map(r=>{
+      const ok=canSwitch.includes(r.code);
+      return `<button aria-pressed="${REG===r.code}" ${ok?"":"disabled"}
+        title="${ok?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.code)}</button>`;}).join("")}</div>
+    <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
   const t=TABS[role];
   if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
     nv.innerHTML=t.map(([k,i,l])=>`<button aria-selected="${tab===k}" onclick="go('${k}')"><span class="ic">${i}</span>${l}</button>`).join("");
@@ -2420,6 +2670,7 @@ function render(){
     : tab==="month" ? viewMonthly()
     : tab==="stock" ? viewStock() : viewRestock();
   restoreSearch();
+  saveDraftSoon();
 }
 function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;window.scrollTo(0,0);render();}
 boot();
