@@ -282,6 +282,7 @@ function applyState(st,urls){
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[]}));
   N.anyOp=true;
   if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
+  (st.regions||[]).forEach(r=>{ const x=REGIONS.find(y=>y.code===r.code); if(x) x.name=r.name; });
   S=N;
 }
 async function reload(){
@@ -308,7 +309,7 @@ let nItem="", keepDays=90;
 let REGIONS=[];                        // 由 region_list() 載入
 let REG=null;                          // 目前所在區（例如 "北區"）
 let myRegions=[];                      // 這位管理者可管的區
-const regName=c=>c||"";
+const regName=c=>((REGIONS.find(r=>r.code===c)||{}).name)||c||"";
 const slugOf=c=>((REGIONS.find(r=>r.code===c)||{}).slug)||"x";
 function saveReg(c){ REG=c; try{localStorage.setItem("jc_reg",c);}catch(e){} }
 function loadReg(){
@@ -385,7 +386,7 @@ function viewRegion(back){
     <h2>選擇區域</h2>
     <p>${back?"切換到其他區":"這台裝置會記住你的選擇，之後可以隨時更換"}</p>
     ${REGIONS.map(r=>`<button class="role ${r.code===REG?"amber":""}" onclick="chooseRegion('${r.code}')">
-      <b>${esc(r.code)}</b><span>${r.fleet_vehicles} 台車</span></button>`).join("")}
+      <b>${esc(r.name||r.code)}</b><span>${r.fleet_vehicles} 台車</span></button>`).join("")}
     ${back?`<button class="btn ghost block" style="margin-top:12px" onclick="gate='pick';render()">返回</button>`:""}
   </div>`;
 }
@@ -1079,7 +1080,7 @@ function viewSettings(){
               const has=mine.includes(r.code), can=myRegions.includes(r.code);
               return `<button aria-pressed="${has}" ${can?"":"disabled"}
                 title="${can?(has?"點一下收回":"點一下加開"):"你沒有這一區的權限"}"
-                onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.code)}</button>`;
+                onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.name||r.code)}</button>`;
             }).join("")}</div></td>
           <td class="c-act">
             <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
@@ -1148,7 +1149,7 @@ function render(){
     <div class="regsw">${REGIONS.map(r=>{
       const can=role==="driver"?true:(myRegions.length?myRegions.includes(r.code):r.code===REG);
       return `<button aria-pressed="${REG===r.code}" ${can?"":"disabled"}
-        title="${can?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.code)}</button>`;}).join("")}</div>
+        title="${can?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.name||r.code)}</button>`;}).join("")}</div>
     <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
   const t=TABS[role];
   if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
