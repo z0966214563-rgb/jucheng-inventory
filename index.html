@@ -402,6 +402,29 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
   header.top h1{font-size:14px;white-space:nowrap}
   header.top .sub{font-size:9px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}
 }
+
+/* 設定頁：可收合區塊 */
+.card.sect{overflow:hidden}
+.secHd{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
+  padding:15px 16px;cursor:pointer;text-align:left;font-family:inherit}
+.card.sect.open .secHd{border-bottom:1px solid var(--line2)}
+.secTitle{font-family:var(--tc);font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap}
+.secM{flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.secC{color:var(--muted);font-size:11px;flex:none}
+.secHd:active{background:var(--bg2)}
+
+/* 擺放位置：標籤格 */
+.locgrid{display:flex;flex-wrap:wrap;gap:7px}
+.lchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);
+  background:#fff;border-radius:8px;padding:0 10px;min-height:38px;cursor:pointer;
+  font-family:var(--mono);font-size:13.5px;font-weight:700;color:var(--ink)}
+.lchip i{font-style:normal;font-size:11px;font-weight:400;color:var(--muted);
+  background:var(--bg2);border-radius:999px;padding:1px 6px;min-width:18px;text-align:center}
+.lchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.lchip.on i{background:rgba(255,255,255,.22);color:#fff}
+.locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;
+  padding-top:11px;border-top:1px dashed var(--line2)}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -430,13 +453,13 @@ const needOf=k=>{const i=itemOf(k);return i?i.std:0;};
 const priceOf=()=>null;
 const pkgName=id=>{const p=PKGS().find(x=>x.id===id);return p?p.name:"";};
 const NEEDM=()=>{const m={};RW().forEach(r=>{m[r.sku]=(m[r.sku]||0)+r.std;});return m;};
-const LOCS=["未設定"].concat(Array.from({length:18},(_,i)=>String(i+1)))
-  .concat(["貨架上方","陽台","廁所浴缸"]).concat("ABCDEFGHIJ".split(""));
+// 擺放位置由各區自己設定（設定頁可新增／改名／排序／刪除）
+const LOCS=()=>["未設定"].concat((S&&S.locs)||[]);
 /* ---------- 區域 ---------- */
 let REGIONS=[];                        // 由 region_list() 載入
 let REG=null;                          // 目前所在區（例如 "北區"）
 let myRegions=[];                      // 這位管理者可管的區
-const regName=c=>c||"";
+const regName=c=>((REGIONS.find(r=>r.code===c)||{}).name)||c||"";
 const slugOf=c=>((REGIONS.find(r=>r.code===c)||{}).slug)||"x";
 function saveReg(c){ REG=c; try{localStorage.setItem("jc_reg",c);}catch(e){} }
 function loadReg(){
@@ -488,7 +511,7 @@ function prune(){}               // 照片保留由資料庫處理
 function blankState(){
   return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],
           items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",
-          amItems:[],amIds:[],needs:[]};
+          amItems:[],amIds:[],needs:[],locs:[]};
 }
 function applyConfig(cfg){
   S=S||blankState();
@@ -517,7 +540,10 @@ async function applyState(st,urls){
   N.onCar=st.vehicle_stock||{};
   N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[]}));
+  N.locs=(st.locs||[]).slice();
   if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
+  // 區域名稱可能被改過，順手更新選單上的名字
+  (st.regions||[]).forEach(r=>{ const x=REGIONS.find(y=>y.code===r.code); if(x) x.name=r.name; });
   const U=urls||{};
   N.records=(st.sheets||[]).map(x=>({
     id:x.id,vehicle:x.vehicle,person:x.person,date:x.date,time:x.time,session:x.session||"pm",
@@ -564,6 +590,23 @@ let me=null, gate="pick", setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
 let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"",loss:"遺失"};
 let rs={vehicle:"",sku:"",qty:1,note:""};
 let nItem={name:"",qty:0,safe:1,loc:"未設定"};
+/* ---------- 設定頁：可收合的區塊 ---------- */
+let setOpen={}, pickLoc=null;
+function toggleSet(k){ setOpen[k]=!setOpen[k]; if(k!=="loc") pickLoc=null; render();
+  if(setOpen[k]) setTimeout(()=>{const el=document.getElementById("sec-"+k);
+    if(el) el.scrollIntoView({block:"start",behavior:"smooth"});},30); }
+// k=代號 title=標題 meta=收合時顯示的摘要 body=內容
+function sect(k,title,meta,body,foot){
+  const o=!!setOpen[k];
+  return `<div class="card sect ${o?"open":""}" id="sec-${k}">
+    <button class="secHd" onclick="toggleSet('${k}')" aria-expanded="${o}">
+      <span class="secTitle">${title}</span>
+      <span class="secM">${meta}</span>
+      <span class="secC">${o?"▲":"▼"}</span>
+    </button>
+    ${o?body+(foot?`<div class="foot"><span class="lbl">${foot}</span></div>`:""):""}
+  </div>`;
+}
 let editSku=null, editRow=null, openRec=null, lightbox=null;
 let lastSubmit=null;   // 剛送出的盤點單摘要（上午場用來提醒）
 let rDate=null, rVeh=null;   // 盤點結果頁：看哪一天、只看哪台車
@@ -738,7 +781,7 @@ function viewRegion(back){
     <h2>選擇區域</h2>
     <p>${back?"切換到其他區":"這台裝置會記住你的選擇，之後可以隨時更換"}</p>
     ${REGIONS.map(r=>`<button class="role ${r.code===REG?"amber":""}" onclick="chooseRegion('${r.code}')">
-      <b>${esc(r.code)}</b><span>${r.vehicles} 台車　·　${r.items} 個品項</span></button>`).join("")}
+      <b>${esc(r.name||r.code)}</b><span>${r.vehicles} 台車　·　${r.items} 個品項</span></button>`).join("")}
     ${back?`<button class="btn ghost block" style="margin-top:12px" onclick="gate='pick';render()">返回</button>`:""}
   </div>`;
 }
@@ -877,6 +920,74 @@ async function setPhotoMode(m){
     await rpc("mgr_settings",{p_token:token,p_region:REG,p_photo_mode:m,p_keep_sets:null});
     await reload(); render();
   },m==="item"?`已改為每項一張（每車 ${RW().length} 張）`:`已改為每包一張（每車 ${PKGS().length} 張）`);
+}
+function pickLocation(l){ pickLoc = (pickLoc===l?null:l); render(); }
+async function locAdd(){
+  const el=document.getElementById("nloc"); if(!el)return;
+  const v=(el.value||"").trim();
+  if(!v) return toast("請填位置名稱");
+  await guard(async()=>{
+    await rpc("mgr_loc_add",{p_token:token,p_region:REG,p_name:v});
+    await reload(); pickLoc=null; render();
+    const el2=document.getElementById("nloc"); if(el2){ el2.value=""; el2.focus(); }
+  },`已新增「${v}」`);
+}
+async function locRename(old){
+  const v=prompt(`把「${old}」改成什麼名字？\n（放在這個位置的品項會一起更新）`, old);
+  if(v===null) return;
+  const nv=v.trim(); if(!nv) return toast("名稱不能空白");
+  if(nv===old) return;
+  await guard(async()=>{
+    const n=await rpc("mgr_loc_rename",{p_token:token,p_region:REG,p_old:old,p_new:nv});
+    await reload(); pickLoc=nv; render();
+    toast(n>0?`已改成「${nv}」，${n} 個品項跟著更新`:`已改成「${nv}」`);
+  });
+}
+async function locDelete(name){
+  const n=ITEMS().filter(x=>x.loc===name).length;
+  if(!confirm(n? `刪除位置「${name}」？\n目前放在這裡的 ${n} 個品項會變成「未設定」，品項本身不會消失。`
+               : `刪除位置「${name}」？`)) return;
+  await guard(async()=>{
+    const m=await rpc("mgr_loc_delete",{p_token:token,p_region:REG,p_name:name});
+    await reload(); pickLoc=null; render();
+    toast(m>0?`已刪除，${m} 個品項改為未設定`:"已刪除");
+  });
+}
+async function locMove(name,dir){
+  await guard(async()=>{
+    await rpc("mgr_loc_move",{p_token:token,p_region:REG,p_name:name,p_dir:dir});
+    await reload(); render();
+  });
+}
+async function locCopy(from){
+  if(!confirm(`把${regName(from)}的位置清單整套複製過來？\n只會補上這裡沒有的，現有的不會被蓋掉。`)) return;
+  await guard(async()=>{
+    const n=await rpc("mgr_loc_copy",{p_token:token,p_from:from,p_to:REG});
+    await reload(); render();
+    toast(n>0?`複製了 ${n} 個位置`:"沒有新的位置可以複製");
+  });
+}
+async function regionRename(){
+  const v=prompt(`把「${regName(REG)}」改成什麼名字？`, regName(REG));
+  if(v===null) return;
+  const nv=v.trim(); if(!nv) return toast("名稱不能空白");
+  if(nv===regName(REG)) return;
+  await guard(async()=>{
+    await rpc("mgr_region_rename",{p_token:token,p_code:REG,p_name:nv});
+    REGIONS=await rpc("region_list");
+    await reload(); render();
+  },`已改名為「${nv}」`);
+}
+async function regionAdd(){
+  const v=prompt("新區域的名稱（例：東區、桃竹苗）");
+  if(v===null) return;
+  const nv=v.trim(); if(!nv) return toast("名稱不能空白");
+  if(!confirm(`新增「${nv}」？\n這個區一開始是空的，要自己新增品項與車輛，或用設定頁的「整套複製」帶過去。`)) return;
+  await guard(async()=>{
+    await rpc("mgr_region_add",{p_token:token,p_name:nv});
+    REGIONS=await rpc("region_list");
+    await reload(); render();
+  },`已新增「${nv}」，可以從上面的區域列切換過去`);
 }
 async function toggleGrant(id,region,on){
   if(me&&me.id===id&&!on) return toast("不能收回自己的權限");
@@ -1589,7 +1700,7 @@ async function delManual(id){
 /* ---- 頁面②：庫存總表 ---- */
 
 
-function locRank(l){const i=LOCS.indexOf(l);return i<=0?9999:i;}
+function locRank(l){const i=LOCS().indexOf(l);return i<=0?9999:i;}
 function viewStock(){
   const ni=nItem;
   const sorted=ITEMS().slice().sort((a,b)=>{
@@ -1604,7 +1715,7 @@ function viewStock(){
         <div class="g2">
           <label class="f"><span class="lbl">品項名稱</span><input type="text" id="e_name" value="${k}"></label>
           <label class="f"><span class="lbl">擺放位置</span>
-            <select id="e_loc">${LOCS.map(l=>`<option ${l===it.loc?"selected":""}>${l}</option>`).join("")}</select></label>
+            <select id="e_loc">${LOCS().map(l=>`<option ${l===it.loc?"selected":""}>${l}</option>`).join("")}</select></label>
         </div>
         <label class="f"><span class="lbl">安全庫存</span>
           <input type="number" min="0" id="e_safe" class="num" value="${sf}"></label>
@@ -1649,7 +1760,7 @@ function viewStock(){
         <label class="f"><span class="lbl">品項名稱</span>
           <input type="text" value="${ni.name}" placeholder="例：打診棒" onchange="setNi('name',this.value)"></label>
         <label class="f"><span class="lbl">擺放位置</span>
-          <select onchange="setNi('loc',this.value)">${LOCS.map(l=>`<option ${l===ni.loc?"selected":""}>${l}</option>`).join("")}</select></label>
+          <select onchange="setNi('loc',this.value)">${LOCS().map(l=>`<option ${l===ni.loc?"selected":""}>${l}</option>`).join("")}</select></label>
       </div>
       <div class="g2">
         <label class="f"><span class="lbl">目前倉庫數量</span>
@@ -2555,13 +2666,56 @@ function viewVehicles(){
       <td style="color:var(--muted);font-size:13px">${used?`${cnt} 張盤點單　最近 ${last.date}`:"尚未使用"}</td>
       <td class="n">${used?`<span class="lbl">不可刪除</span>`:`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪除</button>`}</td></tr>`;}).join("");
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>車輛清單</h2>
-      <span class="lbl" style="margin-left:auto">目前 ${VEH().length} 台</span></div>
-      <div class="tw"><table><colgroup><col style="width:70px"><col><col style="width:80px"></colgroup><tr><th>車別</th><th>使用狀況</th><th></th></tr>${vlist}</table></div>
-      <div class="foot"><span class="lbl">已有盤點紀錄的車不能刪除，避免歷史資料失去對應</span></div></div>
+    ${sect("veh","車輛",`${VEH().length} 台　${VEH().join(" ")}`,`
+      <div class="tw"><table><colgroup><col style="width:70px"><col><col style="width:80px"></colgroup>
+        <tr><th>車別</th><th>使用狀況</th><th></th></tr>${vlist}</table></div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="lbl" style="margin-bottom:9px">新增車輛</div>
+        <label class="f"><span class="lbl">車輛代號（3 字以內）</span>
+          <input type="text" maxlength="3" value="${esc(nVeh.code)}" placeholder="例：G、中1"
+            oninput="nVeh.code=this.value"></label>
+        <label class="ck" style="margin-bottom:12px">
+          <input type="checkbox" ${nVeh.preload?"checked":""} onchange="nVeh.preload=this.checked">
+          <span>直接帶入整套標配數量（新車已配齊時勾選）</span></label>
+        <button class="btn block" onclick="addVehicle()">新增車輛</button>
+      </div>`,
+      "已有盤點紀錄的車不能刪除，避免歷史資料失去對應")}
 
-    <div class="card"><div class="hd"><h2>盤點拍照模式</h2>
-      <span class="lbl" style="margin-left:auto">${byItem()?"每項一張":"每包一張"}</span></div>
+    ${sect("loc","擺放位置",`${(S.locs||[]).length} 個`,`
+      ${(S.locs||[]).length?`<div class="bd" style="padding-bottom:10px">
+        <div class="locgrid">${S.locs.map(l=>{
+          const n=ITEMS().filter(x=>x.loc===l).length;
+          return `<button class="lchip ${pickLoc===l?"on":""}" onclick="pickLocation('${esc(l)}')"
+            >${esc(l)}<i>${n}</i></button>`;}).join("")}</div>
+        ${pickLoc?`<div class="locbar">
+          <div class="lbl" style="flex:1 0 100%;margin-bottom:2px">
+            「<b style="color:var(--ink)">${esc(pickLoc)}</b>」目前有
+            ${ITEMS().filter(x=>x.loc===pickLoc).length} 個品項</div>
+          <button class="btn ghost tiny" ${S.locs.indexOf(pickLoc)===0?"disabled":""}
+            onclick="locMove('${esc(pickLoc)}',-1)">← 往前</button>
+          <button class="btn ghost tiny" ${S.locs.indexOf(pickLoc)===S.locs.length-1?"disabled":""}
+            onclick="locMove('${esc(pickLoc)}',1)">往後 →</button>
+          <button class="btn ghost tiny" onclick="locRename('${esc(pickLoc)}')">改名</button>
+          <button class="btn ghost tiny" onclick="locDelete('${esc(pickLoc)}')">刪除</button>
+          <button class="btn ghost tiny" onclick="pickLoc=null;render()">取消</button>
+        </div>`:`<div class="lbl" style="margin-top:9px">點一下位置可以改名、刪除或調順序</div>`}
+      </div>`:`<div class="bd"><div class="empty">
+        ${regName(REG)}還沒有設定任何擺放位置<div class="lbl" style="margin-top:6px">
+        下面可以自己新增貨架編號，或整套從其他區複製過來再改</div></div></div>`}
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="g2">
+          <input type="text" id="nloc" maxlength="12" placeholder="例：A-1、二樓貨架"
+            style="margin:0" onkeydown="if(event.key==='Enter')locAdd()">
+          <button class="btn" onclick="locAdd()">新增位置</button>
+        </div>
+        ${REGIONS.filter(r=>r.code!==REG&&myRegions.includes(r.code)).length?`
+        <div class="chips" style="margin-top:12px">${REGIONS.filter(r=>r.code!==REG&&myRegions.includes(r.code)).map(r=>
+          `<button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px"
+            onclick="locCopy('${r.code}')">整套從${esc(r.name||r.code)}複製</button>`).join("")}</div>`:""}
+      </div>`,
+      "改名時放在那個位置的品項會一起更新；刪除時那些品項會變成「未設定」，品項本身不會消失。每一區的位置各自獨立。")}
+
+    ${sect("photo","盤點拍照",`${byItem()?"每項一張":"每包一張"}　·　每車留 ${KEEP} 組`,`
       <div class="bd">
         <div class="g2" style="margin-bottom:12px">
           <button class="btn ${byItem()?"ghost":"amber"}" onclick="setPhotoMode('pkg')">每包一張</button>
@@ -2578,22 +2732,24 @@ function viewVehicles(){
         </table></div>
         <div class="lbl" style="margin-top:9px;line-height:1.7">
           估算以每張約 100KB 計。免費雲端空間為 1024 MB，
-          目前上限用量約 ${Math.round((byItem()?RW().length:PKGS().length)*VEH().length*KEEP*0.1/1024*100)}%。
-          增加車輛或盤點項目時，這裡的數字會跟著變。</div>
-      </div>
-      <div class="foot"><span class="lbl">切換後下一張盤點單即生效，已送出的紀錄不受影響</span></div></div>
+          目前上限用量約 ${Math.round((byItem()?RW().length:PKGS().length)*VEH().length*KEEP*0.1/1024*100)}%。<br>
+          每台車只保留最新 ${KEEP} 組照片，更舊的自動刪除，盤點紀錄本身永久保留。<br>
+          目前存有照片：${S.records.filter(r=>!r.pruned).length} 組　／　已清除：${S.records.filter(r=>r.pruned).length} 組</div>
+      </div>`,
+      "切換後下一張盤點單即生效，已送出的紀錄不受影響")}
 
-    <div class="card"><div class="hd"><h2>照片保留</h2>
-      <span class="lbl" style="margin-left:auto">每車 ${KEEP} 組</span></div>
+    ${sect("region","區域",`${esc(regName(REG))}　·　共 ${REGIONS.length} 區`,`
       <div class="bd">
-        <div class="lbl" style="line-height:1.7">每台車只保留最新 ${KEEP} 組盤點照片，第 ${KEEP+1} 組以後的照片會自動刪除，
-        盤點紀錄本身（數量、異常、盤點人）永久保留。<br>
-        目前存有照片的盤點單：${S.records.filter(r=>!r.pruned).length} 組
-        ／ 已清除照片：${S.records.filter(r=>r.pruned).length} 組</div>
-      </div></div>
+        <div class="lbl" style="line-height:1.8;margin-bottom:10px">
+          目前這一區叫「<b style="color:var(--ink)">${esc(regName(REG))}</b>」。
+          改名只會換掉畫面上顯示的名字，盤點紀錄、庫存、權限都不會受影響。</div>
+        <button class="btn ghost block" onclick="regionRename()">把「${esc(regName(REG))}」改成別的名字</button>
+        ${REGIONS.every(r=>myRegions.includes(r.code))?`
+        <button class="btn ghost block" style="margin-top:8px" onclick="regionAdd()">新增一個區域</button>
+        <div class="lbl" style="margin-top:8px;line-height:1.7">新增的區域是空的，進去之後可以用「品項」分頁與上面的「整套複製」把資料帶過去。</div>`:""}
+      </div>`)}
 
-    <div class="card"><div class="hd"><h2>操作者</h2>
-      <span class="lbl" style="margin-left:auto">${S.admins.length} 位</span></div>
+    ${sect("op","操作者",`${S.admins.length} 位`,`
       <div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:80px"></colgroup>
         <tr><th>姓名</th><th>可管區域</th><th></th></tr>
         ${S.admins.map(a=>{
@@ -2605,7 +2761,7 @@ function viewVehicles(){
               const has=mine.includes(r.code), can=myRegions.includes(r.code);
               return `<button aria-pressed="${has}" ${can?"":"disabled"}
                 title="${can?(has?"點一下收回":"點一下加開"):"你沒有這一區的權限"}"
-                onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.code)}</button>`;
+                onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.name||r.code)}</button>`;
             }).join("")}</div></td>
           <td class="n" style="white-space:nowrap">
             <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
@@ -2613,11 +2769,10 @@ function viewVehicles(){
               ? `<span class="lbl">不可刪除</span>`
               : `<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`)}</td></tr>`;}).join("")}
       </table></div>
-      <div class="foot"><span class="lbl">只能加開或收回你自己管得到的區；對方還管著你沒有的區時，不能刪除也不能改他的 PIN</span></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:9px">新增操作者到<b style="color:var(--ink)">${regName(REG)}</b>（建立後可以再加開其他區）</div>
         <label class="f"><span class="lbl">姓名</span>
-          <input type="text" value="${setup.name}" placeholder="例：冠揚" onchange="setup.name=this.value"></label>
+          <input type="text" value="${esc(setup.name)}" placeholder="例：冠揚" onchange="setup.name=this.value"></label>
         <div class="g2">
           <label class="f"><span class="lbl">設定 4 位數 PIN</span>
             <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
@@ -2625,20 +2780,9 @@ function viewVehicles(){
           <label class="f"><span class="lbl">再輸入一次</span>
             <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
               value="${setup.pin2}" placeholder="••••" onchange="setup.pin2=this.value"></label></div>
-        <button class="btn block" onclick="addAdmin()">新增操作者</button></div>
-      <div class="foot"><span class="lbl">PIN 以加密方式存在雲端資料庫，不會存在手機或網頁裡；登入後的憑證 12 小時自動失效</span></div></div>
-
-    <div class="card"><div class="hd"><h2>新增車輛</h2></div><div class="bd">
-      <label class="f"><span class="lbl">車輛代號（3 字以內）</span>
-        <input type="text" value="${nVeh.code}" placeholder="例：G、中1" maxlength="3" onchange="setNv('code',this.value)"></label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:13.5px;cursor:pointer">
-        <input type="checkbox" ${nVeh.preload?"checked":""} onchange="setNv('preload',this.checked)"
-          style="width:18px;height:18px"> 直接帶入整套標配數量（新車已配齊時勾選）</label>
-      <button class="btn block" onclick="addVehicle()">新增車輛</button>
-      <div class="lbl" style="margin-top:8px">不勾選則車上在庫從 0 起算，之後用出入庫的「遺失或損壞」逐項配上去</div>
-    </div></div>
-  </div>
-    ${amListCard()}
+        <button class="btn block" onclick="addAdmin()">新增操作者</button>
+      </div>`,
+      "只能加開或收回你自己管得到的區；對方還管著你沒有的區時，不能刪除也不能改他的 PIN。這份名單與車輛管理系統共用。")}
   </div>`;
 }
 
@@ -2657,7 +2801,7 @@ function render(){
     <div class="regsw">${REGIONS.map(r=>{
       const ok=canSwitch.includes(r.code);
       return `<button aria-pressed="${REG===r.code}" ${ok?"":"disabled"}
-        title="${ok?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.code)}</button>`;}).join("")}</div>
+        title="${ok?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.name||r.code)}</button>`;}).join("")}</div>
     <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
   const t=TABS[role];
   if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
@@ -2672,6 +2816,6 @@ function render(){
   restoreSearch();
   saveDraftSoon();
 }
-function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;window.scrollTo(0,0);render();}
+function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;window.scrollTo(0,0);render();}
 boot();
 </script>
