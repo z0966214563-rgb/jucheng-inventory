@@ -178,6 +178,29 @@ td.sdet{background:#FBFCFD;padding:12px 14px}
   .ihd,.iline{grid-template-columns:1fr 50px 66px 70px 38px;gap:6px}
   .iline input{padding:6px;font-size:13px}
 }
+
+/* 區域切換 */
+.regsw{display:flex;gap:6px;margin-left:auto;margin-right:9px}
+.regsw button{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;
+  border-radius:999px;padding:0 13px;min-height:36px;font-family:var(--tc);font-size:13px;
+  cursor:pointer;white-space:nowrap;display:flex;align-items:center}
+.regsw button[aria-pressed="true"]{background:#fff;color:var(--ink);border-color:#fff;font-weight:700}
+.regsw button[disabled]{opacity:.3;cursor:not-allowed}
+.swshort{display:none}
+@media (max-width:560px){ .regsw{gap:5px;margin-right:7px} .regsw button{padding:0 10px;font-size:12px} }
+@media (max-width:380px){
+  header.top{padding-left:10px;padding-right:10px}
+  header.top .sw{padding:6px 8px}
+  .swlong{display:none} .swshort{display:inline}
+  .regsw{margin-right:5px;gap:4px}
+  .regsw button{padding:0 7px;font-size:11.5px}
+}
+/* 設定頁：每位管理者的可管區域 */
+.rgrant{display:flex;gap:4px;flex-wrap:wrap}
+.rgrant button{border:1px solid var(--line2);background:#fff;color:var(--muted);
+  border-radius:999px;padding:3px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.rgrant button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:700}
+.rgrant button[disabled]{opacity:.35;cursor:not-allowed}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -256,11 +279,13 @@ function applyState(st,urls){
     items:(x.items||[]).map(i=>({name:i.name||"",qty:Number(i.qty)||0,price:Number(i.price)||0})),
     total:Number(x.total)||0, receipt:x.receipt||null,
     receiptUrl:(urls||{})[x.receipt]||null}));
-  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name}));
+  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[]}));
+  N.anyOp=true;
+  if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
   S=N;
 }
 async function reload(){
-  const st=await rpc("fleet_state",{p_token:token,p_days:365});
+  const st=await rpc("fleet_state",{p_token:token,p_region:REG,p_days:365});
   if(!st||typeof st!=="object") throw new Error("讀取資料失敗，請重試");
   const paths=[];
   (st.trips||[]).forEach(t=>(t.photos||[]).forEach(p=>paths.push(p.path)));
@@ -279,6 +304,17 @@ let setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
 let draft=null, editV=null, nVeh={code:"",plate:"",odo:0,next:0}, svc=null, openRec=null, lightbox=null;
 let nItem="", keepDays=90;
 
+/* ---------- 區域 ---------- */
+let REGIONS=[];                        // 由 region_list() 載入
+let REG=null;                          // 目前所在區（例如 "北區"）
+let myRegions=[];                      // 這位管理者可管的區
+const regName=c=>c||"";
+const slugOf=c=>((REGIONS.find(r=>r.code===c)||{}).slug)||"x";
+function saveReg(c){ REG=c; try{localStorage.setItem("jc_reg",c);}catch(e){} }
+function loadReg(){
+  try{ const c=localStorage.getItem("jc_reg");
+       return REGIONS.some(r=>r.code===c)?c:null; }catch(e){ return null; } }
+
 const DEFAULT_V=["A","B","C","D","E","F","G","H","Z"];
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
 const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -290,7 +326,25 @@ const vehOf=c=>VEH().find(v=>v.code===c);
 async function boot(){
   S=blankState(); render();
   try{
-    applyConfig(await rpc("fleet_config"));
+    REGIONS=await rpc("region_list");
+  }catch(e){
+    document.getElementById("app").innerHTML=
+      `<div class="wrap"><div class="card"><div class="bd">
+        <div style="font-weight:900;font-size:15px;margin-bottom:8px">連線失敗</div>
+        <div class="lbl" style="line-height:1.7">${esc(e.message||"")}</div>
+        <button class="btn block" style="margin-top:14px" onclick="location.reload()">重新載入</button>
+      </div></div></div>`;
+    return;
+  }
+  REG=loadReg();
+  gate=REG?"pick":"pickRegion";
+  render();
+  if(!REG) return;
+  await loadRegion();
+}
+async function loadRegion(){
+  try{
+    applyConfig(await rpc("fleet_config",{p_region:REG}));
     render();
   }catch(e){
     document.getElementById("app").innerHTML=
@@ -326,12 +380,42 @@ const byCode=(a,b)=>{
 };
 
 /* ===================== 角色入口 ===================== */
+function viewRegion(back){
+  return `<div class="gate">
+    <h2>選擇區域</h2>
+    <p>${back?"切換到其他區":"這台裝置會記住你的選擇，之後可以隨時更換"}</p>
+    ${REGIONS.map(r=>`<button class="role ${r.code===REG?"amber":""}" onclick="chooseRegion('${r.code}')">
+      <b>${esc(r.code)}</b><span>${r.fleet_vehicles} 台車</span></button>`).join("")}
+    ${back?`<button class="btn ghost block" style="margin-top:12px" onclick="gate='pick';render()">返回</button>`:""}
+  </div>`;
+}
+async function chooseRegion(c){
+  saveReg(c); gate="pick"; role=null; me=null; token=null; myRegions=[]; draft=null;
+  S=blankState(); render();
+  await loadRegion();
+}
+async function hdrRegion(c){
+  if(c===REG) return;
+  if(role==="admin"&&!myRegions.includes(c)) return toast(`你沒有${regName(c)}的權限`);
+  if(role==="driver"&&draft&&(draft.odo||Object.keys(draft.photos||{}).length)&&
+     !confirm("目前的出車登記尚未送出，換區會遺失。確定要換區嗎？")) return;
+  draft=null;
+  saveReg(c); S=blankState(); render();
+  await loadRegion();
+  if(role==="admin"&&token){ await guard(async()=>{ await reload(); render(); }); }
+  else render();
+  toast(`已切換到${regName(c)}`);
+}
 function viewGate(){
+  if(gate==="pickRegion") return viewRegion(false);
+  if(gate==="switchRegion") return viewRegion(true);
   if(gate==="pickAdmin") return viewPickAdmin();
   if(gate==="setup") return viewSetup();
   return `<div class="gate">
     <h2>選擇使用身分</h2>
-    <p>${VEH().length} 台車</p>
+    <p><b>${regName(REG)}</b>　·　${VEH().length} 台車</p>
+    <button class="btn ghost block" style="margin-bottom:16px" onclick="gate='switchRegion';render()">
+      目前是${regName(REG)}，換一區</button>
     <button class="role amber" onclick="setRole('driver')">
       <b>出車登記</b><span>登記今日里程、拍攝車況照片</span></button>
     <button class="role" onclick="gotoAdmin()">
@@ -341,8 +425,9 @@ function viewGate(){
 function setRole(r){ role=r; tab=r==="driver"?"trip":"fleet"; draft=null; window.scrollTo(0,0); render(); }
 async function gotoAdmin(){
   await guard(async()=>{
-    const n=await rpc("op_count");
-    S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+    const n=await rpc("op_count",{p_region:REG});
+    S.admins=(await rpc("op_names",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
+    S.anyOp=await rpc("op_any");
     gate=n>0?"pickAdmin":"setup";
     setup={name:"",pin:"",pin2:""}; login={id:"",pin:""}; render();
   });
@@ -350,8 +435,8 @@ async function gotoAdmin(){
 function viewPickAdmin(){
   const who=S.admins.find(a=>a.id===login.id);
   return `<div class="gate">
-    <h2>管理者登入</h2>
-    <p>選擇你的名字，輸入 PIN 碼</p>
+    <h2>${regName(REG)} · 管理者登入</h2>
+    <p>只會列出${regName(REG)}的管理者，輸入自己的 PIN 碼</p>
     <div class="lbl" style="margin-bottom:7px">管理者</div>
     <div class="chips" style="margin-bottom:16px">${S.admins.map(a=>
       `<button class="chip" style="min-width:auto;padding:0 15px;font-family:var(--tc);font-size:15px;font-weight:700"
@@ -366,6 +451,15 @@ function viewPickAdmin(){
   </div>`;
 }
 function viewSetup(){
+  if(S.anyOp){
+    return `<div class="gate">
+      <h2>${regName(REG)}還沒有管理者</h2>
+      <p style="line-height:1.8">請用你在其他區的帳號登入，到「設定」分頁的管理者清單，
+         把這個人的「${regName(REG)}」打開；或是在${regName(REG)}新增一位管理者。</p>
+      <button class="btn ghost block" style="margin-top:12px" onclick="gate='switchRegion';render()">換一區登入</button>
+      <button class="btn ghost block" style="margin-top:8px" onclick="gate='pick';render()">返回</button>
+    </div>`;
+  }
   return `<div class="gate">
     <h2>建立第一位管理者</h2>
     <p>建立後，之後要新增人員必須先登入，在「設定」分頁裡新增。</p>
@@ -391,6 +485,7 @@ async function asAdmin(){
     const res=await rpc("op_login",{p_id:login.id,p_pin:login.pin});
     const row=Array.isArray(res)?res[0]:res;
     token=row.token; me={id:row.operator_id,name:row.name};
+    myRegions=Array.isArray(row.regions)?row.regions:[REG];
     await reload();
     role="admin"; tab="fleet"; gate="pick"; login={id:"",pin:""};
     window.scrollTo(0,0);
@@ -403,9 +498,9 @@ async function addAdmin(){
   if(!/^[0-9]{4}$/.test(setup.pin))return toast("PIN 請設 4 位數字");
   if(setup.pin!==setup.pin2)return toast("兩次輸入的 PIN 不一致");
   await guard(async()=>{
-    if(token){ await rpc("op_add",{p_token:token,p_name:n,p_pin:setup.pin}); await reload(); }
-    else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin});
-           S.admins=(await rpc("op_names")).map(o=>({id:o.id,name:o.name}));
+    if(token){ await rpc("op_add",{p_token:token,p_region:REG,p_name:n,p_pin:setup.pin}); await reload(); }
+    else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin,p_region:REG});
+           S.admins=(await rpc("op_names",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
            gate="pickAdmin"; }
     setup={name:"",pin:"",pin2:""}; render();
   },"已建立管理者");
@@ -415,6 +510,14 @@ async function delAdmin(id){
   if(!confirm("刪除這位管理者？"))return;
   await guard(async()=>{ await rpc("op_delete",{p_token:token,p_id:id});
     await reload(); render(); },"已刪除");
+}
+async function toggleGrant(id,region,on){
+  if(me&&me.id===id&&!on) return toast("不能收回自己的權限");
+  if(!on&&!confirm(`收回「${region}」的管理權限？`)) return;
+  await guard(async()=>{
+    await rpc("op_grant",{p_token:token,p_id:id,p_region:region,p_on:on});
+    await reload(); render();
+  }, on?`已加開 ${region}`:`已收回 ${region}`);
 }
 async function resetPin(id){
   const a=S.admins.find(x=>x.id===id); if(!a)return;
@@ -426,7 +529,7 @@ async function resetPin(id){
 function switchRole(){
   if(draft&&draft.odo&&!confirm("目前的出車登記尚未送出，離開會遺失。要切換身分嗎？"))return;
   if(token) rpc("op_logout",{p_token:token}).catch(()=>{});
-  role=null; me=null; token=null; draft=null; gate="pick"; render();
+  role=null; me=null; token=null; draft=null; gate="pick"; myRegions=[]; render();
 }
 
 /* ===================== 出車登記 ===================== */
@@ -519,8 +622,8 @@ async function submitTrip(){
 
   busy=true; render();
   try{
-    const slot=await rpc("fleet_next_slot",{p_code:v.code});
-    const base=`${pathSafe(v.code)}/${slot}`;
+    const slot=await rpc("fleet_next_slot",{p_region:REG,p_code:v.code});
+    const base=`${slugOf(REG)}/${pathSafe(v.code)}/${slot}`;   // 三個區都有 A 車，路徑要分開
     const photos=[]; let n=0;
     for(const t of S.settings.photoItems){
       const path=`${base}/${pathSafe(t)}.jpg`;
@@ -529,7 +632,7 @@ async function submitTrip(){
       photos.push({label:t,path});
     }
     setProgress("寫入登記…");
-    const r=await rpc("fleet_submit",{p:{code:v.code,person:draft.person,odo,
+    const r=await rpc("fleet_submit",{p:{region:REG,code:v.code,person:draft.person,odo,
       time:nowHM(),slot,photos}});
     v.odo=odo;
     draft=null; setProgress(null); busy=false; render();
@@ -641,7 +744,7 @@ async function addVeh(){
   if(!c)return toast("請填車輛代號");
   if(VEH().some(v=>v.code===c))return toast(`${c} 車已經存在`);
   await guard(async()=>{
-    await rpc("fleet_vehicle_add",{p_token:token,p_code:c,
+    await rpc("fleet_vehicle_add",{p_token:token,p_region:REG,p_code:c,
       p_plate:(nVeh.plate||"").trim(),
       p_odo:Math.max(0,parseInt(nVeh.odo)||0),
       p_next:Math.max(0,parseInt(nVeh.next)||0)});
@@ -846,11 +949,11 @@ async function addSvc(){
   await guard(async()=>{
     let path=null;
     if(svc.receipt){
-      path=`svc/${pathSafe(v.code)}/${Date.now()}.jpg`;
+      path=`${slugOf(REG)}/svc/${pathSafe(v.code)}/${Date.now()}.jpg`;
       await uploadPhoto(path,svc.receipt);
     }
     const items=cleanItems(svc.items);
-    await rpc("fleet_service_add",{p_token:token,p_code:v.code,p_odo:odo,
+    await rpc("fleet_service_add",{p_token:token,p_region:REG,p_code:v.code,p_odo:odo,
       p_next:next,p_note:svc.note.trim(),p_items:items,p_receipt:path});
     const code=v.code;
     svc=blankSvc(code);
@@ -965,16 +1068,28 @@ function viewSettings(){
 
     <div class="card"><div class="hd"><h2>管理者</h2>
       <span class="lbl" style="margin-left:auto">${S.admins.length} 位</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:110px"><col style="width:120px"></colgroup>
-        <tr><th>姓名</th><th>狀態</th><th></th></tr>
-        ${S.admins.map(a=>`<tr><td style="font-weight:700">${a.name}</td>
-          <td style="color:var(--muted);font-size:13px">${me&&me.id===a.id?"使用中":"—"}</td>
+      <div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:120px"></colgroup>
+        <tr><th>姓名</th><th>可管區域</th><th></th></tr>
+        ${S.admins.map(a=>{
+          const mine=a.regions||[];
+          const cant=mine.filter(r=>!myRegions.includes(r));
+          return `<tr><td style="font-weight:700">${esc(a.name)}
+            ${me&&me.id===a.id?`<span class="lbl" style="font-weight:400">（使用中）</span>`:""}</td>
+          <td><div class="rgrant">${REGIONS.map(r=>{
+              const has=mine.includes(r.code), can=myRegions.includes(r.code);
+              return `<button aria-pressed="${has}" ${can?"":"disabled"}
+                title="${can?(has?"點一下收回":"點一下加開"):"你沒有這一區的權限"}"
+                onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.code)}</button>`;
+            }).join("")}</div></td>
           <td class="c-act">
             <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
-            ${me&&me.id===a.id?"":`<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`}</td></tr>`).join("")}
+            ${me&&me.id===a.id?"":(cant.length
+              ? `<span class="lbl">不可刪除</span>`
+              : `<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`)}</td></tr>`;}).join("")}
       </table></div>
+      <div class="foot"><span class="lbl">這份名單與權限跟盤點系統共用；只能加開或收回你自己管得到的區</span></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
-        <div class="lbl" style="margin-bottom:9px">新增管理者</div>
+        <div class="lbl" style="margin-bottom:9px">新增管理者到<b style="color:var(--ink)">${regName(REG)}</b>（建立後可以再加開其他區）</div>
         <label class="f"><span class="lbl">姓名</span>
           <input type="text" value="${setup.name}" onchange="setup.name=this.value"></label>
         <div class="g2">
@@ -990,7 +1105,7 @@ function viewSettings(){
 }
 async function saveSettings(o){
   await guard(async()=>{
-    await rpc("fleet_settings_update",{p_token:token,
+    await rpc("fleet_settings_update",{p_token:token,p_region:REG,
       p_interval:o.interval!==undefined?Math.max(1000,parseInt(o.interval)||10000):null,
       p_warn:o.warn!==undefined?Math.max(0,parseInt(o.warn)||0):null,
       p_urgent:o.urgent!==undefined?Math.max(0,parseInt(o.urgent)||0):null,
@@ -1025,12 +1140,16 @@ const TABS={driver:[["trip","▣","出車登記"]],
 function render(){
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
-  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 車輛管理</h1><div class="sub">FLEET</div></div>`;
+  if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 車輛管理</h1><div class="sub">${REG?regName(REG):"請先選擇區域"}</div></div>`;
     nv.className="tabs hide"; app.innerHTML=viewGate(); return; }
   const al=alerts().length;
   hdr.innerHTML=`<div><h1>${role==="driver"?"出車登記":`車輛管理${me?" · "+me.name:""}`}</h1>
     <div class="sub">${VEH().length} 台車${al?` / ${al} 台待保養`:""}</div></div>
-    <button class="sw" onclick="switchRole()">切換身分</button>`;
+    <div class="regsw">${REGIONS.map(r=>{
+      const can=role==="driver"?true:(myRegions.length?myRegions.includes(r.code):r.code===REG);
+      return `<button aria-pressed="${REG===r.code}" ${can?"":"disabled"}
+        title="${can?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.code)}</button>`;}).join("")}</div>
+    <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
   const t=TABS[role];
   if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
     nv.innerHTML=t.map(([k,i,l])=>`<button aria-selected="${tab===k}" onclick="go('${k}')"><span class="ic">${i}</span>${l}</button>`).join("");
