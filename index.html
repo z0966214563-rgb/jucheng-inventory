@@ -404,6 +404,10 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
   header.top .sub{font-size:9px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}
 }
 
+/* 上午場清單：包別標籤 */
+.ampkg{display:inline-block;background:var(--bg2);border:1px solid var(--line2);
+  border-radius:4px;padding:1px 6px;font-size:11px;color:var(--ink);font-weight:700;margin-right:4px}
+
 /* 設定頁：可收合區塊 */
 .card.sect{overflow:hidden}
 .secHd{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
@@ -439,11 +443,12 @@ label.f>.lbl{display:block;line-height:1.5}
 
 <script>
 /* ===================== 資料來源：全部來自雲端 ===================== */
-const AMSET=()=>new Set((S&&S.amItems)||[]);
+// 上午場清單記的是「下午盤點表上的某一列」＝某一包別裡的某一項
+const AMSET=()=>new Set((S&&S.amRows)||[]);
 const amMode=()=>role==="field"&&draft&&draft.session==="am"&&AMSET().size>0;
 const ALLRW=()=>(S&&S.rows)?S.rows:[];
 const RW=()=>{ const all=ALLRW(); if(!amMode())return all;
-  const am=AMSET(); return all.filter(r=>am.has(r.sku)); };
+  const am=AMSET(); return all.filter(r=>am.has(r.rid)); };
 const PKGS=()=>{ const all=(S&&S.pkgs)?S.pkgs:[];
   if(!amMode())return all;
   const ids=new Set(RW().map(r=>r.pkg)); return all.filter(p=>ids.has(p.id)); };
@@ -517,7 +522,7 @@ function prune(){}               // 照片保留由資料庫處理
 function blankState(){
   return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],
           items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",
-          amItems:[],amIds:[],needs:[],locs:[]};
+          amItems:[],amIds:[],amRows:[],needs:[],locs:[]};
 }
 function applyConfig(cfg){
   S=S||blankState();
@@ -527,7 +532,7 @@ function applyConfig(cfg){
   S.rows=(cfg.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
     name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
     valuable:!!r.valuable,consum:!!r.consumable}));
-  S.amItems=cfg.am_items||[];
+  S.amRows=cfg.am_rows||[];
 }
 async function applyState(st,urls){
   // 先組好一份完整資料，最後才整個換掉；中途失敗不會把畫面清空
@@ -566,8 +571,10 @@ async function applyState(st,urls){
     reason:m.reason,person:m.person,note:m.note,vehicle:m.vehicle||"",
     fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,
     car:["遺失","損壞","遺失或損壞"].includes(m.reason)?1:0}));
-  N.amItems=(st.am_items||[]).map(x=>x.name);
-  N.amIds=(st.am_items||[]).map(x=>({id:x.id,name:x.name}));
+  N.amIds=(st.am_items||[]).map(x=>({rid:x.row_id,id:x.id,name:x.name,
+    pkg:x.pkg,pkgId:x.pkg_id,loc:x.loc,std:x.std}));
+  N.amRows=N.amIds.map(x=>x.rid);
+  N.amItems=[...new Set(N.amIds.map(x=>x.name))];
   N.needs=(st.needs||[]).map(n=>({vehicle:n.vehicle,sku:n.item,itemId:n.item_id,
     qty:n.qty,kind:n.kind,done:n.done,date:n.date,session:n.session}));
   N.manual=(st.manual||[]).map(x=>({id:x.id,vehicle:x.vehicle,sku:x.item,itemId:x.item_id,
@@ -1099,7 +1106,7 @@ function viewField(){
     </div>
   </div>`;
 }
-function amCount(){ const am=AMSET(); return ALLRW().filter(r=>am.has(r.sku)).length; }
+function amCount(){ const am=AMSET(); return ALLRW().filter(r=>am.has(r.rid)).length; }
 function pickSes(v){ draft.session=v; render(); }
 function dismissLast(){ lastSubmit=null; render(); }
 function lastSubmitBox(){
@@ -2594,72 +2601,91 @@ function exportMonthly(fmt){
 
 /* ---- 車輛管理（獨立分頁） ---- */
 function amCand(){
-  // 系統建議：近 6 個月有遺失的非耗材品項，依遺失率排序，排除已在清單裡的
-  const st=monthlyStats(), ms=st.ms, inList=new Set(S.amItems||[]);
-  return Object.keys(st.byLost||{}).map(k=>{
+  // 系統建議：近 6 個月有遺失的品項，依遺失率排序；
+  // 同一品項在多個包別的話，各包別分開列，已在清單裡的那一列不再建議
+  const st=monthlyStats(), ms=st.ms, inRows=AMSET();
+  const scored=Object.keys(st.byLost||{}).map(k=>{
     const tot=ms.reduce((t,m)=>t+((st.byLost[k]||{})[m]||0),0);
     const cfg=cfgOf(k); let streak=0;
     for(let x=ms.length-1;x>=0;x--){ if((st.byLost[k]||{})[ms[x]]) streak++; else break; }
     return {sku:k,tot,cfg,rate:cfg?tot/(cfg*Math.max(1,ms.length)):0,streak};
-  }).filter(x=>x.tot>0&&!inList.has(x.sku))
-    .sort((a,b)=>b.rate-a.rate||b.tot-a.tot).slice(0,6);
+  }).filter(x=>x.tot>0).sort((a,b)=>b.rate-a.rate||b.tot-a.tot);
+  const out=[];
+  scored.forEach(c=>{
+    ALLRW().filter(r=>r.sku===c.sku&&!inRows.has(r.rid))
+      .forEach(r=>out.push({...c,rid:r.rid,pkg:r.pkgName}));
+  });
+  return out.slice(0,8);
 }
 function amListBody(){
-  const list=(S.amIds||[]).slice().sort((a,b)=>a.name<b.name?-1:1);
+  // 目前清單：依包別順序、包內依擺放位置
+  const list=(S.amIds||[]).slice().sort((a,b)=>{
+    const pa=PKGS().findIndex(p=>p.id===a.pkgId), pb=PKGS().findIndex(p=>p.id===b.pkgId);
+    if(pa!==pb) return pa-pb;
+    const d=locRank(a.loc)-locRank(b.loc);
+    return d!==0?d:a.name.localeCompare(b.name,"zh-Hant");
+  });
   const cand=amCand();
-  const pool=(S.items||[]).filter(i=>!(S.amItems||[]).includes(i.sku))
-    .map(i=>i.sku).sort();
-  const row=(name,id,right,sub,btn)=>`<div class="amrow">
-    <div><div class="nm">${esc(name)}</div>${sub?`<div class="sub2">${sub}</div>`:""}</div>
+  const inRows=AMSET();
+  // 可加入的「標配列」：依包別分組，組內依擺放位置
+  const pool=ALLRW().filter(r=>!inRows.has(r.rid)).map(r=>{
+    const it=itemOf(r.sku);
+    return {rid:r.rid,name:r.sku,pkg:r.pkgName,pkgId:r.pkg,loc:it?it.loc:"未設定"};
+  });
+  const byPkg=PKGS().map(p=>({p,rows:pool.filter(x=>x.pkgId===p.id).sort((a,b)=>{
+    const d=locRank(a.loc)-locRank(b.loc);
+    return d!==0?d:a.name.localeCompare(b.name,"zh-Hant");})})).filter(g=>g.rows.length);
+
+  const row=(name,pkg,right,sub,btn)=>`<div class="amrow">
+    <div><div class="nm">${esc(name)}</div>
+      <div class="sub2">${pkg?`<span class="ampkg">${esc(pkg)}</span>`:""}${sub?" "+sub:""}</div></div>
     <div class="rt">${right}</div>
     <div>${btn}</div></div>`;
+
   return `
     <div class="bd" style="padding-bottom:0"><p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
-      上午場只盤這份清單，約兩分鐘。系統只<b>建議</b>，不會自動加入；移除就直接從清單消失。
-      建議控制在 5～10 項。</p></div>
+      上午場只盤這份清單，約兩分鐘。挑的是<b>下午盤點表上的某一列</b>，
+      所以同一樣東西在兩個包別時，可以只盤其中一包的那一台。建議控制在 5～10 項。</p></div>
 
     <div class="lbl amhd">目前清單　${list.length} 項</div>
-    ${list.length?list.map(x=>row(x.name,x.id,
-        `${stdOf(x.name)?`標配 ${stdOf(x.name)}／車`:""}`,"",
-        `<button class="btn ghost tiny" onclick="amDel('${x.id}')">移除</button>`)).join("")
+    ${list.length?list.map(x=>row(x.name,x.pkg,
+        `${x.loc&&x.loc!=="未設定"?`<span class="lbl">${esc(x.loc)}</span>　`:""}${x.std?`標配 ${x.std}／車`:""}`,"",
+        `<button class="btn ghost tiny" onclick="amDel('${x.rid}')">移除</button>`)).join("")
       :`<div class="empty" style="padding:22px 14px">清單是空的，外勤選不到上午場。<br>
         <span class="lbl">從下面的建議或手動加入挑幾樣進來</span></div>`}
 
     <div class="lbl amhd">系統建議　依近 6 個月遺失狀況</div>
-    ${cand.length?cand.map(c=>{
-        const it=(S.items||[]).find(i=>i.sku===c.sku);
-        const why=c.streak>=3?`連 ${c.streak} 個月都有遺失`:`近 6 個月遺失 ${c.tot} 件`;
-        return row(c.sku,it?it.id:"",
-          `<span style="color:${c.rate>=0.15?"var(--alert)":"var(--muted)"};font-weight:700">${Math.round(c.rate*100)}%</span>`,
-          why, it?`<button class="btn ghost tiny" onclick="amAdd('${it.id}')">加入</button>`:"");
-      }).join("")
+    ${cand.length?cand.map(c=>row(c.sku,c.pkg,
+        `<span style="color:${c.rate>=0.15?"var(--alert)":"var(--muted)"};font-weight:700">${Math.round(c.rate*100)}%</span>`,
+        c.streak>=3?`連 ${c.streak} 個月都有遺失`:`近 6 個月遺失 ${c.tot} 件`,
+        `<button class="btn ghost tiny" onclick="amAdd('${c.rid}')">加入</button>`)).join("")
       :`<div class="empty" style="padding:22px 14px">近 6 個月沒有明顯的遺失集中，沒有要建議的品項。<br>
         <span class="lbl">遺失狀況低的時候這裡就會是空的</span></div>`}
 
-    <div class="lbl amhd">手動加入　高價值或你想盯的品項</div>
+    <div class="lbl amhd">手動加入　選包別裡的某一項</div>
     <div class="bd">
       <div style="display:flex;gap:9px;flex-wrap:wrap">
         <select id="ampick" style="flex:1;min-width:170px;border:1px solid var(--line);border-radius:3px;padding:9px 11px;font-size:15px">
-          ${pool.length?pool.map(p=>`<option>${esc(p)}</option>`).join("")
-            :`<option>（所有品項都已在清單裡）</option>`}</select>
-        <button class="btn" ${pool.length?"":"disabled"} onclick="amAddByName()">加入清單</button></div>
+          ${byPkg.length?byPkg.map(g=>`<optgroup label="${esc(g.p.name)}">${
+            g.rows.map(x=>`<option value="${x.rid}">${x.loc&&x.loc!=="未設定"?esc(x.loc)+"　":"—　"}${esc(x.name)}</option>`).join("")
+          }</optgroup>`).join("")
+            :`<option value="">（所有項目都已在清單裡）</option>`}</select>
+        <button class="btn" ${byPkg.length?"":"disabled"} onclick="amAddByName()">加入清單</button></div>
       <p class="sub" style="font-size:13px;color:var(--muted);margin:10px 0 0">
-        系統沒有單價資料，判斷不了什麼叫「高價值」，這類品項請自己加。</p>
+        依包別分組，組內照擺放位置排。系統沒有單價資料，判斷不了什麼叫「高價值」，這類品項請自己加。</p>
     </div>`;
 }
-async function amAdd(id){
-  await guard(async()=>{ await rpc("mgr_am_add",{p_token:token,p_item:id});
+async function amAdd(rid){
+  await guard(async()=>{ await rpc("mgr_am_add",{p_token:token,p_row:rid});
     await reload(); render(); },"已加入上午場清單");
 }
-async function amDel(id){
-  await guard(async()=>{ await rpc("mgr_am_del",{p_token:token,p_item:id});
+async function amDel(rid){
+  await guard(async()=>{ await rpc("mgr_am_del",{p_token:token,p_row:rid});
     await reload(); render(); },"已從上午場清單移除");
 }
 async function amAddByName(){
-  const el=document.getElementById("ampick"); if(!el)return;
-  const it=(S.items||[]).find(i=>i.sku===el.value);
-  if(!it)return toast("查無此品項");
-  await amAdd(it.id);
+  const el=document.getElementById("ampick"); if(!el||!el.value)return toast("沒有可加入的項目");
+  await amAdd(el.value);
 }
 function viewVehicles(){
   const vlist=VEH().map(v=>{
