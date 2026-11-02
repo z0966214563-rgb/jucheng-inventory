@@ -1,3 +1,4 @@
+<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <meta name="theme-color" content="#15181C">
@@ -201,6 +202,59 @@ td.sdet{background:#FBFCFD;padding:12px 14px}
   border-radius:999px;padding:3px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
 .rgrant button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:700}
 .rgrant button[disabled]{opacity:.35;cursor:not-allowed}
+
+/* 用現代模式渲染，但版面緊密度維持跟原本一樣 */
+table{line-height:normal}
+.foot{line-height:1}
+label.f>.lbl{display:block;line-height:1.5}
+
+/* 出車登記：把「組別」跟「車別」分清楚 */
+.pick{margin:14px 0 4px}
+.pickT{font-family:var(--tc);font-size:13.5px;color:var(--muted);margin-bottom:7px}
+.pickT b{color:var(--ink);font-size:15px;font-weight:800}
+.chips.crewchips .chip.crew{min-width:auto;padding:0 16px;height:46px;border-radius:999px;
+  font-family:var(--tc);font-size:15px;font-weight:700}
+.chips.crewchips .chip.crew[aria-pressed="true"]{background:var(--amber,#F5A623);
+  border-color:var(--amber,#F5A623);color:#1a1a1a}
+.chips.vehchips .chip.veh{min-width:auto;padding:0 14px;height:46px;border-radius:8px;
+  display:inline-flex;align-items:baseline;gap:3px;font-family:var(--mono);font-size:19px;font-weight:800}
+.chips.vehchips .chip.veh i{font-style:normal;font-family:var(--tc);font-size:11.5px;font-weight:400;opacity:.65}
+.confirm{margin-top:14px;padding:11px 13px;border:1px dashed var(--line);border-radius:6px;
+  background:var(--bg2);font-family:var(--tc);font-size:15px;text-align:center}
+.confirm b{font-family:var(--mono);font-size:18px}
+.confirm .ar{color:var(--muted);margin:0 10px;font-size:13px}
+.confirm .miss{color:var(--muted);font-size:13.5px}
+.crewtag{display:inline-block;background:var(--ink);color:#fff;border-radius:4px;
+  padding:1px 7px;font-family:var(--tc);font-size:11.5px;font-weight:700;margin-right:6px;vertical-align:1px}
+
+/* 悠遊卡 */
+.calcbox{margin:2px 0 14px;padding:11px 13px;border:1px solid var(--line2);border-radius:6px;
+  background:var(--bg2);font-family:var(--mono);font-size:14px;line-height:1.6}
+.calcbox.bad{border-color:var(--alert);background:#fff7f6}
+.calcbox b{font-size:16px}
+.warnbox{border-color:var(--alert);border-width:2px}
+.lowlist{display:flex;flex-wrap:wrap;gap:8px}
+.lowlist div{display:flex;align-items:baseline;gap:7px;border:1px solid var(--alert);border-radius:6px;
+  padding:7px 11px;font-family:var(--mono)}
+.lowlist span{color:var(--alert);font-weight:800}
+
+/* 設定頁：可收合區塊 */
+.card.sect{overflow:hidden}
+.secHd{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
+  padding:15px 16px;cursor:pointer;text-align:left;font-family:inherit}
+.card.sect.open .secHd{border-bottom:1px solid var(--line2)}
+.secTitle{font-family:var(--tc);font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap}
+.secM{flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.secC{color:var(--muted);font-size:11px;flex:none}
+.secHd:active{background:var(--bg2)}
+.locgrid{display:flex;flex-wrap:wrap;gap:7px}
+.lchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);
+  background:#fff;border-radius:8px;padding:0 12px;min-height:38px;cursor:pointer;
+  font-family:var(--tc);font-size:14px;font-weight:700;color:var(--ink)}
+.lchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;
+  padding-top:11px;border-top:1px dashed var(--line2)}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -247,30 +301,36 @@ const save=async()=>{};        // 資料即時寫入雲端
 function prune(){}             // 照片保留由資料庫處理
 
 function blankState(){
-  return {vehicles:[],trips:[],services:[],admins:[],
-          settings:{interval:10000,warnKm:3000,urgentKm:1000,keepTrips:20,
+  return {vehicles:[],trips:[],services:[],admins:[],crews:[],cards:[],
+          settings:{interval:10000,warnKm:3000,urgentKm:1000,keepTrips:20,cardLow:1000,
                     photoItems:["車身左側","車身右側","儀表板里程"]}};
 }
 function mapSettings(x){
+  if(x&&x.card_low!=null) setTimeout(()=>{ if(S&&S.settings) S.settings.cardLow=x.card_low; },0);
   return {interval:x.interval_km,warnKm:x.warn_km,urgentKm:x.urgent_km,
           keepTrips:x.keep_trips,photoItems:x.photo_items||[]};
 }
 function applyConfig(cfg){
   S=blankState();
   S.settings=mapSettings(cfg.settings||{});
+  S.crews=cfg.crews||[];
   S.vehicles=(cfg.vehicles||[]).map(v=>({code:v.code,odo:v.odo,next:v.next,
-    interval:v.interval,lastSvc:0}));
+    interval:v.interval,lastSvc:0,card:v.card}));
 }
 function applyState(st,urls){
   const N=blankState();
   N.settings=mapSettings(st.settings||{});
+  N.crews=st.crews||[];
+  N.cards=(st.cards||[]).map(c=>({id:c.id,vehicle:c.code,kind:c.kind,amount:c.amount,
+    balance:c.balance,expected:c.expected,diff:c.diff,person:c.person,note:c.note||"",
+    photo:(urls||{})[c.photo]||null,date:c.date,time:c.time}));
   N.vehicles=(st.vehicles||[]).map(v=>({id:v.id,code:v.code,plate:v.plate||"",odo:v.odo,
-    lastSvc:v.lastSvc,next:v.next,interval:v.interval,used:v.used}));
+    lastSvc:v.lastSvc,next:v.next,interval:v.interval,used:v.used,card:v.card}));
   const U=urls||{};
   N.trips=(st.trips||[]).map(t=>{
     const ph={};
     (t.photos||[]).forEach(p=>{ if(U[p.path]) ph[p.label]=U[p.path]; });
-    return {id:t.id,vehicle:t.code,person:t.person,odo:t.odo,prev:t.prev,
+    return {id:t.id,vehicle:t.code,person:t.person,crew:t.crew||"",odo:t.odo,prev:t.prev,
             date:t.date,time:t.time,pruned:t.pruned,photos:ph,
             ts:new Date(t.created_at).getTime()};
   });
@@ -291,6 +351,7 @@ async function reload(){
   const paths=[];
   (st.trips||[]).forEach(t=>(t.photos||[]).forEach(p=>paths.push(p.path)));
   (st.services||[]).forEach(x=>{ if(x.receipt) paths.push(x.receipt); });
+  (st.cards||[]).forEach(c=>{ if(c.photo) paths.push(c.photo); });
   applyState(st,await signUrls(paths));
 }
 async function guard(fn,okMsg){
@@ -304,6 +365,65 @@ let token=null, progressMsg=null;
 let setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
 let draft=null, editV=null, nVeh={code:"",plate:"",odo:0,next:0}, svc=null, openRec=null, lightbox=null;
 let nItem="", keepDays=90;
+/* ---------- 設定頁：可收合區塊 ---------- */
+let setOpen={}, pickCrewSet=null;
+function toggleSet(k){ setOpen[k]=!setOpen[k]; if(k!=="crew") pickCrewSet=null; render();
+  if(setOpen[k]) setTimeout(()=>{const el=document.getElementById("sec-"+k);
+    if(el) el.scrollIntoView({block:"start",behavior:"smooth"});},30); }
+function sect(k,title,meta,body,foot){
+  const o=!!setOpen[k];
+  return `<div class="card sect ${o?"open":""}" id="sec-${k}">
+    <button class="secHd" onclick="toggleSet('${k}')" aria-expanded="${o}">
+      <span class="secTitle">${title}</span>
+      <span class="secM">${meta}</span>
+      <span class="secC">${o?"▲":"▼"}</span>
+    </button>
+    ${o?body+(foot?`<div class="foot"><span class="lbl">${foot}</span></div>`:""):""}
+  </div>`;
+}
+/* ---------- 出車組別 ---------- */
+function pickCrewRow(c){ pickCrewSet=(pickCrewSet===c?null:c); render(); }
+async function crewAdd(){
+  const el=document.getElementById("ncrew"); if(!el)return;
+  const v=(el.value||"").trim(); if(!v)return toast("請填組別名稱");
+  await guard(async()=>{
+    await rpc("fleet_crew_add",{p_token:token,p_region:REG,p_name:v});
+    await reload(); pickCrewSet=null; render();
+    const e2=document.getElementById("ncrew"); if(e2){ e2.value=""; e2.focus(); }
+  },`已新增「${v}」`);
+}
+async function crewRename(old){
+  const v=prompt(`把「${old}」改成什麼名字？\n（既有出車紀錄上的組別會一起更新）`, old);
+  if(v===null)return; const nv=v.trim();
+  if(!nv)return toast("名稱不能空白"); if(nv===old)return;
+  await guard(async()=>{
+    const n=await rpc("fleet_crew_rename",{p_token:token,p_region:REG,p_old:old,p_new:nv});
+    await reload(); pickCrewSet=nv; render();
+    toast(n>0?`已改成「${nv}」，${n} 筆出車紀錄跟著更新`:`已改成「${nv}」`);
+  });
+}
+async function crewDelete(name){
+  if(!confirm(`刪除組別「${name}」？\n既有出車紀錄上的組別會保留，只是以後選不到。`))return;
+  await guard(async()=>{
+    await rpc("fleet_crew_delete",{p_token:token,p_region:REG,p_name:name});
+    await reload(); pickCrewSet=null; render();
+  },"已刪除");
+}
+async function crewMove(name,dir){
+  await guard(async()=>{
+    await rpc("fleet_crew_move",{p_token:token,p_region:REG,p_name:name,p_dir:dir});
+    await reload(); render();
+  });
+}
+async function saveCardLow(){
+  const el=document.getElementById("nlow"); if(!el)return;
+  const v=parseInt(el.value,10);
+  if(isNaN(v)||v<0)return toast("請填正確的金額");
+  await guard(async()=>{
+    await rpc("fleet_card_low",{p_token:token,p_region:REG,p_low:v});
+    await reload(); render();
+  },`低於 $${v} 就會提醒`);
+}
 
 /* ---------- 區域 ---------- */
 let REGIONS=[];                        // 由 region_list() 載入
@@ -419,11 +539,14 @@ function viewGate(){
       目前是${regName(REG)}，換一區</button>
     <button class="role amber" onclick="setRole('driver')">
       <b>出車登記</b><span>登記今日里程、拍攝車況照片</span></button>
+    <button class="role" onclick="setRole('card')">
+      <b>悠遊卡登記</b><span>停車費消費、儲值、拍發票</span></button>
     <button class="role" onclick="gotoAdmin()">
-      <b>車輛管理</b><span>保養提醒、保養登記、出車紀錄</span></button>
+      <b>車輛管理</b><span>保養提醒、保養登記、出車與悠遊卡紀錄</span></button>
   </div>`;
 }
-function setRole(r){ role=r; tab=r==="driver"?"trip":"fleet"; draft=null; window.scrollTo(0,0); render(); }
+function setRole(r){ role=r; tab=r==="driver"?"trip":(r==="card"?"card":"fleet");
+  draft=null; card=newCard(); window.scrollTo(0,0); render(); }
 async function gotoAdmin(){
   await guard(async()=>{
     const n=await rpc("op_count",{p_region:REG});
@@ -534,7 +657,12 @@ function switchRole(){
 }
 
 /* ===================== 出車登記 ===================== */
-const newDraft=()=>({person:"",vehicle:"",odo:"",photos:{}});
+const newDraft=()=>({person:"",crew:"",vehicle:"",odo:"",photos:{}});
+const newCard=()=>({vehicle:"",kind:"spend",amount:"",balance:"",person:"",photo:null});
+let card=newCard(), cardResult=null;
+const CREWS=()=>(S&&S.crews)?S.crews:[];
+const cash=n=>(n==null||n==="")?"—":Number(n).toLocaleString("zh-TW");
+const cardLow=()=>(S&&S.settings&&S.settings.cardLow)||1000;
 function viewTrip(){
   if(!draft)draft=newDraft();
   if(!draft.person||!draft.vehicle)return viewTripStart();
@@ -589,23 +717,242 @@ function viewTripStart(){
       <div class="bd">
         <label class="f"><span class="lbl">姓名</span>
           <input type="text" id="pname" value="${draft.person}" placeholder="請填全名" oninput="draft.person=this.value"></label>
-        <div class="lbl" style="margin-bottom:6px">今天開哪一台</div>
-        <div class="chips">${VEH().slice().sort(byCode).map(v=>{
-          const st=statusOf(v);
-          return `<button class="chip" aria-pressed="${draft.vehicle===v.code}" onclick="pickV('${v.code}')"
-            style="${st.level==="bad"?"border-color:var(--alert);color:var(--alert)":st.level==="warn"?"border-color:var(--amber-d);color:var(--amber-d)":""}">${v.code}</button>`;}).join("")}</div>
-        <div class="lbl" style="margin-top:8px">紅色或黃色代表該車接近或已超過保養里程</div>
+        ${CREWS().length?`
+        <div class="pick">
+          <div class="pickT">你是<b>哪一組</b></div>
+          <div class="chips crewchips">${CREWS().map(c=>
+            `<button class="chip crew" aria-pressed="${draft.crew===c}" onclick="pickCrew('${esc(c)}')">${esc(c)}</button>`).join("")}</div>
+        </div>`:""}
+
+        <div class="pick">
+          <div class="pickT">今天開<b>哪一台車</b></div>
+          <div class="chips vehchips">${VEH().slice().sort(byCode).map(v=>{
+            const st=statusOf(v);
+            return `<button class="chip veh" aria-pressed="${draft.vehicle===v.code}" onclick="pickV('${v.code}')"
+              style="${st.level==="bad"?"border-color:var(--alert);color:var(--alert)":st.level==="warn"?"border-color:var(--amber-d);color:var(--amber-d)":""}"
+              >${esc(v.code)}<i>車</i></button>`;}).join("")}</div>
+          <div class="lbl" style="margin-top:8px">紅色或黃色代表該車接近或已超過保養里程</div>
+        </div>
+
+        ${(draft.crew||draft.vehicle)?`<div class="confirm">
+          ${draft.crew?`<b>${esc(draft.crew)}</b> 組`:`<span class="miss">還沒選組別</span>`}
+          <span class="ar">開</span>
+          ${draft.vehicle?`<b>${esc(draft.vehicle)}</b> 車`:`<span class="miss">還沒選車</span>`}
+        </div>`:""}
         <div style="margin-top:16px"><button class="btn block" onclick="startTrip()">下一步</button></div>
       </div></div>
   </div>`;
 }
 function pickV(c){ draft.vehicle=draft.vehicle===c?"":c; render(); }
+function pickCrew(c){ draft.crew=draft.crew===c?"":c; render(); }
 function startTrip(){
   const n=document.getElementById("pname"); if(n)draft.person=n.value.trim();
   if(!draft.person)return toast("請先填姓名");
-  if(!draft.vehicle)return toast("請選擇車輛");
+  if(CREWS().length&&!draft.crew)return toast("請選擇你是哪一組");
+  if(!draft.vehicle)return toast("請選擇今天開哪一台車");
   render();
 }
+/* ===================== 悠遊卡 ===================== */
+const cardOf=c=>{const v=VEH().find(x=>x.code===c);return v?v.card:null;};
+function cardCalc(){
+  const prev=cardOf(card.vehicle);
+  const amt=parseInt(card.amount,10);
+  if(prev==null||!amt||amt<=0) return null;
+  const exp=card.kind==="topup"?prev+amt:prev-amt;
+  const bal=card.balance===""?null:parseInt(card.balance,10);
+  return {prev,exp,bal,diff:(bal==null||isNaN(bal))?null:bal-exp};
+}
+function setCard(k,v){ card[k]=v; render(); }
+function shootCard(inp){ if(!inp.files[0])return; shrink(inp.files[0],d=>{card.photo=d;render();}); }
+
+function viewCardAdmin(){
+  const low=VEH().filter(v=>v.card!=null&&v.card<cardLow()).sort(byCode);
+  const none=VEH().filter(v=>v.card==null).sort(byCode);
+  const bad=(S.cards||[]).filter(c=>c.diff!=null&&c.diff!==0);
+  const logs=(S.cards||[]);
+  return `<div class="wrap wide">
+    ${low.length?`<div class="card warnbox"><div class="hd"><h2>要去儲值了</h2>
+      <span class="lbl" style="margin-left:auto">低於 $${cash(cardLow())}</span></div>
+      <div class="bd"><div class="lowlist">${low.map(v=>
+        `<div><b>${esc(v.code)} 車</b><span>$${cash(v.card)}</span></div>`).join("")}</div></div></div>`:""}
+
+    <div class="card"><div class="hd"><h2>各車餘額</h2>
+      <span class="lbl" style="margin-left:auto">提醒門檻 $${cash(cardLow())}</span></div>
+      <div class="tw"><table><colgroup><col style="width:66px"><col style="width:96px"><col></colgroup>
+        <tr><th>車別</th><th class="n">目前餘額</th><th>最後一筆</th></tr>
+        ${VEH().slice().sort(byCode).map(v=>{
+          const last=logs.find(c=>c.vehicle===v.code);
+          const lo=v.card!=null&&v.card<cardLow();
+          return `<tr class="${lo?"warn":""}"><td class="num" style="font-weight:700">${esc(v.code)}</td>
+            <td class="n num" style="font-weight:700;${v.card==null?"color:var(--muted)":lo?"color:var(--alert)":""}">
+              ${v.card==null?"未設定":"$"+cash(v.card)}</td>
+            <td style="font-size:12.5px;color:var(--muted)">${last
+              ? `${last.date} ${last.kind==="topup"?"儲值":"消費"} $${cash(last.amount)}　${esc(last.person)}`
+              : "還沒有紀錄"}</td></tr>`;}).join("")}
+      </table></div>
+      ${none.length?`<div class="foot"><span class="lbl">
+        ${none.map(v=>esc(v.code)).join("、")} 還沒有餘額基準，第一次登記時把發票上的餘額一起填進去就會開始算</span></div>`:""}
+    </div>
+
+    ${bad.length?`<div class="card"><div class="hd"><h2>對不上的紀錄</h2>
+      <span class="lbl" style="margin-left:auto">${bad.length} 筆</span></div>
+      <div class="tw"><table><colgroup><col style="width:86px"><col style="width:48px"><col><col style="width:70px"></colgroup>
+        <tr><th>日期</th><th>車</th><th>發票 / 試算</th><th class="n">差額</th></tr>
+        ${bad.map(c=>`<tr class="warn"><td class="num" style="font-size:12.5px">${c.date}</td>
+          <td class="num">${esc(c.vehicle)}</td>
+          <td class="num" style="font-size:12.5px">$${cash(c.balance)} / $${cash(c.expected)}</td>
+          <td class="n num" style="color:var(--alert);font-weight:700">${c.diff>0?"+":""}${c.diff}</td></tr>`).join("")}
+      </table></div>
+      <div class="foot"><span class="lbl">通常是有一筆忘了登記。餘額以發票為準往下接，不影響之後的試算</span></div></div>`:""}
+
+    <div class="card"><div class="hd"><h2>使用紀錄</h2>
+      <span class="lbl" style="margin-left:auto">${logs.length} 筆</span></div>
+      ${logs.length?`<div class="tw"><table>
+        <colgroup><col style="width:82px"><col style="width:44px"><col style="width:52px"><col style="width:74px"><col><col style="width:54px"></colgroup>
+        <tr><th>日期</th><th>車</th><th>類型</th><th class="n">金額</th><th>餘額 / 登錄人</th><th></th></tr>
+        ${logs.map(c=>`<tr class="${c.diff!=null&&c.diff!==0?"warn":""}">
+          <td class="num" style="font-size:12px">${c.date}<div class="lbl">${c.time||""}</div></td>
+          <td class="num">${esc(c.vehicle)}</td>
+          <td style="font-size:12.5px">${c.kind==="topup"?"儲值":"消費"}</td>
+          <td class="n num" style="font-weight:700;color:${c.kind==="topup"?"var(--ok,#1a7f4b)":"var(--ink)"}">
+            ${c.kind==="topup"?"+":"−"}${cash(c.amount)}</td>
+          <td style="font-size:12.5px">$${cash(c.balance!=null?c.balance:c.expected)}
+            ${c.balance==null?`<span class="lbl">（試算）</span>`:""}
+            <div class="lbl">${esc(c.person)}${c.note?"　"+esc(c.note):""}</div></td>
+          <td class="n" style="white-space:nowrap">
+            ${c.photo?`<button class="btn ghost tiny" onclick="lightbox='${c.photo}';render()">單</button>`:""}
+            <button class="btn ghost tiny" onclick="delCard('${c.id}')">刪</button></td></tr>`).join("")}
+      </table></div>`:`<div class="bd"><div class="empty">還沒有任何悠遊卡紀錄</div></div>`}
+      <div class="foot"><span class="lbl">刪除後整台車的餘額會自動重新推算</span></div></div>
+
+    <div class="card"><div class="hd"><h2>補登一筆</h2></div>
+      <div class="bd"><div class="lbl" style="line-height:1.8;margin-bottom:10px">
+        外勤忘了登、或你要幫忙補登，用下面的按鈕進登記畫面，記得填上實際登錄人的名字。</div>
+        <button class="btn block" onclick="tab='cardnew';render()">我要補登一筆</button></div></div>
+  </div>`;
+}
+async function delCard(id){
+  if(!confirm("刪除這筆悠遊卡紀錄？\n這台車的餘額會重新推算。"))return;
+  await guard(async()=>{ await rpc("fleet_card_delete",{p_token:token,p_id:id});
+    await reload(); render(); },"已刪除，餘額已重算");
+}
+
+function viewCardEntry(){
+  const c=cardCalc();
+  const prev=cardOf(card.vehicle);
+  const low=prev!=null&&prev<cardLow();
+  return `<div class="wrap">
+    ${cardResult?`<div class="card ${cardResult.low?"warnbox":""}"><div class="bd">
+      <div style="font-weight:900;font-size:16px;margin-bottom:6px">已登記</div>
+      <div class="lbl" style="line-height:1.9">
+        ${esc(cardResult.code)} 車　${cardResult.kind==="topup"?"儲值":"消費"} $${cash(cardResult.amount)}<br>
+        目前餘額 <b style="color:var(--ink);font-size:15px">$${cash(cardResult.balance)}</b>
+        ${cardResult.diff!=null&&cardResult.diff!==0?`<br><span style="color:var(--alert);font-weight:700">
+          ⚠ 單據餘額跟試算差 ${cardResult.diff>0?"+":""}${cardResult.diff} 元，請確認是不是漏登了哪一筆</span>`:""}
+        ${cardResult.low?`<br><span style="color:var(--alert);font-weight:700">
+          ⚠ 餘額低於 $${cash(cardResult.low_at)}，要去儲值了</span>`:""}
+      </div>
+      <button class="btn block" style="margin-top:12px" onclick="cardResult=null;render()">再登記一筆</button>
+    </div></div>`:""}
+
+    ${role==="admin"?`<button class="btn ghost block" style="margin-bottom:12px"
+      onclick="tab='card';cardResult=null;render()">← 回悠遊卡紀錄</button>`:""}
+    <div class="card"><div class="hd"><h2>悠遊卡登記</h2>
+      <span class="lbl" style="margin-left:auto">${regName(REG)}</span></div>
+      <div class="bd">
+        <div class="pick">
+          <div class="pickT">哪一台車的卡</div>
+          <div class="chips vehchips">${VEH().slice().sort(byCode).map(v=>
+            `<button class="chip veh" aria-pressed="${card.vehicle===v.code}" onclick="setCard('vehicle','${esc(v.code)}')"
+              >${esc(v.code)}<i>車</i></button>`).join("")}</div>
+          ${card.vehicle?`<div class="lbl" style="margin-top:8px">
+            ${prev==null?`這台車還沒有餘額基準，<b style="color:var(--ink)">第一次請把發票上的餘額一起填</b>`
+              :`上次餘額 <b style="color:${low?"var(--alert)":"var(--ink)"}">$${cash(prev)}</b>${low?"　餘額偏低":""}`}</div>`:""}
+        </div>
+
+        <div class="pick">
+          <div class="pickT">這筆是</div>
+          <div class="g2">
+            <button class="btn ${card.kind==="spend"?"amber":"ghost"}" onclick="setCard('kind','spend')">消費（停車費等）</button>
+            <button class="btn ${card.kind==="topup"?"amber":"ghost"}" onclick="setCard('kind','topup')">儲值</button>
+          </div>
+        </div>
+
+        <div class="g2">
+          <label class="f"><span class="lbl">金額</span>
+            <input type="number" inputmode="numeric" class="num" value="${esc(card.amount)}"
+              placeholder="例：100" oninput="card.amount=this.value;calcOnly()"></label>
+          <label class="f"><span class="lbl">發票上的餘額</span>
+            <input type="number" inputmode="numeric" class="num" value="${esc(card.balance)}"
+              placeholder="沒顯示可留空" oninput="card.balance=this.value;calcOnly()"></label>
+        </div>
+
+        <div id="calcbox">${cardCalcBox()}</div>
+
+        <label class="f"><span class="lbl">登錄人姓名</span>
+          <input type="text" value="${esc(card.person)}" placeholder="請填全名" oninput="card.person=this.value"></label>
+
+        <div class="lbl" style="margin-bottom:6px">發票照片</div>
+        <label class="shotbox ${card.photo?"has":""}" style="width:100%;height:150px">
+          ${card.photo?`<img src="${card.photo}"><span class="redo">重拍</span>`
+            :`<span>📷 拍發票／選照片</span>`}
+          <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootCard(this)">
+        </label>
+
+        <button class="btn block" style="margin-top:16px" ${busy?"disabled":""} onclick="submitCard()">
+          ${busy?(progressMsg||"送出中…"):"送出登記"}</button>
+      </div></div>
+  </div>`;
+}
+function cardCalcBox(){
+  const c=cardCalc();
+  if(!c) return `<div class="lbl" style="margin:2px 0 14px">填了金額就會自動試算剩多少</div>`;
+  const bad=c.diff!=null&&c.diff!==0;
+  return `<div class="calcbox ${bad?"bad":""}">
+    <div>$${cash(c.prev)} ${card.kind==="topup"?"＋":"−"} $${cash(Math.abs(parseInt(card.amount,10)||0))}
+      ＝ <b>$${cash(c.exp)}</b><span class="lbl">　試算</span></div>
+    ${c.bal!=null&&!isNaN(c.bal)?`<div style="margin-top:5px">發票上是 <b>$${cash(c.bal)}</b>　${
+      bad?`<span style="color:var(--alert);font-weight:700">差 ${c.diff>0?"+":""}${c.diff} 元</span>`
+        :`<span style="color:var(--ok,#1a7f4b);font-weight:700">對得起來</span>`}</div>`:""}
+    ${bad?`<div class="lbl" style="margin-top:6px;line-height:1.7">
+      差額通常是有一筆沒登記到。還是可以送出，之後以發票上的金額為準，管理端會看到這筆被標記。</div>`:""}
+  </div>`;
+}
+function calcOnly(){ const el=document.getElementById("calcbox"); if(el) el.innerHTML=cardCalcBox(); }
+
+async function submitCard(){
+  if(busy)return;
+  if(!card.vehicle)return toast("請選擇哪一台車");
+  const amt=parseInt(card.amount,10);
+  if(!amt||amt<=0)return toast("請填金額");
+  if(!card.person.trim())return toast("請填登錄人姓名");
+  if(cardOf(card.vehicle)==null&&card.balance==="")
+    return toast("這台車還沒有餘額基準，第一次請把發票上的餘額填進去");
+  busy=true; setProgress("上傳中…"); render();
+  try{
+    let path=null;
+    if(card.photo){
+      path=`${slugOf(REG)}/card/${pathSafe(card.vehicle)}/${Date.now()}.jpg`;
+      await uploadPhoto(path,card.photo);
+    }
+    setProgress("寫入紀錄…");
+    const r=await rpc("fleet_card_submit",{p:{region:REG,code:card.vehicle,kind:card.kind,
+      amount:amt,balance:card.balance===""?null:String(parseInt(card.balance,10)),
+      person:card.person.trim(),photo:path,time:nowHM()}});
+    cardResult={code:card.vehicle,kind:card.kind,amount:amt,
+      balance:r.balance,diff:r.diff,low:r.low,low_at:r.low_at};
+    const keep=card.person;
+    card=newCard(); card.person=keep;
+    if(role==="card"){ applyConfig(await rpc("fleet_config",{p_region:REG})); }
+    else { await reload(); }
+    setProgress(null); busy=false; window.scrollTo(0,0); render();
+    toast("已登記");
+  }catch(e){
+    setProgress(null); busy=false; render();
+    toast("送出失敗："+(e.message||""));
+  }
+}
+
 function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
   img.onload=()=>{const m=640,sc=Math.min(1,m/Math.max(img.width,img.height));
     const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
@@ -633,7 +980,7 @@ async function submitTrip(){
       photos.push({label:t,path});
     }
     setProgress("寫入登記…");
-    const r=await rpc("fleet_submit",{p:{region:REG,code:v.code,person:draft.person,odo,
+    const r=await rpc("fleet_submit",{p:{region:REG,code:v.code,person:draft.person,crew:draft.crew||"",odo,
       time:nowHM(),slot,photos}});
     v.odo=odo;
     draft=null; setProgress(null); busy=false; render();
@@ -976,7 +1323,8 @@ function viewTrips(){
     const pics=Object.keys(t.photos||{});
     const head=`<button class="rechd" onclick="openRec=openRec==='${t.id}'?null:'${t.id}';render()">
       <div style="flex:1;min-width:0;text-align:left">
-        <div style="font-size:14.5px;font-weight:900">${t.vehicle} 車　${km(t.odo)} km</div>
+        <div style="font-size:14.5px;font-weight:900">
+          ${t.crew?`<span class="crewtag">${esc(t.crew)}</span>`:""}${t.vehicle} 車　${km(t.odo)} km</div>
         <div class="lbl" style="margin-top:2px">${t.date} ${t.time}　·　${t.person}
           ${t.prev?`　·　較上次 +${km(t.odo-t.prev)}`:""}
           ${pics.length?`　·　${pics.length} 張`:"　·　照片已清除"}</div></div>
@@ -1029,10 +1377,8 @@ function lbStep(d){
 }
 
 /* ===================== 管理端：設定 ===================== */
-function viewSettings(){
-  const items=S.settings.photoItems;
-  return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>保養提醒設定</h2></div><div class="bd">
+function setSvcBody(){
+  return `<div class="bd">
       <label class="f"><span class="lbl">預設保養間隔（公里）</span>
         <input type="number" class="num" value="${S.settings.interval}"
           onchange="saveSettings({interval:this.value})"></label>
@@ -1047,29 +1393,61 @@ function viewSettings(){
         目前設定：距離保養 ${km(S.settings.warnKm)} 公里內轉黃、${km(S.settings.urgentKm)} 公里內或已超過轉紅。<br>
         例如下次保養 50,000 公里，跑到 ${km(50000-S.settings.warnKm)} 就會開始提醒。<br>
         個別車輛若保養週期不同，可在「車輛」分頁單獨設定間隔。</div>
-    </div></div>
-
-    <div class="card"><div class="hd"><h2>出車前拍照項目</h2>
-      <span class="lbl" style="margin-left:auto">${items.length} 張</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:120px"></colgroup>
+    </div>`;
+}
+function setPhotoBody(){
+  const items=S.settings.photoItems;
+  return `<div class="tw"><table><colgroup><col><col style="width:120px"></colgroup>
         <tr><th>項目</th><th></th></tr>
-        ${items.map((t,i)=>`<tr><td>${t}</td>
+        ${items.map((t,i)=>`<tr><td>${esc(t)}</td>
           <td class="c-act">
             <button class="btn ghost tiny" ${i===0?"disabled":""} onclick="moveItem(${i},-1)">上移</button>
             <button class="btn ghost tiny" onclick="delItem(${i})">刪除</button></td></tr>`).join("")}
       </table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <label class="f"><span class="lbl">新增拍照項目</span>
-          <input type="text" value="${nItem}" placeholder="例：左前輪、右後輪、車頭大燈"
+          <input type="text" value="${esc(nItem)}" placeholder="例：左前輪、右後輪、車頭大燈"
             onchange="nItem=this.value"></label>
         <button class="btn block" onclick="addItem()">新增</button>
         <div class="lbl" style="margin-top:8px">
           項目幾個，出車前就要拍幾張。建議 2～4 張，太多外勤會擺爛</div>
-      </div></div>
-
-    <div class="card"><div class="hd"><h2>管理者</h2>
-      <span class="lbl" style="margin-left:auto">${S.admins.length} 位</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:120px"></colgroup>
+      </div>`;
+}
+function setCrewBody(){
+  return `${CREWS().length?`<div class="bd" style="padding-bottom:10px">
+        <div class="locgrid">${CREWS().map(c=>
+          `<button class="lchip ${pickCrewSet===c?"on":""}" onclick="pickCrewRow('${esc(c)}')">${esc(c)}</button>`).join("")}</div>
+        ${pickCrewSet?`<div class="locbar">
+          <div class="lbl" style="flex:1 0 100%;margin-bottom:2px">「<b style="color:var(--ink)">${esc(pickCrewSet)}</b>」</div>
+          <button class="btn ghost tiny" ${CREWS().indexOf(pickCrewSet)===0?"disabled":""}
+            onclick="crewMove('${esc(pickCrewSet)}',-1)">← 往前</button>
+          <button class="btn ghost tiny" ${CREWS().indexOf(pickCrewSet)===CREWS().length-1?"disabled":""}
+            onclick="crewMove('${esc(pickCrewSet)}',1)">往後 →</button>
+          <button class="btn ghost tiny" onclick="crewRename('${esc(pickCrewSet)}')">改名</button>
+          <button class="btn ghost tiny" onclick="crewDelete('${esc(pickCrewSet)}')">刪除</button>
+          <button class="btn ghost tiny" onclick="pickCrewSet=null;render()">取消</button>
+        </div>`:`<div class="lbl" style="margin-top:9px">點一下組別可以改名、刪除或調順序</div>`}
+      </div>`:`<div class="bd"><div class="empty">${regName(REG)}還沒有設定出車組別<div class="lbl" style="margin-top:6px">
+        設定後，外勤登記出車時要先選自己是哪一組</div></div></div>`}
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="g2">
+          <input type="text" id="ncrew" maxlength="10" placeholder="例：台北A、桃園A" style="margin:0"
+            onkeydown="if(event.key==='Enter')crewAdd()">
+          <button class="btn" onclick="crewAdd()">新增組別</button></div>
+      </div>`;
+}
+function setCardLowBody(){
+  return `<div class="bd">
+        <div class="lbl" style="line-height:1.8;margin-bottom:10px">
+          任何一台車的悠遊卡餘額低於這個金額，「悠遊卡」分頁最上面就會跳出「要去儲值了」。</div>
+        <div class="g2">
+          <label class="f" style="margin:0"><span class="lbl">提醒門檻（元）</span>
+            <input type="number" inputmode="numeric" class="num" id="nlow" value="${cardLow()}"></label>
+          <button class="btn" style="align-self:end" onclick="saveCardLow()">儲存</button></div>
+      </div>`;
+}
+function setOpBody(){
+  return `<div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:120px"></colgroup>
         <tr><th>姓名</th><th>可管區域</th><th></th></tr>
         ${S.admins.map(a=>{
           const mine=a.regions||[];
@@ -1088,20 +1466,31 @@ function viewSettings(){
               ? `<span class="lbl">不可刪除</span>`
               : `<button class="btn ghost tiny" onclick="delAdmin('${a.id}')">刪除</button>`)}</td></tr>`;}).join("")}
       </table></div>
-      <div class="foot"><span class="lbl">這份名單與權限跟盤點系統共用；只能加開或收回你自己管得到的區</span></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:9px">新增管理者到<b style="color:var(--ink)">${regName(REG)}</b>（建立後可以再加開其他區）</div>
         <label class="f"><span class="lbl">姓名</span>
-          <input type="text" value="${setup.name}" onchange="setup.name=this.value"></label>
+          <input type="text" value="${esc(setup.name)}" placeholder="例：冠揚" onchange="setup.name=this.value"></label>
         <div class="g2">
-          <label class="f"><span class="lbl">4 位數 PIN</span>
+          <label class="f"><span class="lbl">設定 4 位數 PIN</span>
             <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
-              value="${setup.pin}" onchange="setup.pin=this.value"></label>
+              value="${setup.pin}" placeholder="••••" onchange="setup.pin=this.value"></label>
           <label class="f"><span class="lbl">再輸入一次</span>
             <input type="password" inputmode="numeric" maxlength="4" class="num" style="text-align:center;letter-spacing:.4em"
-              value="${setup.pin2}" onchange="setup.pin2=this.value"></label></div>
-        <button class="btn block" onclick="addAdmin()">新增管理者</button></div>
-      <div class="foot"><span class="lbl">原型階段 PIN 存在本機，僅用於區分操作者，不是正式權限控管</span></div></div>
+              value="${setup.pin2}" placeholder="••••" onchange="setup.pin2=this.value"></label></div>
+        <button class="btn block" onclick="addAdmin()">新增管理者</button>
+      </div>`;
+}
+function viewSettings(){
+  return `<div class="wrap wide">
+    ${sect("svc","保養提醒",`每 ${km(S.settings.interval)} 公里`,setSvcBody())}
+    ${sect("photo","出車前拍照項目",`${S.settings.photoItems.length} 張`,setPhotoBody(),
+      "項目幾個，出車前就要拍幾張")}
+    ${sect("crew","出車組別",`${CREWS().length} 組　${CREWS().slice(0,4).join("、")}${CREWS().length>4?"…":""}`,
+      setCrewBody(),
+      "改組名時，既有出車紀錄上的組別會一起更新；刪除只是以後選不到，舊紀錄保留。")}
+    ${sect("cardlow","悠遊卡提醒",`低於 $${cash(cardLow())} 提醒`,setCardLowBody())}
+    ${sect("op","管理者",`${S.admins.length} 位`,setOpBody(),
+      "這份名單與權限跟盤點系統共用；只能加開或收回你自己管得到的區")}
   </div>`;
 }
 async function saveSettings(o){
@@ -1136,8 +1525,9 @@ async function moveItem(i,d){
 }
 
 /* ===================== 導覽 ===================== */
-const TABS={driver:[["trip","▣","出車登記"]],
-  admin:[["fleet","▤","車輛"],["service","⚑","保養"],["trips","▦","出車紀錄"],["set","⚙","設定"]]};
+const TABS={driver:[["trip","▣","出車登記"]], card:[["card","◎","悠遊卡"]],
+  admin:[["fleet","▤","車輛"],["service","⚑","保養"],["trips","▦","出車紀錄"],
+         ["card","◎","悠遊卡"],["set","⚙","設定"]]};
 function render(){
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
@@ -1147,7 +1537,7 @@ function render(){
   hdr.innerHTML=`<div><h1>${role==="driver"?"出車登記":`車輛管理${me?" · "+me.name:""}`}</h1>
     <div class="sub">${VEH().length} 台車${al?` / ${al} 台待保養`:""}</div></div>
     <div class="regsw">${REGIONS.map(r=>{
-      const can=role==="driver"?true:(myRegions.length?myRegions.includes(r.code):r.code===REG);
+      const can=(role==="driver"||role==="card")?true:(myRegions.length?myRegions.includes(r.code):r.code===REG);
       return `<button aria-pressed="${REG===r.code}" ${can?"":"disabled"}
         title="${can?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.name||r.code)}</button>`;}).join("")}</div>
     <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
@@ -1157,7 +1547,10 @@ function render(){
     document.body.classList.remove("norole");
   } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
   app.innerHTML = role==="driver" ? viewTrip()
+    : role==="card" ? viewCardEntry()
     : tab==="service" ? viewService() : tab==="trips" ? viewTrips()
+    : tab==="card" ? viewCardAdmin()
+    : tab==="cardnew" ? viewCardEntry()
     : tab==="set" ? viewSettings() : viewFleet();
 }
 function go(k){ tab=k; openRec=null; lightbox=null; editV=null; window.scrollTo(0,0); render(); }
