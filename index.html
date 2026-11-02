@@ -1,3 +1,4 @@
+<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <meta name="theme-color" content="#15181C">
@@ -425,6 +426,11 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 .lchip.on i{background:rgba(255,255,255,.22);color:#fff}
 .locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;
   padding-top:11px;border-top:1px dashed var(--line2)}
+
+/* 用現代模式渲染，但版面緊密度維持跟原本一樣 */
+table{line-height:normal}
+.foot{line-height:1}
+label.f>.lbl{display:block;line-height:1.5}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -2598,7 +2604,7 @@ function amCand(){
   }).filter(x=>x.tot>0&&!inList.has(x.sku))
     .sort((a,b)=>b.rate-a.rate||b.tot-a.tot).slice(0,6);
 }
-function amListCard(){
+function amListBody(){
   const list=(S.amIds||[]).slice().sort((a,b)=>a.name<b.name?-1:1);
   const cand=amCand();
   const pool=(S.items||[]).filter(i=>!(S.amItems||[]).includes(i.sku))
@@ -2607,8 +2613,7 @@ function amListCard(){
     <div><div class="nm">${esc(name)}</div>${sub?`<div class="sub2">${sub}</div>`:""}</div>
     <div class="rt">${right}</div>
     <div>${btn}</div></div>`;
-  return `<div class="card"><div class="hd"><h2>上午場盤點清單</h2>
-      <span class="lbl" style="margin-left:auto">已選 ${list.length} 項</span></div>
+  return `
     <div class="bd" style="padding-bottom:0"><p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
       上午場只盤這份清單，約兩分鐘。系統只<b>建議</b>，不會自動加入；移除就直接從清單消失。
       建議控制在 5～10 項。</p></div>
@@ -2640,8 +2645,7 @@ function amListCard(){
         <button class="btn" ${pool.length?"":"disabled"} onclick="amAddByName()">加入清單</button></div>
       <p class="sub" style="font-size:13px;color:var(--muted);margin:10px 0 0">
         系統沒有單價資料，判斷不了什麼叫「高價值」，這類品項請自己加。</p>
-    </div>
-    <div class="foot"><span class="lbl">清單改了之後，外勤下一次進上午場就會跟著換</span></div></div>`;
+    </div>`;
 }
 async function amAdd(id){
   await guard(async()=>{ await rpc("mgr_am_add",{p_token:token,p_item:id});
@@ -2737,6 +2741,9 @@ function viewVehicles(){
           目前存有照片：${S.records.filter(r=>!r.pruned).length} 組　／　已清除：${S.records.filter(r=>r.pruned).length} 組</div>
       </div>`,
       "切換後下一張盤點單即生效，已送出的紀錄不受影響")}
+
+    ${sect("am","上午場清單",`已選 ${(S.amIds||[]).length} 項`, amListBody(),
+      "清單改了之後，外勤下一次進上午場就會跟著換。只盤這份清單，約兩分鐘。")}
 
     ${sect("region","區域",`${esc(regName(REG))}　·　共 ${REGIONS.length} 區`,`
       <div class="bd">
