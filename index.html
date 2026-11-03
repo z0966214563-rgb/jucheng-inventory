@@ -435,6 +435,12 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 table{line-height:normal}
 .foot{line-height:1}
 label.f>.lbl{display:block;line-height:1.5}
+
+.upg{min-height:70vh;display:flex;flex-direction:column;align-items:center;
+     justify-content:center;text-align:center;padding:0 28px;gap:14px}
+.upgT{font-size:21px;font-weight:800;letter-spacing:.04em}
+.upgS{font-size:15px;line-height:1.85;color:var(--mut,#667085)}
+.upgS b{color:var(--ink,#15181c)}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -481,7 +487,38 @@ function loadReg(){
 /* ===================== 雲端連線層 ===================== */
 const SB_URL="https://tekawiwxutfpkyufooet.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRla2F3aXd4dXRmcGt5dWZvb2V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMjE2OTIsImV4cCI6MjEwMjY5NzY5Mn0.cA0pXAW0K4EpErrSL2HqrndcQc07u_n0brHHh1ms1_A";
-const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+/* ===================== 版本檢查 ===================== */
+/* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
+const APP_NAME="inventory";
+const APP_VER=8;
+let UPGRADING=false;
+function verCheck(cfg){
+  const need=(cfg&&cfg.min_ver)|0;
+  if(!need||APP_VER>=need){ try{sessionStorage.removeItem("jcUpg");}catch(e){} return false; }
+  UPGRADING=true;
+  let tried=false; try{ tried=sessionStorage.getItem("jcUpg")==="1"; }catch(e){}
+  const box=document.getElementById("app");
+  if(!tried){
+    // 第一次發現過期：自己帶一個時間戳重新載入，繞過 LINE 的快取
+    try{ sessionStorage.setItem("jcUpg","1"); }catch(e){}
+    if(box) box.innerHTML='<div class="upg"><div class="upgT">版本已更新</div>'+
+      '<div class="upgS">正在重新載入最新版，請稍候…</div></div>';
+    let u=location.href.split("#")[0];
+    u+=(u.indexOf("?")<0?"?":"&")+"v="+Date.now();
+    setTimeout(function(){ location.replace(u); },900);
+  }else if(box){
+    // 重載過還是舊的：請使用者自己關掉重開
+    box.innerHTML='<div class="upg"><div class="upgT">請重新開啟</div>'+
+      '<div class="upgS">系統已更新，但這個畫面還是舊版。<br>'+
+      '請把這個網頁<b>完全關掉</b>，回到 LINE 重新點一次連結。</div></div>';
+  }
+  return true;
+}
+
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",
+         "x-client-info":"jucheng-"+APP_NAME+"/"+APP_VER};
+
+
 
 async function rpc(fn,args){
   const res=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,
@@ -650,6 +687,7 @@ async function boot(){
 async function loadRegion(){
   try{
     const cfg=await rpc("field_config",{p_region:REG});
+    if(verCheck(cfg)) return;
     applyConfig(cfg);
     curPkg=firstPkg();
     S.opCount=await rpc("op_count",{p_region:REG});
@@ -2824,6 +2862,7 @@ const TABS={field:[["count","☑","盤點"]],
   admin:[["restock","⚑","待補料"],["stock","▤","庫存"],["items","☑","項目"],
          ["move","⇅","出入庫"],["result","▦","結果"],["month","◷","月報"],["veh","⚙","設定"]]};
 function render(){
+  if(UPGRADING) return;
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
   if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">${REG?regName(REG):"請先選擇區域"}</div></div>`;
