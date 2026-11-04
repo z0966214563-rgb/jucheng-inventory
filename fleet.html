@@ -224,13 +224,36 @@ label.f>.lbl{display:block;line-height:1.5}
 .confirm b{font-family:var(--mono);font-size:18px}
 .confirm .ar{color:var(--muted);margin:0 10px;font-size:13px}
 .confirm .miss{color:var(--muted);font-size:13.5px}
-.crewtag{display:inline-block;background:var(--ink);color:#fff;border-radius:4px;
-  padding:1px 7px;font-family:var(--tc);font-size:11.5px;font-weight:700;margin-right:6px;vertical-align:1px}
-
 /* ---- 出車紀錄：一行三欄 ---- */
-.r3{display:grid;grid-template-columns:64px 1fr auto 12px;align-items:center;gap:10px}
-.veh{font-size:13px;font-weight:700;color:#3C434C;white-space:nowrap}
+.r3{display:grid;grid-template-columns:auto 1fr auto 12px;align-items:center;gap:12px}
+.veh{font-size:13px;font-weight:700;color:#3C434C;white-space:nowrap;min-width:62px}
 .veh b{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--ink);margin-right:2px}
+.veh .pl{font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--muted);
+  letter-spacing:.01em;margin-left:7px}
+@media(max-width:400px){ .veh .pl{display:block;margin-left:0;margin-top:1px} }
+
+/* 編輯一筆出車紀錄 */
+.tedit{padding:13px 14px;border-top:1px solid var(--line2);background:#FBFCFD}
+.tedit .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px}
+.tedit label{display:block}
+.tedit .lbl{display:block;margin-bottom:5px}
+.tedit select,.tedit input{width:100%;font-family:var(--tc);font-size:15px;padding:9px 10px;
+  border:1px solid var(--line);border-radius:3px;background:#fff;color:var(--ink)}
+.tedit .row{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
+
+/* 各車餘額卡片 */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:10px;padding:14px}
+.ccard{border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:3px;
+  background:#fff;padding:12px 13px}
+.ccard.warn{border-left-color:var(--alert);background:var(--alert-bg)}
+.ccard.none{border-left-color:var(--line);background:#FBFCFD}
+.ccard .top{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
+.ccard .id{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+.ccard .pl{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto}
+.ccard .amt{font-family:var(--mono);font-size:23px;font-weight:700;line-height:1.1}
+.ccard.warn .amt{color:var(--alert)}
+.ccard.none .amt{font-size:16px;color:var(--muted);font-weight:600}
+.ccard .last{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}
 .per{font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .crewc{font-size:12.5px;color:#3C434C;white-space:nowrap}
 .crewc b{font-size:14.5px;font-weight:700;color:var(--ink)}
@@ -466,7 +489,32 @@ let nItem="", keepDays=90;
 let tDate=null;                       // 要看哪一天，null = 今天
 const SORTS=[["code","依車號"],["time","依時間"],["crew","依組別"]];
 let tSort=(()=>{ try{ return localStorage.getItem("jc_tsort")||"code"; }catch(e){ return "code"; } })();
-function setTDate(d){ tDate=d; openRec=null; render(); }
+function setTDate(d){ tDate=d; openRec=null; editTrip=null; render(); }
+
+/* ---- 編輯一筆出車紀錄 ---- */
+let editTrip=null;
+function startEditTrip(id){
+  const t=(S.trips||[]).find(x=>x.id===id); if(!t)return;
+  editTrip={id:t.id, code:t.vehicle, crew:t.crew||"", person:t.person, odo:String(t.odo)};
+  render();
+}
+// 不重繪：欄位改動只記在狀態裡。重繪會把按鈕換掉，
+// 導致「輸入完直接按儲存」的那一下點在舊元素上而失效。
+function setET(k,v){ if(editTrip) editTrip[k]=v; }
+function cancelEditTrip(){ editTrip=null; render(); }
+async function saveEditTrip(){
+  if(!editTrip) return;
+  const e=editTrip;
+  if(!e.person.trim())  return toast("請填登記人");
+  if(CREWS().length && !e.crew) return toast("請選擇組別");
+  const odo=parseInt(e.odo,10);
+  if(!odo||odo<=0) return toast("請填里程");
+  await guard(async()=>{
+    await rpc("fleet_trip_update",{p_token:token,p_id:e.id,p_code:e.code,
+      p_crew:e.crew||null,p_person:e.person.trim(),p_odo:odo});
+    editTrip=null; await reload(); render();
+  },"已更新");
+}
 function setTSort(k){ tSort=k; openRec=null;
   try{ localStorage.setItem("jc_tsort",k); }catch(e){} render(); }
 const dayBefore=d=>{ const x=new Date(d+"T00:00:00");
@@ -918,19 +966,19 @@ function viewCardAdmin(){
 
     <div class="card"><div class="hd"><h2>各車餘額</h2>
       <span class="lbl" style="margin-left:auto">提醒門檻 $${cash(cardLow())}</span></div>
-      <div class="tw"><table><colgroup><col style="width:134px"><col style="width:92px"><col></colgroup>
-        <tr><th>車別</th><th class="n">目前餘額</th><th>最後一筆</th></tr>
-        ${VEH().slice().sort(byCode).map(v=>{
-          const last=logs.find(c=>c.vehicle===v.code);
-          const lo=v.card!=null&&v.card<cardLow();
-          return `<tr class="${lo?"warn":""}"><td class="bcell"><span class="bc">${esc(v.code)}</span>${
-            v.plate?`<span class="bp">${esc(v.plate)}</span>`:""}</td>
-            <td class="n num" style="font-weight:700;${v.card==null?"color:var(--muted)":lo?"color:var(--alert)":""}">
-              ${v.card==null?"未設定":"$"+cash(v.card)}</td>
-            <td style="font-size:12.5px;color:var(--muted)">${last
-              ? `${last.date} ${last.kind==="topup"?"儲值":"消費"} $${cash(last.amount)}　${esc(last.person)}`
-              : "還沒有紀錄"}</td></tr>`;}).join("")}
-      </table></div>
+      <div class="cards">${VEH().slice().sort(byCode).map(v=>{
+        const last=logs.find(c=>c.vehicle===v.code);
+        const lo=v.card!=null&&v.card<cardLow();
+        const cls=v.card==null?"none":(lo?"warn":"");
+        return `<div class="ccard ${cls}">
+          <div class="top"><span class="id">${esc(v.code)}</span>
+            ${v.plate?`<span class="pl">${esc(v.plate)}</span>`:""}</div>
+          <div class="amt">${v.card==null?"未設定餘額":"$"+cash(v.card)}</div>
+          <div class="last">${last
+            ? `${last.date}　${last.kind==="topup"?"儲值":"消費"} $${cash(last.amount)}<br>${esc(last.person)}`
+            : "還沒有紀錄"}</div>
+        </div>`;}).join("")}
+      </div>
       ${none.length?`<div class="foot"><span class="lbl">
         ${none.map(v=>esc(v.code)).join("、")} 還沒有餘額基準，第一次登記時把發票上的餘額一起填進去就會開始算</span></div>`:""}
     </div>
@@ -1530,12 +1578,42 @@ function viewTrips(){
     const crew = t.crew
       ? `<span class="crewc"><b>${esc(t.crew)}</b> 組</span>`
       : `<span class="crewc none">未填組別</span>`;
+    const pl = plateOf(t.vehicle);
     const head = `<button class="rechd r3" onclick="openRec=openRec==='${t.id}'?null:'${t.id}';render()">
-      <span class="veh"><b>${esc(t.vehicle)}</b> 車</span>
+      <span class="veh"><b>${esc(t.vehicle)}</b> 車${pl?`<span class="pl">${esc(pl)}</span>`:""}</span>
       <span class="per">${esc(t.person)}</span>
       ${crew}
       <span class="caret">${open?"▲":"▼"}</span></button>`;
     if(!open) return `<div class="card">${head}</div>`;
+    if(editTrip && editTrip.id===t.id){
+      const e=editTrip;
+      return `<div class="card">${head}
+        <div class="tedit">
+          <div class="g2">
+            <label><span class="lbl">車別</span>
+              <select onchange="setET('code',this.value)">
+                ${VEH().slice().sort(byCode).map(v=>
+                  `<option value="${esc(v.code)}" ${v.code===e.code?"selected":""}>${esc(v.code)} 車${
+                    v.plate?"　"+esc(v.plate):""}</option>`).join("")}
+              </select></label>
+            <label><span class="lbl">組別</span>
+              <select onchange="setET('crew',this.value)">
+                <option value="" ${e.crew?"":"selected"}>請選擇</option>
+                ${CREWS().map(c=>
+                  `<option value="${esc(c)}" ${c===e.crew?"selected":""}>${esc(c)} 組</option>`).join("")}
+              </select></label>
+            <label><span class="lbl">登記人</span>
+              <input type="text" value="${esc(e.person)}" onchange="setET('person',this.value)"></label>
+            <label><span class="lbl">里程</span>
+              <input type="number" inputmode="numeric" value="${esc(e.odo)}"
+                onchange="setET('odo',this.value)"></label>
+          </div>
+          <div class="row">
+            <button class="btn ghost tiny" onclick="cancelEditTrip()">取消</button>
+            <button class="btn tiny" onclick="saveEditTrip()">儲存</button>
+          </div>
+        </div></div>`;
+    }
     return `<div class="card">${head}
       <div class="facts">
         <span><i>里程</i>${km(t.odo)} km</span>
@@ -1547,7 +1625,10 @@ function viewTrips(){
         :`<div class="lbl" style="padding:10px 14px">超過 ${keepDays} 天的照片已自動清除</div>`}
       <div class="recfoot">
         <span class="stamp"><i>紀錄時間</i>${t.date} ${t.time}</span>
-        <button class="btn ghost tiny" onclick="delTrip('${t.id}')">刪除這筆登記</button>
+        <span style="display:flex;gap:8px">
+          <button class="btn ghost tiny" onclick="startEditTrip('${t.id}')">編輯</button>
+          <button class="btn ghost tiny" onclick="delTrip('${t.id}')">刪除這筆登記</button>
+        </span>
       </div></div>`;
   }).join("");
 
