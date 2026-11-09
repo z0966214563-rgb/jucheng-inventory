@@ -231,6 +231,31 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
 .mvsearch{flex:1;min-width:150px;border:1px solid var(--line);border-radius:3px;padding:8px 11px;
   font-family:var(--tc);font-size:14px}
 .mvdate{border:1px solid var(--line);border-radius:3px;padding:7px 9px;font-family:var(--mono);font-size:13px}
+.pick{position:relative}
+.pickbtn{width:100%;display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+  border-radius:3px;background:#fff;padding:10px 11px;font-family:var(--tc);font-size:15px;
+  color:var(--ink);text-align:left;cursor:pointer}
+.pick.open .pickbtn{border-color:var(--ink)}
+.pickbtn .pv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pickbtn .pv.ph{color:var(--muted)}
+.pickbtn .pc{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pickpop{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);background:#fff;
+  border:1px solid var(--ink);border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.14);overflow:hidden}
+.picksearch{width:100%;border:0;border-bottom:1px solid var(--line2);padding:11px 12px;
+  font-family:var(--tc);font-size:15px;outline:0}
+.picklist{max-height:260px;overflow-y:auto}
+.pickopt{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line2);
+  background:#fff;padding:9px 12px;font-family:var(--tc);cursor:pointer}
+.pickopt:last-child{border-bottom:0}
+.pickopt.on{background:#F1F3F5}
+.pickopt .pn{display:block;font-size:14.5px;font-weight:700;color:var(--ink)}
+.pickopt .ps{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1px}
+.pbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:12px 14px;
+  border-bottom:1px solid var(--line2);background:#FBFCFD}
+.pbar .pbk{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);
+  white-space:nowrap;align-self:center}
+.pbar .pnow{font-family:var(--mono);font-size:12px;color:#3C434C;margin-left:auto;white-space:nowrap}
+@media(max-width:440px){ .pbar .pnow{margin-left:0;width:100%} }
 .mvsum{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line2)}
 .mvsum div{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 .mvsum b{font-size:17px;color:var(--ink);font-weight:700;margin-right:3px}
@@ -503,8 +528,10 @@ function verCheck(cfg){
     try{ sessionStorage.setItem("jcUpg","1"); }catch(e){}
     if(box) box.innerHTML='<div class="upg"><div class="upgT">版本已更新</div>'+
       '<div class="upgS">正在重新載入最新版，請稍候…</div></div>';
-    let u=location.href.split("#")[0];
-    u+=(u.indexOf("?")<0?"?":"&")+"v="+Date.now();
+    // 用 _r 當重載記號，不去動你 LINE 連結上的 ?v= 編號；順便清掉上一次的 _r
+    let u=location.href.split("#")[0]
+          .replace(/([?&])_r=\d+(&|$)/,"$1").replace(/[?&]$/,"");
+    u+=(u.indexOf("?")<0?"?":"&")+"_r="+Date.now();
     setTimeout(function(){ location.replace(u); },900);
   }else if(box){
     // 重載過還是舊的：請使用者自己關掉重開
@@ -1568,16 +1595,26 @@ function exportMoves(fmt){
 
 
 /* ===================== 月報統計 ===================== */
-let mRange=6;   // 顯示最近幾個月
-let mTab="lost", mCell="cnt", mScope="cur";   // 月報：分頁、格子顯示、統計範圍
-const consumOf=k=>{const r=RW().find(x=>cur(x.sku)===k);return r?!!r.consum:false;};
-function monthKeys(){
+let mTab="lost", mCell="cnt";   // 月報：分頁、格子顯示
+
+/* ---------- 月報期間 ----------
+   上半頁（KPI、排行）用「統計期間」，下半頁（趨勢圖、逐月明細）用「趨勢期間」，
+   兩個各自獨立，控制項就放在它實際影響的那張卡上。            */
+const MPRESETS=[["cur","本月"],["prev","上個月"],["m3","近 3 個月"],
+                ["m6","近 6 個月"],["m12","近 12 個月"],["all","全部"],["custom","自訂區間"]];
+const TPRESETS=[["m6","近 6 個月"],["m12","近 12 個月"],["all","全部"],["custom","自訂區間"]];
+let mPeriod={preset:"cur", from:"", to:""};
+let mTrend ={preset:"m12", from:"", to:""};
+function setMPeriod(k,v){ mPeriod[k]=v; if(k!=="preset") mPeriod.preset="custom"; render(); }
+function setMTrend(k,v){  mTrend[k]=v;  if(k!=="preset") mTrend.preset="custom";  render(); }
+
+// 資料涵蓋的所有月份，中間沒資料的也補齊，趨勢才不會跳月
+function allMonths(){
   const set=new Set();
   S.records.forEach(r=>set.add(r.date.slice(0,7)));
   S.moves.forEach(m=>set.add(m.date.slice(0,7)));
   if(!set.size) return [];
   const all=[...set].sort();
-  // 補齊中間沒有資料的月份，趨勢才不會跳月
   const [y0,m0]=all[0].split("-").map(Number);
   const [y1,m1]=all[all.length-1].split("-").map(Number);
   const seq=[];
@@ -1585,11 +1622,57 @@ function monthKeys(){
     if(m>12){m=1;y++;}
     seq.push(`${y}-${String(m).padStart(2,"0")}`);
   }
-  return mRange==="all"?seq:seq.slice(-mRange);
+  return seq;
 }
-function monthlyStats(){
+// spec 可以是數字（最近 N 個月）或期間物件
+function periodMonths(spec){
+  const seq=allMonths(); if(!seq.length) return [];
+  if(typeof spec==="number") return seq.slice(-spec);
+  const pr=(spec&&spec.preset)||"all";
+  if(pr==="cur")  return seq.slice(-1);
+  if(pr==="prev") return seq.length>1?seq.slice(-2,-1):seq.slice(-1);
+  if(pr==="m3")   return seq.slice(-3);
+  if(pr==="m6")   return seq.slice(-6);
+  if(pr==="m12")  return seq.slice(-12);
+  if(pr==="custom"){
+    const f=spec.from||seq[0], t=spec.to||seq[seq.length-1];
+    const lo=f<=t?f:t, hi=f<=t?t:f;
+    const r=seq.filter(m=>m>=lo&&m<=hi);
+    return r.length?r:seq.slice(-1);
+  }
+  return seq;
+}
+// 期間的文字說明，標題上顯示用
+function periodLabel(spec){
+  const ms=periodMonths(spec); if(!ms.length) return "—";
+  const named=(typeof spec==="object")&&(MPRESETS.find(x=>x[0]===spec.preset)||[])[1];
+  if(spec&&spec.preset==="cur")  return ms[0];
+  if(spec&&spec.preset==="prev") return ms[0];
+  if(ms.length===1) return ms[0];
+  return `${ms[0]} ~ ${ms[ms.length-1]}`+(named&&spec.preset!=="custom"?`（${named}）`:"");
+}
+// 期間選擇列
+function periodBar(spec, setter, presets){
+  const seq=allMonths();
+  const f=spec.from||seq[0]||"", t=spec.to||seq[seq.length-1]||"";
+  return `<div class="mvf" style="border-bottom:0;background:transparent;padding:0">
+    ${presets.map(([k,tt])=>`<button class="mvchip sm" aria-pressed="${spec.preset===k}"
+        onclick="${setter}('preset','${k}')">${tt}</button>`).join("")}
+    ${spec.preset==="custom"?`<span style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)">
+      <input type="month" class="mvdate" value="${f}" min="${seq[0]||""}" max="${seq[seq.length-1]||""}"
+        onchange="${setter}('from',this.value)">
+      <span>到</span>
+      <input type="month" class="mvdate" value="${t}" min="${seq[0]||""}" max="${seq[seq.length-1]||""}"
+        onchange="${setter}('to',this.value)"></span>`:""}
+  </div>`;
+}
+const consumOf=k=>{const r=RW().find(x=>cur(x.sku)===k);return r?!!r.consum:false;};
+function monthKeys(spec){
+  return periodMonths(spec===undefined?mPeriod:spec);
+}
+function monthlyStats(n){
   // 以實際補料／出入庫為準，每筆只算一次，不會因為連續盤到同一筆而重複
-  const ms=monthKeys(), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0});
+  const ms=monthKeys(n), z=()=>({遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0});
   const agg={}, byItem={}, byLost={}, byDmg={}, byBuy={}, byCons={};
   ms.forEach(k=>agg[k]=z());
   (S.moves||[]).forEach(m=>{
@@ -1691,8 +1774,7 @@ function viewRestock(){
       <div class="chips" style="margin-bottom:13px">${VEH().map(v=>
         `<button class="chip" aria-pressed="${rs.vehicle===v}" onclick="setRs('vehicle','${v}')">${v}</button>`).join("")}</div>
       <label class="f"><span class="lbl">品項</span>
-        <select onchange="setRs('sku',this.value)">${ITEMS_BY_LOC().map(i=>
-          `<option value="${i.sku}" ${i.sku===rs.sku?"selected":""}>${i.loc!=="未設定"?i.loc+"　":"—　"}${i.sku}（倉庫 ${S.warehouse[i.sku]}）</option>`).join("")}</select></label>
+        ${itemPicker("rs", rs.sku, "setRsSku", pickItems())}</label>
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
           <input type="number" min="1" class="num" value="${rs.qty}" onchange="setRs('qty',this.value)"></label>
@@ -1756,8 +1838,11 @@ function viewStock(){
   const ni=nItem;
   const sorted=ITEMS().slice().sort((a,b)=>{
     const d=locRank(a.loc)-locRank(b.loc); return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
+  const sq=stockQ.trim().toLowerCase();
+  const shownItems=sq?sorted.filter(it=>
+      (it.sku+" "+(it.loc||"")).toLowerCase().indexOf(sq)>=0):sorted;
   let rows="";
-  sorted.forEach(it=>{
+  shownItems.forEach(it=>{
     const k=it.sku, h=S.warehouse[k]||0, sf=S.safety[k]||0;
     const pct=sf?Math.min(100,Math.round(h/sf*100)):100;
     if(editSku===k){
@@ -1795,9 +1880,19 @@ function viewStock(){
         <div><div class="lbl">低於安全庫存</div><div class="fig" style="color:${lowN?"var(--alert)":"var(--ok)"}">${lowN}</div></div>
         <div><div class="lbl">未設定位置</div><div class="fig" style="color:${noLoc?"var(--amber-d)":"var(--ok)"}">${noLoc}</div></div>
       </div>
+      <div class="mvf">
+        <input class="mvsearch" id="stocksearch" value="${esc(stockQ)}" autocomplete="off"
+          placeholder="搜尋品項或位置…"
+          oncompositionstart="stockComposing=true"
+          oncompositionend="stockComposing=false;stockInput(this)"
+          oninput="stockInput(this)">
+        ${sq?`<button class="mvchip sm" onclick="clearStockQ()">清除</button>
+          <span class="lbl">${shownItems.length} / ${sorted.length} 項</span>`:""}
+      </div>
       <div class="tw"><table>
         <colgroup><col style="width:74px"><col><col style="width:78px"><col style="width:88px"><col style="width:124px"></colgroup>
         <tr><th class="c-loc">位置</th><th>品項</th><th class="n">倉庫</th><th class="n">安全庫存</th><th></th></tr>${rows}</table></div>
+      ${sq&&!shownItems.length?`<div class="empty">找不到符合「${esc(stockQ)}」的品項</div>`:""}
       <div class="bd" style="border-top:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:9px">匯出目前庫存報表（依儲位排序，含差額與低於安全庫存標示）</div>
         <div class="g3">
@@ -1949,8 +2044,7 @@ function viewMove(){
         <div class="chips" style="margin-bottom:13px">${VEH().map(x=>
           `<button class="chip" aria-pressed="${v===x}" onclick="setMv('vehicle','${x}')">${x}</button>`).join("")}</div>`:""}
       <label class="f"><span class="lbl">品項</span>
-        <select onchange="setMv('sku',this.value)">${ITEMS_BY_LOC().map(i=>
-          `<option value="${i.sku}" ${i.sku===mv.sku?"selected":""}>${i.loc!=="未設定"?i.loc+"　":"—　"}${i.sku}（倉庫 ${S.warehouse[i.sku]}）</option>`).join("")}</select></label>
+        ${itemPicker("mv", mv.sku, "setMvSku", pickItems())}</label>
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
           <input type="number" min="1" value="${mv.qty}" class="num" onchange="setMv('qty',this.value)"></label>
@@ -2028,12 +2122,76 @@ function mqInput(el){
 }
 function restoreSearch(){
   if(!mqRestore) return;
-  const el=document.getElementById("mvsearch");
+  const el=document.getElementById(mqRestore.id||"mvsearch");
   if(el){ el.focus();
     const p=Math.min(mqRestore.pos==null?el.value.length:mqRestore.pos, el.value.length);
     try{ el.setSelectionRange(p,p); }catch(e){} }
   mqRestore=null;
 }
+
+/* ---------- 庫存搜尋 ---------- */
+let stockQ="", stockComposing=false;
+function stockInput(el){
+  if(stockComposing) return;
+  clearTimeout(window._sqt);
+  const pos=el.selectionStart;
+  window._sqt=setTimeout(()=>{ mqRestore={id:"stocksearch",pos}; stockQ=el.value; render(); },300);
+}
+function clearStockQ(){ stockQ=""; render(); }
+
+/* ---------- 可搜尋的品項選單 ----------
+   原生 select 沒辦法打字找，品項一多就要一直滾。
+   這個元件點開後上面有搜尋框，打關鍵字就篩。                 */
+const PICKOPTS={};
+let pickOpen=null, pickQ="", pickComposing=false;
+function openPick(id){ pickOpen=(pickOpen===id)?null:id; pickQ=""; render();
+  if(pickOpen) setTimeout(()=>{ const el=document.getElementById("picksearch-"+id); if(el) el.focus(); },30); }
+function pickInput(el){
+  if(pickComposing) return;
+  clearTimeout(window._pqt);
+  const pos=el.selectionStart, id=pickOpen;
+  window._pqt=setTimeout(()=>{ mqRestore={id:"picksearch-"+id,pos}; pickQ=el.value; render(); },250);
+}
+function pickChoose(id,fn,i){
+  const o=(PICKOPTS[id]||[])[i];
+  pickOpen=null; pickQ="";
+  if(o&&window[fn]) window[fn](o.v); else render();
+}
+// opts: [{v, label, sub}]
+function itemPicker(id, value, fnName, opts, placeholder){
+  PICKOPTS[id]=opts;
+  const open=pickOpen===id;
+  const q=open?pickQ.trim().toLowerCase():"";
+  const hit=o=>!q||((o.label+" "+(o.sub||"")).toLowerCase().indexOf(q)>=0);
+  const chosen=opts.find(o=>o.v===value);
+  return `<div class="pick${open?" open":""}">
+    <button type="button" class="pickbtn" onclick="openPick('${id}')">
+      <span class="pv${chosen?"":" ph"}">${chosen?esc(chosen.label):(placeholder||"請選擇…")}</span>
+      <span class="pc">${open?"▲":"▼"}</span></button>
+    ${open?`<div class="pickpop">
+      <input class="picksearch" id="picksearch-${id}" value="${esc(pickQ)}"
+        placeholder="輸入品項或位置搜尋…" autocomplete="off"
+        oncompositionstart="pickComposing=true"
+        oncompositionend="pickComposing=false;pickInput(this)"
+        oninput="pickInput(this)">
+      <div class="picklist">${
+        opts.map((o,i)=>({o,i})).filter(x=>hit(x.o)).map(x=>
+          `<button type="button" class="pickopt${x.o.v===value?" on":""}"
+            onclick="pickChoose('${id}','${fnName}',${x.i})">
+            <span class="pn">${esc(x.o.label)}</span>
+            ${x.o.sub?`<span class="ps">${esc(x.o.sub)}</span>`:""}</button>`).join("")
+        ||`<div class="empty" style="padding:18px 12px">找不到符合的品項</div>`}
+      </div></div>`:""}
+  </div>`;
+}
+// 三個地方共用的品項清單
+function pickItems(){
+  return ITEMS_BY_LOC().map(i=>({v:i.sku, label:i.sku,
+    sub:`${i.loc!=="未設定"?i.loc:"未設定位置"}　倉庫 ${S.warehouse[i.sku]}`}));
+}
+function setRsSku(v){ setRs('sku',v); }
+function setMvSku(v){ setMv('sku',v); }
+function setNrItem(v){ setNr('item',v); }
 function setMCat(k){mCat=k;mPage=0;render();}
 function setMv(k,v){
   mv[k]=k==="qty"?Math.max(1,parseInt(v)||1):v;
@@ -2308,10 +2466,7 @@ function viewItems(){
 
     <div class="card"><div class="hd"><h2>新增盤點項目</h2></div><div class="bd">
       <label class="f"><span class="lbl">選擇庫存品項</span>
-        <select onchange="setNr('item',this.value)">
-          <option value="">請選擇…</option>
-          ${ITEMS_BY_LOC().map(i=>`<option value="${i.sku}" ${i.sku===nRow.item?"selected":""}>${i.loc!=="未設定"?i.loc+"　":"—　"}${i.sku}</option>`).join("")}
-        </select></label>
+        ${itemPicker("nr", nRow.item, "setNrItem", pickItems())}</label>
       <label class="f"><span class="lbl">標配數量（每車）</span>
         <input type="number" min="0" class="num" value="${nRow.std}" onchange="setNr('std',this.value)"></label>
       <label class="f"><span class="lbl">放進哪個包別</span>
@@ -2404,12 +2559,16 @@ function cfgOf(sku){
 function stdOf(sku){
   return (S.rows||[]).filter(r=>r.sku===sku).reduce((t,r)=>t+(Number(r.std)||0),0);
 }
-function mrRows(src,ms,other){
+function mrRows(src,ms,other,allMs){
+  // allMs 有給的話，「連續幾個月」用完整歷史算，
+  // 這樣統計期間縮到一個月時，持續性問題還是看得出來
+  const hist=allMs||ms;
   return Object.keys(src).map(k=>{
     const series=ms.map(m=>src[k][m]||0);
     const cfg=cfgOf(k);
     let streak=0;
-    for(let i=series.length-1;i>=0;i--){ if(series[i]>0)streak++; else break; }
+    const hs=hist.map(m=>src[k][m]||0);
+    for(let i=hs.length-1;i>=0;i--){ if(hs[i]>0)streak++; else break; }
     return {sku:k,series,cfg,std:stdOf(k),cur:series[series.length-1]||0,
             prev:series.length>1?series[series.length-2]:0,
             tot:series.reduce((a,b)=>a+b,0),streak,
@@ -2419,10 +2578,11 @@ function mrRows(src,ms,other){
 function mrSrc(st){
   return {lost:st.byLost, dmg:st.byDmg, consum:st.byCons, buy:st.byBuy}[mTab];
 }
-function lostByVeh(mk){
+function lostByVeh(mks){
+  const set=new Set(Array.isArray(mks)?mks:[mks]);
   const out={}; VEH().forEach(v=>out[v]=0);
   (S.moves||[]).forEach(m=>{
-    if((m.date||"").slice(0,7)!==mk)return;
+    if(!set.has((m.date||"").slice(0,7)))return;
     if(!(m.reason==="遺失"||m.reason==="遺失或損壞"))return;
     if(m.reason==="遺失或損壞"&&m.loss==="損壞")return;
     if(consumOf(m.sku))return;
@@ -2432,22 +2592,34 @@ function lostByVeh(mk){
   return out;
 }
 function viewMonthly(){
-  const st=monthlyStats(), ms=st.ms;
+  const st=monthlyStats(mPeriod), ms=st.ms;          // 統計期間：KPI 與排行
+  const stT=monthlyStats(mTrend),  msT=stT.ms;       // 趨勢期間：趨勢圖與逐月明細
+  const hist=allMonths();
   if(!ms.length) return `<div class="wrap wide"><div class="card">
     <div class="empty">還沒有資料。送出幾張盤點單、登錄一些出入庫之後，這裡就會出現月度趨勢。</div></div></div>`;
-  const last=ms[ms.length-1], prev=ms.length>1?ms[ms.length-2]:null;
-  const A=st.agg[last], P=prev?st.agg[prev]:null;
+  const last=ms[ms.length-1];
+  const oneMonth=ms.length===1;
+  // 期間合計
+  const sumAgg=list=>{
+    const z={遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0};
+    list.forEach(m=>{ const a=st.agg[m]||stAll.agg[m]; if(a) Object.keys(z).forEach(k=>z[k]+=a[k]||0); });
+    return z;
+  };
+  // 前一段同長度的期間，用來算增減
+  const iFirst=hist.indexOf(ms[0]);
+  const prevMs=iFirst>0?hist.slice(Math.max(0,iFirst-ms.length),iFirst):[];
+  const stAll=monthlyStats({preset:"all"});
+  const A=sumAgg(ms), P=prevMs.length?sumAgg(prevMs):null;
   const M=MRMETA[mTab];
-  const rows=mrRows(mrSrc(st),ms,mTab==="buy"?st.byLost:null);
-  const cur=mScope==="cur";
-  const key=r=>M.rate?(cur?(r.cfg?r.cur/r.cfg:0):(r.cfg?r.tot/(r.cfg*ms.length):0)):(cur?r.cur:r.tot);
-  const cnt=r=>cur?r.cur:r.tot;
-  const den=r=>cur?r.cfg:r.cfg*ms.length;
+  const rows=mrRows(mrSrc(st),ms,mTab==="buy"?st.byLost:null,hist);
+  const key=r=>M.rate?(r.cfg?r.tot/(r.cfg*ms.length):0):r.tot;
+  const cnt=r=>r.tot;
+  const den=r=>r.cfg*ms.length;
 
   /* KPI */
   const kpi=[["遺失","lost",1],["損壞","dmg",1],["耗材","consum",0],["採購","buy",0]].map(([k,id,bad])=>{
     const t=trend(A[k],P?P[k]:null,bad);
-    return `<div><div class="lbl">${last} ${k}</div>
+    return `<div><div class="lbl">${oneMonth?last:"這段期間"} ${k}</div>
       <div class="fig">${A[k]}<span style="font-size:13px;margin-left:7px;color:${bad?t.c:"var(--muted)"}">${t.t}</span></div></div>`;
   }).join("");
 
@@ -2458,9 +2630,9 @@ function viewMonthly(){
   const rank=shown.map(r=>{
     let f="";
     if(M.rate&&r.streak>=3) f=`<span class="mrflag">連 ${r.streak} 個月</span>`;
-    else if(M.rate&&cur&&r.cur>r.prev) f='<span class="mrflag warn">比上月多</span>';
+    else if(M.rate&&oneMonth&&r.cur>r.prev) f='<span class="mrflag warn">比上月多</span>';
     const meta=M.rate&&r.cfg?`每車標配 ${r.std}　·　全隊配置 ${den(r)} 件`
-      :`${r.std?`每車標配 ${r.std}　·　`:""}近 ${ms.length} 個月共 ${r.tot} 件`;
+      :`${r.std?`每車標配 ${r.std}　·　`:""}這段期間共 ${r.tot} 件`;
     return `<div class="mrk">
       <div><div class="nm">${esc(r.sku)}${f}</div><div class="meta">${meta}</div></div>
       <div class="cnt">${M.rate&&r.cfg?`<b>${cnt(r)}</b> / ${den(r)}`:`<b>${cnt(r)}</b> 件`}</div>
@@ -2469,25 +2641,27 @@ function viewMonthly(){
   }).join("")+(zeros.length?`<div class="mrnone"><div class="nm">本期沒有紀錄的品項（${zeros.length} 項）
       <div class="meta" style="margin-top:3px">${zeros.map(r=>esc(r.sku)).join("、")}</div></div></div>`:"");
 
-  /* 每月柱狀 */
-  const totByM=ms.map((m,i)=>rows.reduce((a,r)=>a+r.series[i],0));
+  /* 每月柱狀（趨勢期間） */
+  const rowsT=mrRows(mrSrc(stT),msT,mTab==="buy"?stT.byLost:null,hist);
+  const totByM=msT.map((m,i)=>rowsT.reduce((a,r)=>a+r.series[i],0));
   const cmx=Math.max.apply(null,totByM.concat([1]));
+  const inStat=new Set(ms);
   const cols=`<div class="mrcols">${totByM.map((v,i)=>
-    `<div class="mrcol ${M.cls}${cur&&i<totByM.length-1?" dim":""}">
+    `<div class="mrcol ${M.cls}${inStat.has(msT[i])?"":" dim"}">
       <div class="v">${v}</div><i style="height:${Math.max(3,v/cmx*92)}%"></i>
-      <div class="m">${ms[i].slice(5)}月</div></div>`).join("")}</div>`;
+      <div class="m">${msT[i].slice(5)}月</div></div>`).join("")}</div>`;
 
-  /* 逐月矩陣 */
+  /* 逐月矩陣（趨勢期間） */
   const asRate=(mCell==="rate"&&M.rate);
-  const mrows=rows.slice().sort((a,b)=>asRate
+  const mrows=rowsT.slice().sort((a,b)=>asRate
       ?((b.cfg?b.tot/b.cfg:0)-(a.cfg?a.tot/a.cfg:0))
       :(b.tot-a.tot));
   const cellV=(r,i)=>asRate?(r.cfg?r.series[i]/r.cfg:0):r.series[i];
   const cmax=Math.max.apply(null,mrows.flatMap(r=>r.series.map((_,i)=>cellV(r,i))).concat([0.0001]));
-  const mw=150+ms.length*58+70+(mTab==="buy"?72:0);
+  const mw=150+msT.length*58+70+(mTab==="buy"?72:0);
   const matrix=mrows.length?`<div class="tw"><table style="min-width:${mw}px">
-    <colgroup><col style="width:150px">${ms.map(()=>`<col style="width:58px">`).join("")}<col style="width:70px">${mTab==="buy"?`<col style="width:72px">`:""}</colgroup>
-    <tr><th>品項</th>${ms.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th>
+    <colgroup><col style="width:150px">${msT.map(()=>`<col style="width:58px">`).join("")}<col style="width:70px">${mTab==="buy"?`<col style="width:72px">`:""}</colgroup>
+    <tr><th>品項</th>${msT.map(m=>`<th class="n">${m.slice(5)}月</th>`).join("")}<th class="n">合計</th>
       ${mTab==="buy"?`<th class="n">同期遺失</th>`:""}</tr>
     ${mrows.map(r=>`<tr><td class="c-name">${esc(r.sku)}</td>
       ${r.series.map((v,i)=>{
@@ -2495,30 +2669,30 @@ function viewMonthly(){
         const bg=v?`background:${M.col}${Math.round(18+a*72).toString(16).padStart(2,"0")}`:"";
         const fg=a>0.62?";color:#fff":"";
         return `<td class="mrcell" style="${bg}${fg}">${v?(asRate?Math.round(x*100)+"%":v):"·"}</td>`;}).join("")}
-      <td class="n c-num">${asRate?(r.cfg?Math.round(r.tot/(r.cfg*ms.length)*100)+"%":"·"):r.tot}</td>
+      <td class="n c-num">${asRate?(r.cfg?Math.round(r.tot/(r.cfg*msT.length)*100)+"%":"·"):r.tot}</td>
       ${mTab==="buy"?`<td class="n" style="color:var(--muted)">${r.other}</td>`:""}</tr>`).join("")}
     </table></div>`:`<div class="empty">這段期間沒有紀錄。</div>`;
 
   /* 遺失專屬 */
   let extra="";
   if(mTab==="lost"){
-    const vv=lostByVeh(last), vmx=Math.max.apply(null,Object.values(vv).concat([1]));
+    const vv=lostByVeh(ms), vmx=Math.max.apply(null,Object.values(vv).concat([1]));
     const vtot=Object.values(vv).reduce((a,b)=>a+b,0);
     extra+=`<div class="card"><div class="hd"><h2>遺失發生在哪台車</h2></div><div class="bd">
       <p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
-        ${last} 共 ${vtot} 件遺失的車別分布。集中在特定車輛時，通常是習慣或流程問題，不是工具本身。</p>
+        ${periodLabel(mPeriod)} 共 ${vtot} 件遺失的車別分布。集中在特定車輛時，通常是習慣或流程問題，不是工具本身。</p>
       ${Object.keys(vv).sort().map(k=>`<div class="mrveh"><div class="c">${k}</div>
         <div class="mrbar"><i style="width:${vv[k]?Math.max(3,vv[k]/vmx*100).toFixed(0):0}%"></i></div>
         <div class="v">${vv[k]} 件</div></div>`).join("")}</div></div>`;
-    const byRate=shown.slice().sort((a,b)=>(b.cfg?b.cur/b.cfg:0)-(a.cfg?a.cur/a.cfg:0));
-    const byCnt=shown.slice().sort((a,b)=>b.cur-a.cur);
-    const sts=rows.filter(r=>r.streak>=Math.min(3,ms.length));
+    const byRate=shown.slice().sort((a,b)=>(b.cfg?b.tot/b.cfg:0)-(a.cfg?a.tot/a.cfg:0));
+    const byCnt=shown.slice().sort((a,b)=>b.tot-a.tot);
+    const sts=rows.filter(r=>r.streak>=3);
     const obs=[];
     if(byRate.length&&byRate[0].cfg) obs.push(`<li><span class="ic">1</span><div>
-      <b>${esc(byRate[0].sku)}</b> 是本月遺失比例最高的品項：全隊配置 ${byRate[0].cfg} 件，
-      本月少了 ${byRate[0].cur} 件（${Math.round(byRate[0].cur/byRate[0].cfg*100)}%）。</div></li>`);
+      <b>${esc(byRate[0].sku)}</b> 是這段期間遺失比例最高的品項：全隊配置 ${byRate[0].cfg} 件，
+      少了 ${byRate[0].tot} 件（${Math.round(byRate[0].tot/byRate[0].cfg*100)}%）。</div></li>`);
     if(byCnt.length) obs.push(`<li class="s2"><span class="ic">2</span><div>
-      <b>${esc(byCnt[0].sku)}</b> 件數最多（${byCnt[0].cur} 件）${byCnt[0].cfg?`，但全隊配置有 ${byCnt[0].cfg} 件，比例是 ${Math.round(byCnt[0].cur/byCnt[0].cfg*100)}%`:""}。
+      <b>${esc(byCnt[0].sku)}</b> 件數最多（${byCnt[0].tot} 件）${byCnt[0].cfg?`，但全隊配置有 ${byCnt[0].cfg} 件，比例是 ${Math.round(byCnt[0].tot/byCnt[0].cfg*100)}%`:""}。
       數量大的品項容易佔版面，看比例才知道嚴不嚴重。</div></li>`);
     if(sts.length) obs.push(`<li><span class="ic">3</span><div>
       ${sts.map(r=>esc(r.sku)).join("、")} 連續 ${Math.min.apply(null,sts.map(r=>r.streak))} 個月以上每月都有遺失，
@@ -2529,29 +2703,25 @@ function viewMonthly(){
 
   return `<div class="wrap wide">
     <div class="card">
+      <div class="pbar">
+        <span class="pbk">統計期間</span>
+        ${periodBar(mPeriod,"setMPeriod",MPRESETS)}
+        <span class="pnow">${periodLabel(mPeriod)}</span>
+      </div>
       <div class="mrtabs" role="tablist">
         ${[["lost","遺失",A.遺失],["dmg","損壞",A.損壞],["consum","耗材",A.耗材],["buy","採購",A.採購]].map(([k,t,n])=>
           `<button role="tab" aria-selected="${mTab===k}" onclick="setMTab('${k}')">${t}<span class="n">${n} 件</span></button>`).join("")}
       </div>
       <div class="stats">${kpi}</div>
-      <div class="foot"><span class="lbl">耗材屬正常消耗，不計入遺失　·　箭頭為與上個月相比</span></div>
+      <div class="foot"><span class="lbl">上面四個數字與下面的排行，都是「統計期間」這段時間的合計　·　${
+        prevMs.length?`箭頭是跟前一段同樣長度的期間相比（${prevMs[0]}${prevMs.length>1?" ~ "+prevMs[prevMs.length-1]:""}）`
+                     :"沒有更早的資料可以比較"}　·　耗材屬正常消耗，不計入遺失</span></div>
     </div>
 
     <div class="card"><div class="hd"><h2>${M.t}</h2>
-      <span class="lbl" style="margin-left:auto">${cur?last:`${ms[0]} ~ ${last}`}　·　全隊 ${VEH().length} 台車</span></div>
+      <span class="lbl" style="margin-left:auto">${periodLabel(mPeriod)}　·　全隊 ${VEH().length} 台車</span></div>
       <div class="bd" style="border-bottom:1px solid var(--line2)">
-        <div class="lbl" style="margin-bottom:7px">統計範圍</div>
-        <div class="chips" style="margin-bottom:11px">
-          <button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
-            aria-pressed="${mScope==="cur"}" onclick="setMScope('cur')">本月</button>
-          <button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
-            aria-pressed="${mScope==="all"}" onclick="setMScope('all')">近 ${ms.length} 個月累計</button>
-        </div>
-        <div class="lbl" style="margin-bottom:7px">顯示幾個月</div>
-        <div class="chips">${[[3,"近 3 個月"],[6,"近 6 個月"],[12,"近 12 個月"],["all","全部"]].map(([v,t])=>
-          `<button class="chip" style="min-width:auto;padding:0 13px;font-family:var(--tc);font-size:13.5px;font-weight:700"
-            aria-pressed="${String(mRange)===String(v)}" onclick="setMRange('${v}')">${t}</button>`).join("")}</div>
-        <p class="sub" style="font-size:13px;color:var(--muted);margin:12px 0 0">${M.d}</p>
+        <p class="sub" style="font-size:13px;color:var(--muted);margin:0">${M.d}</p>
       </div>
       <div class="mrkh"><span>品項</span><span>${M.rate?"數量 / 配置":"數量"}</span><span>${M.rate?"比例":"相對多寡"}</span></div>
       ${shown.length||zeros.length?rank:`<div class="empty">這段期間沒有紀錄。</div>`}
@@ -2560,10 +2730,17 @@ function viewMonthly(){
         :"耗材與採購不計算比例"}</span></div></div>
 
     <div class="card"><div class="hd"><h2>每個月各多少</h2>
-      <span class="lbl" style="margin-left:auto">近 ${ms.length} 個月</span></div>
-      <div class="bd">${cols}</div></div>
+      <span class="lbl" style="margin-left:auto">${periodLabel(mTrend)}</span></div>
+      <div class="pbar">
+        <span class="pbk">趨勢期間</span>
+        ${periodBar(mTrend,"setMTrend",TPRESETS)}
+      </div>
+      <div class="bd">${cols}</div>
+      <div class="foot"><span class="lbl">這張圖和下面的逐月明細用「趨勢期間」，跟上面的統計期間各自獨立　·
+        顏色較深的月份是目前統計期間涵蓋的範圍</span></div></div>
 
     <div class="card"><div class="hd"><h2>逐月明細（品項 × 月份）</h2>
+      <span class="lbl" style="margin-left:8px">${periodLabel(mTrend)}</span>
       ${M.rate?`<div class="chips" style="margin-left:auto">
         <button class="chip" style="min-width:auto;padding:0 12px;font-family:var(--tc);font-size:13px;font-weight:700"
           aria-pressed="${mCell!=="rate"}" onclick="setMCell('cnt')">件數</button>
@@ -2587,17 +2764,18 @@ function viewMonthly(){
 }
 function setMTab(k){mTab=k;render();}
 function setMCell(k){mCell=k;render();}
-function setMScope(k){mScope=k;render();}
-function setMRange(v){mRange=(v==="all")?"all":Number(v);render();}
+
 function exportMonthly(fmt){
-  const st=monthlyStats(), ms=st.ms;
+  const hist=allMonths();
+  const st=monthlyStats(mPeriod), ms=st.ms;            // 排行用統計期間
+  const stT=monthlyStats(mTrend),  msT=stT.ms;         // 逐月明細用趨勢期間
   if(!ms.length)return toast("還沒有可統計的資料");
   const M=MRMETA[mTab];
-  const rows=mrRows(mrSrc(st),ms,mTab==="buy"?st.byLost:null);
+  const rows=mrRows(mrSrc(st),ms,mTab==="buy"?st.byLost:null,hist);
   if(!rows.length)return toast(`這段期間沒有${M.t}紀錄`);
-  const cur=mScope==="cur";
-  const cnt=r=>cur?r.cur:r.tot;
-  const den=r=>cur?r.cfg:r.cfg*ms.length;
+  const rowsT=mrRows(mrSrc(stT),msT,mTab==="buy"?stT.byLost:null,hist);
+  const cnt=r=>r.tot;
+  const den=r=>r.cfg*ms.length;
   const rate=r=>{const d=den(r);return d?Math.round(cnt(r)/d*100)+"%":"—";};
 
   // 一、排行
@@ -2608,15 +2786,16 @@ function exportMonthly(fmt){
     .sort((a,b)=>(M.rate?( (b.cfg?cnt(b)/b.cfg:0)-(a.cfg?cnt(a)/a.cfg:0) ):(cnt(b)-cnt(a))))
     .map(r=>({c:M.rate?[r.sku,cnt(r),den(r)||"—",rate(r)]:[r.sku,cnt(r)]}));
 
-  // 二、逐月明細
-  const w1=Math.max(10,Math.floor(50/Math.max(1,ms.length)));
-  const mCols=[{t:"品項",w:100-w1*ms.length-14,px:140},{t:"合計",w:14,px:48,n:1}]
-    .concat(ms.map(m=>({t:m.slice(5)+"月",w:w1,px:44,n:1})));
-  const mRows=rows.slice().sort((a,b)=>b.tot-a.tot)
+  // 二、逐月明細（趨勢期間）
+  const w1=Math.max(10,Math.floor(50/Math.max(1,msT.length)));
+  const mCols=[{t:"品項",w:100-w1*msT.length-14,px:140},{t:"合計",w:14,px:48,n:1}]
+    .concat(msT.map(m=>({t:m.slice(5)+"月",w:w1,px:44,n:1})));
+  const mRows=rowsT.slice().sort((a,b)=>b.tot-a.tot)
     .map(r=>({c:[r.sku,r.tot].concat(r.series.map(v=>v||""))}));
 
-  const A=st.agg[ms[ms.length-1]];
-  const extra=[{title:"二、逐月明細",cols:mCols,rows:mRows,
+  const Z={遺失:0,損壞:0,耗材:0,多出:0,採購:0,製作:0,個人:0};
+  ms.forEach(m=>{ const a=st.agg[m]; if(a) Object.keys(Z).forEach(k=>Z[k]+=a[k]||0); });
+  const extra=[{title:`二、逐月明細（${periodLabel(mTrend)}）`,cols:mCols,rows:mRows,
     foot:M.rate?"比例＝期間數量 ÷ 全隊配置數（每車標配 × 車數）。":""}];
   if(mTab==="buy") extra.push({title:"三、採購與遺失對照",
     cols:[{t:"品項",w:50,px:160},{t:"採購",w:25,px:60,n:1},{t:"同期遺失",w:25,px:60,n:1}],
@@ -2624,24 +2803,27 @@ function exportMonthly(fmt){
     foot:"採購遠高於遺失通常是定期補貨；兩者接近則是追著遺失跑。"});
 
   const html=reportHTML(`鉅誠驗屋 · ${M.t}月報表`,
-    [`統計期間：${cur?ms[ms.length-1]:`${ms[0]} ~ ${ms[ms.length-1]}`}`,
+    [`統計期間：${periodLabel(mPeriod)}`,
      `車輛數：${VEH().length}`,
-     `本月　遺失 ${A.遺失}　損壞 ${A.損壞}　耗材 ${A.耗材}　採購 ${A.採購}`,
+     `這段期間　遺失 ${Z.遺失}　損壞 ${Z.損壞}　耗材 ${Z.耗材}　採購 ${Z.採購}`,
      `列印日期：${today()}`,`製表：${me?me.name:"—"}`],
     rkCols,rkRows,
     "數字以實際補料為準：遺失與損壞為工具實際補出／汰換的數量，耗材為耗材補充量。同一筆損失只計一次。",
     extra,"一、排行");
   if(fmt==="print")return printReport(html);
-  const fn=`${M.t}月報_${stamp(ms[0])}-${stamp(ms[ms.length-1])}`;
+  const fn=`${M.t}月報_${stamp(ms[0])}-${stamp(ms[ms.length-1])}`;  // 檔名用統計期間
   fmt==="doc"?download(fn+".doc","application/msword",html)
              :download(fn+".xls","application/vnd.ms-excel",html);
 }
 
 /* ---- 車輛管理（獨立分頁） ---- */
+// 上午場建議看幾個月。月份拉長數據會被稀釋，偶發的舊遺失會把
+// 最近真正常掉的東西壓下去，所以固定看近 3 個月，不跟著月報表的範圍跑。
+const AM_MONTHS=3;
 function amCand(){
-  // 系統建議：近 6 個月有遺失的品項，依遺失率排序；
+  // 系統建議：近 AM_MONTHS 個月有遺失的品項，依遺失率排序；
   // 同一品項在多個包別的話，各包別分開列，已在清單裡的那一列不再建議
-  const st=monthlyStats(), ms=st.ms, inRows=AMSET();
+  const st=monthlyStats(AM_MONTHS), ms=st.ms, inRows=AMSET();
   const scored=Object.keys(st.byLost||{}).map(k=>{
     const tot=ms.reduce((t,m)=>t+((st.byLost[k]||{})[m]||0),0);
     const cfg=cfgOf(k); let streak=0;
@@ -2692,12 +2874,12 @@ function amListBody(){
       :`<div class="empty" style="padding:22px 14px">清單是空的，外勤選不到上午場。<br>
         <span class="lbl">從下面的建議或手動加入挑幾樣進來</span></div>`}
 
-    <div class="lbl amhd">系統建議　依近 6 個月遺失狀況</div>
+    <div class="lbl amhd">系統建議　依近 ${AM_MONTHS} 個月遺失狀況</div>
     ${cand.length?cand.map(c=>row(c.sku,c.pkg,
         `<span style="color:${c.rate>=0.15?"var(--alert)":"var(--muted)"};font-weight:700">${Math.round(c.rate*100)}%</span>`,
-        c.streak>=3?`連 ${c.streak} 個月都有遺失`:`近 6 個月遺失 ${c.tot} 件`,
+        c.streak>=3?`連 ${c.streak} 個月都有遺失`:`近 ${AM_MONTHS} 個月遺失 ${c.tot} 件`,
         `<button class="btn ghost tiny" onclick="amAdd('${c.rid}')">加入</button>`)).join("")
-      :`<div class="empty" style="padding:22px 14px">近 6 個月沒有明顯的遺失集中，沒有要建議的品項。<br>
+      :`<div class="empty" style="padding:22px 14px">近 ${AM_MONTHS} 個月沒有明顯的遺失集中，沒有要建議的品項。<br>
         <span class="lbl">遺失狀況低的時候這裡就會是空的</span></div>`}
 
     <div class="lbl amhd">手動加入　選包別裡的某一項</div>
