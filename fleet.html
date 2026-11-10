@@ -985,12 +985,14 @@ function viewCardAdmin(){
 
     ${bad.length?`<div class="card"><div class="hd"><h2>對不上的紀錄</h2>
       <span class="lbl" style="margin-left:auto">${bad.length} 筆</span></div>
-      <div class="tw"><table><colgroup><col style="width:92px"><col style="width:46px"><col><col style="width:66px"></colgroup>
-        <tr><th>日期</th><th>車</th><th>發票 / 試算</th><th class="n">差額</th></tr>
+      <div class="tw"><table><colgroup><col style="width:92px"><col style="width:46px"><col><col style="width:66px"><col style="width:58px"></colgroup>
+        <tr><th>日期</th><th>車</th><th>發票 / 試算</th><th class="n">差額</th><th></th></tr>
         ${bad.map(c=>`<tr class="warn"><td class="dcell num" style="font-size:12.5px">${c.date}</td>
           <td class="num">${esc(c.vehicle)}</td>
           <td class="num" style="font-size:12.5px">$${cash(c.balance)} / $${cash(c.expected)}</td>
-          <td class="n num" style="color:var(--alert);font-weight:700">${c.diff>0?"+":""}${c.diff}</td></tr>`).join("")}
+          <td class="n num" style="color:var(--alert);font-weight:700">${c.diff>0?"+":""}${c.diff}</td>
+          <td class="n">${c.photo?`<button class="btn ghost tiny" onclick="showCardPhoto('${c.id}')">發票</button>`
+                                  :`<span class="lbl">沒拍</span>`}</td></tr>`).join("")}
       </table></div>
       <div class="foot"><span class="lbl">通常是有一筆忘了登記。餘額以發票為準往下接，不影響之後的試算</span></div></div>`:""}
 
@@ -1046,7 +1048,7 @@ function viewCardAdmin(){
       </div>
 
       ${mine.length?`<div class="tw"><table>
-        <colgroup><col style="width:84px"><col style="width:42px"><col style="width:72px"><col><col style="width:50px"></colgroup>
+        <colgroup><col style="width:84px"><col style="width:42px"><col style="width:72px"><col><col style="width:92px"></colgroup>
         <tr><th>日期</th><th>車</th><th class="n">金額</th><th>餘額 / 登錄人</th><th></th></tr>
         ${mine.map(c=>`<tr class="${isBad(c)?"warn":""}">
           <td class="dcell num" style="font-size:12px">${c.date}<div class="lbl">${c.time||""}</div></td>
@@ -1058,7 +1060,8 @@ function viewCardAdmin(){
             ${isBad(c)?`<span class="badtag">差額 ${c.diff>0?"+":""}${c.diff}</span>`:""}
             <div class="lbl">${esc(c.person)}${c.note?"　"+esc(c.note):""}</div></td>
           <td class="n" style="white-space:nowrap">
-            ${c.photo?`<button class="btn ghost tiny" onclick="lightbox='${c.photo}';render()">單</button>`:""}
+            ${c.photo?`<button class="btn ghost tiny" onclick="showCardPhoto('${c.id}')">發票</button>`
+                      :`<span class="lbl">沒拍</span>`}
             <button class="btn ghost tiny" onclick="delCard('${c.id}')">刪</button></td></tr>`).join("")}
       </table></div>`:`<div class="bd"><div class="empty">${
         logs.length?"這個條件下沒有紀錄，換個期間或車別試試。":"還沒有任何悠遊卡紀錄"}</div></div>`}
@@ -1069,7 +1072,18 @@ function viewCardAdmin(){
       <div class="bd"><div class="lbl" style="line-height:1.8;margin-bottom:10px">
         外勤忘了登、或你要幫忙補登，用下面的按鈕進登記畫面，記得填上實際登錄人的名字。</div>
         <button class="btn block" onclick="tab='cardnew';render()">我要補登一筆</button></div></div>
+
+    ${lightbox?lbHTML():""}
   </div>`;
+}
+// 打開某一筆悠遊卡紀錄的發票照片
+function showCardPhoto(id){
+  const c=(S.cards||[]).find(x=>x.id===id);
+  if(!c) return;
+  if(!c.photo) return toast("這筆沒有拍發票");
+  lightbox={url:c.photo, title:"發票照片",
+    sub:`${c.vehicle} 車　${c.date} ${c.time||""}　${c.kind==="topup"?"儲值":"消費"} $${cash(c.amount)}　${c.person}`};
+  render();
 }
 async function delCard(id){
   if(!confirm("刪除這筆悠遊卡紀錄？\n這台車的餘額會重新推算。"))return;
@@ -1680,6 +1694,18 @@ async function delTrip(id){
     openRec=null; await reload(); render(); },"已刪除");
 }
 function lbHTML(){
+  // 單張圖片：lightbox 直接是 {url, title, sub}
+  if(lightbox&&lightbox.url){
+    return `<div class="lb" onclick="lightbox=null;render()">
+      <div class="lbbox" onclick="event.stopPropagation()">
+        <img src="${lightbox.url}">
+        <div class="lbinfo"><div style="font-weight:900;font-size:15px">${esc(lightbox.title||"照片")}</div>
+          ${lightbox.sub?`<div class="lbl" style="margin-top:3px">${esc(lightbox.sub)}</div>`:""}</div>
+        <div class="lbbar">
+          <a class="btn ghost sm" href="${lightbox.url}" target="_blank" rel="noopener">在新分頁開啟</a>
+          <button class="btn ghost sm" onclick="lightbox=null;render()">關閉</button></div>
+      </div></div>`;
+  }
   const t=S.trips.find(x=>x.id===lightbox.id); if(!t)return "";
   const keys=Object.keys(t.photos||{}); const k=keys[lightbox.i]; if(!k)return "";
   return `<div class="lb" onclick="lightbox=null;render()">
