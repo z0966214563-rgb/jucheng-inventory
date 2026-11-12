@@ -304,6 +304,7 @@ label.f>.lbl{display:block;line-height:1.5}
 .bc2{font-family:var(--mono);font-size:14.5px;font-weight:700;margin-right:6px}
 .bp{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .badtag{background:var(--warn-bg);color:var(--amber-d);border-radius:2px;padding:0 5px;font-weight:700}
+.shotbox.need{border-color:var(--amber);background:var(--warn-bg)}
 .dcell{white-space:nowrap}
 @media(max-width:420px){ .tw td,.tw th{padding-left:8px;padding-right:8px} }
 
@@ -443,6 +444,7 @@ function applyState(st,urls){
   N.cards=(st.cards||[]).map(c=>({id:c.id,vehicle:c.code,kind:c.kind,amount:c.amount,
     balance:c.balance,expected:c.expected,diff:c.diff,person:c.person,note:c.note||"",
     photo:(urls||{})[c.photo]||null,date:c.date,time:c.time}));
+  N.cardDels=(st.cardDels||[]).map(d=>({...d, photo:(urls||{})[d.photo]||null}));
   N.vehicles=(st.vehicles||[]).map(v=>({id:v.id,code:v.code,plate:v.plate||"",odo:v.odo,
     lastSvc:v.lastSvc,next:v.next,interval:v.interval,used:v.used,card:v.card}));
   const U=urls||{};
@@ -471,6 +473,7 @@ async function reload(){
   (st.trips||[]).forEach(t=>(t.photos||[]).forEach(p=>paths.push(p.path)));
   (st.services||[]).forEach(x=>{ if(x.receipt) paths.push(x.receipt); });
   (st.cards||[]).forEach(c=>{ if(c.photo) paths.push(c.photo); });
+  (st.cardDels||[]).forEach(d=>{ if(d.photo) paths.push(d.photo); });
   applyState(st,await signUrls(paths));
 }
 async function guard(fn,okMsg){
@@ -737,8 +740,8 @@ function setRole(r){ role=r; tab=r==="driver"?"trip":(r==="card"?"card":"fleet")
   draft=null; card=newCard(); window.scrollTo(0,0); render(); }
 async function gotoAdmin(){
   await guard(async()=>{
-    const n=await rpc("op_count",{p_region:REG});
-    S.admins=(await rpc("op_names",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
+    const n=await rpc("op_count_f",{p_region:REG});
+    S.admins=(await rpc("op_names_f",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
     S.anyOp=await rpc("op_any");
     gate=n>0?"pickAdmin":"setup";
     setup={name:"",pin:"",pin2:""}; login={id:"",pin:""}; render();
@@ -812,7 +815,7 @@ async function addAdmin(){
   await guard(async()=>{
     if(token){ await rpc("op_add",{p_token:token,p_region:REG,p_name:n,p_pin:setup.pin}); await reload(); }
     else { await rpc("op_bootstrap",{p_name:n,p_pin:setup.pin,p_region:REG});
-           S.admins=(await rpc("op_names",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
+           S.admins=(await rpc("op_names_f",{p_region:REG})).map(o=>({id:o.id,name:o.name}));
            gate="pickAdmin"; }
     setup={name:"",pin:"",pin2:""}; render();
   },"已建立管理者");
@@ -1068,6 +1071,23 @@ function viewCardAdmin(){
       <div class="foot"><span class="lbl">刪除後整台車的餘額會自動重新推算</span></div></div>`;
     })()}
 
+    ${(S.cardDels||[]).length?`<div class="card"><div class="hd"><h2>刪除紀錄</h2>
+      <span class="lbl" style="margin-left:auto">保存近 6 個月</span></div>
+      <div class="tw"><table>
+        <colgroup><col style="width:92px"><col style="width:42px"><col style="width:72px"><col><col style="width:62px"></colgroup>
+        <tr><th>原始日期</th><th>車</th><th class="n">金額</th><th>原登錄人 / 刪除者</th><th></th></tr>
+        ${(S.cardDels||[]).map(d=>`<tr>
+          <td class="dcell num" style="font-size:12px">${d.date}<div class="lbl">${d.time||""}</div></td>
+          <td class="num">${esc(d.vehicle)}</td>
+          <td class="n num" style="font-weight:700;color:${d.kind==="topup"?"var(--ok,#1a7f4b)":"var(--ink)"}">
+            ${d.kind==="topup"?"+":"−"}${cash(d.amount)}</td>
+          <td style="font-size:12.5px">${esc(d.person)}
+            <div class="lbl">${esc(d.by)} 於 ${d.at} 刪除</div></td>
+          <td class="n">${d.photo?`<button class="btn ghost tiny" onclick="showDelPhoto('${d.id}')">發票</button>`
+                                 :`<span class="lbl">沒拍</span>`}</td></tr>`).join("")}
+      </table></div>
+      <div class="foot"><span class="lbl">刪掉的紀錄本身不會回來，但這裡看得到原本的內容、是誰刪的；照片也還留著</span></div></div>`:""}
+
     <div class="card"><div class="hd"><h2>補登一筆</h2></div>
       <div class="bd"><div class="lbl" style="line-height:1.8;margin-bottom:10px">
         外勤忘了登、或你要幫忙補登，用下面的按鈕進登記畫面，記得填上實際登錄人的名字。</div>
@@ -1083,6 +1103,14 @@ function showCardPhoto(id){
   if(!c.photo) return toast("這筆沒有拍發票");
   lightbox={url:c.photo, title:"發票照片",
     sub:`${c.vehicle} 車　${c.date} ${c.time||""}　${c.kind==="topup"?"儲值":"消費"} $${cash(c.amount)}　${c.person}`};
+  render();
+}
+function showDelPhoto(id){
+  const d=(S.cardDels||[]).find(x=>x.id===id);
+  if(!d||!d.photo) return toast("這筆沒有照片");
+  lightbox={url:d.photo, title:"發票照片（已刪除的紀錄）",
+    sub:`${d.vehicle} 車　${d.date} ${d.time||""}　${d.kind==="topup"?"儲值":"消費"} $${cash(d.amount)}　`
+       +`原登錄 ${d.person}　${d.by} 於 ${d.at} 刪除`};
   render();
 }
 async function delCard(id){
@@ -1130,15 +1158,21 @@ function viewCardEntry(){
             <button class="btn ${card.kind==="spend"?"amber":"ghost"}" onclick="setCard('kind','spend')">消費（停車費等）</button>
             <button class="btn ${card.kind==="topup"?"amber":"ghost"}" onclick="setCard('kind','topup')">儲值</button>
           </div>
+          <div class="lbl" style="margin-top:7px;line-height:1.7">${card.kind==="topup"
+            ? `儲值一定會給收據，所以<b style="color:var(--ink)">餘額和收據照片都要填</b>`
+            : `停車場不一定會給收據，餘額和照片<b style="color:var(--ink)">沒有就可以留空</b>`}</div>
+          <div style="display:none">
+          </div>
         </div>
 
         <div class="g2">
           <label class="f"><span class="lbl">金額</span>
             <input type="number" inputmode="numeric" class="num" value="${esc(card.amount)}"
               placeholder="例：100" oninput="card.amount=this.value;calcOnly()"></label>
-          <label class="f"><span class="lbl">發票上的餘額</span>
+          <label class="f"><span class="lbl">${card.kind==="topup"?"儲值後餘額（必填）":"發票上的餘額"}</span>
             <input type="number" inputmode="numeric" class="num" value="${esc(card.balance)}"
-              placeholder="沒顯示可留空" oninput="card.balance=this.value;calcOnly()"></label>
+              placeholder="${card.kind==="topup"?"收據上的餘額":"沒顯示可留空"}"
+              oninput="card.balance=this.value;calcOnly()"></label>
         </div>
 
         <div id="calcbox">${cardCalcBox()}</div>
@@ -1146,10 +1180,12 @@ function viewCardEntry(){
         <label class="f"><span class="lbl">登錄人姓名</span>
           <input type="text" value="${esc(card.person)}" placeholder="請填全名" oninput="card.person=this.value"></label>
 
-        <div class="lbl" style="margin-bottom:6px">發票照片</div>
-        <label class="shotbox ${card.photo?"has":""}" style="width:100%;height:150px">
+        <div class="lbl" style="margin-bottom:6px">${
+          card.kind==="topup"?`儲值收據照片<b style="color:var(--alert)">（必拍）</b>`:"發票照片（沒有可以不拍）"}</div>
+        <label class="shotbox ${card.photo?"has":""}${card.kind==="topup"&&!card.photo?" need":""}"
+          style="width:100%;height:150px">
           ${card.photo?`<img src="${card.photo}"><span class="redo">重拍</span>`
-            :`<span>📷 拍發票／選照片</span>`}
+            :`<span>📷 ${card.kind==="topup"?"拍儲值收據":"拍發票／選照片"}</span>`}
           <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootCard(this)">
         </label>
 
@@ -1180,6 +1216,10 @@ async function submitCard(){
   const amt=parseInt(card.amount,10);
   if(!amt||amt<=0)return toast("請填金額");
   if(!card.person.trim())return toast("請填登錄人姓名");
+  if(card.kind==="topup"){
+    if(card.balance==="")return toast("儲值請填寫儲值後的餘額");
+    if(!card.photo)     return toast("儲值請拍收據照片");
+  }
   if(cardOf(card.vehicle)==null&&card.balance==="")
     return toast("這台車還沒有餘額基準，第一次請把發票上的餘額填進去");
   busy=true; setProgress("上傳中…"); render();
