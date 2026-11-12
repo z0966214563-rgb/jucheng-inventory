@@ -600,6 +600,9 @@ async function applyState(st,urls){
   N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[],
     canInv:o.can_inv!==false, canFleet:o.can_fleet!==false}));
+  // 把自己的權限旗標補到 me 上，按鈕才知道能不能按
+  if(me){ const self=N.admins.find(a=>a.id===me.id);
+    if(self){ me.canInv=self.canInv; me.canFleet=self.canFleet; } }
   N.locs=(st.locs||[]).slice();
   if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
   // 區域名稱可能被改過，順手更新選單上的名字
@@ -2995,9 +2998,13 @@ function viewVehicles(){
             }).join("")}</div></td>
           <td><div class="rgrant">${[["inv","盤點",a.canInv],["fleet","車輛",a.canFleet]].map(([k,t,on])=>{
               const self=me&&me.id===a.id;
-              return `<button aria-pressed="${on}" ${cant.length||(self&&on)?"disabled":""}
+              const mayGrant=(k==="inv")?(me&&me.canInv!==false):(me&&me.canFleet!==false);
+              const no=cant.length||(self&&on)||!mayGrant;
+              return `<button aria-pressed="${on}" ${no?"disabled":""}
                 title="${cant.length?"這個人還管著你沒有的區，不能更動"
-                        :(self&&on?"不能關掉自己的權限":(on?"點一下收回":"點一下開放"))}"
+                        :(self&&on?"不能關掉自己的權限"
+                        :(!mayGrant?"你自己沒有這一套的權限，不能調整別人的"
+                        :(on?"點一下收回":"點一下開放")))}"
                 onclick="toggleApp('${a.id}','${k}',${on?"false":"true"})">${t}</button>`;
             }).join("")}</div></td>
           <td class="n" style="white-space:nowrap">
