@@ -460,7 +460,11 @@ function applyState(st,urls){
     items:(x.items||[]).map(i=>({name:i.name||"",qty:Number(i.qty)||0,price:Number(i.price)||0})),
     total:Number(x.total)||0, receipt:x.receipt||null,
     receiptUrl:(urls||{})[x.receipt]||null}));
-  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[]}));
+  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[],
+    canInv:o.can_inv!==false, canFleet:o.can_fleet!==false}));
+  // 把自己的權限旗標補到 me 上，按鈕才知道能不能按
+  if(me){ const self=N.admins.find(a=>a.id===me.id);
+    if(self){ me.canInv=self.canInv; me.canFleet=self.canFleet; } }
   N.anyOp=true;
   if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
   (st.regions||[]).forEach(r=>{ const x=REGIONS.find(y=>y.code===r.code); if(x) x.name=r.name; });
@@ -833,6 +837,15 @@ async function toggleGrant(id,region,on){
     await rpc("op_grant",{p_token:token,p_id:id,p_region:region,p_on:on});
     await reload(); render();
   }, on?`已加開 ${region}`:`已收回 ${region}`);
+}
+async function toggleApp(id, app, on){
+  const a=(S.admins||[]).find(x=>x.id===id);
+  const what=app==="inv"?"設備盤點系統":"車輛管理系統";
+  if(!on && !confirm(`要收回「${a?a.name:""}」的${what}管理權限嗎？\n收回後他不會出現在該系統的登入名單，也不能做任何管理動作。`))return;
+  await guard(async()=>{
+    await rpc("op_set_app",{p_token:token,p_id:id,p_app:app,p_on:on});
+    await reload(); render();
+  }, on?`已開放${what}`:`已收回${what}`);
 }
 async function resetPin(id){
   const a=S.admins.find(x=>x.id===id); if(!a)return;
@@ -1836,8 +1849,8 @@ function setCardLowBody(){
       </div>`;
 }
 function setOpBody(){
-  return `<div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:120px"></colgroup>
-        <tr><th>姓名</th><th>可管區域</th><th></th></tr>
+  return `<div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:132px"><col style="width:120px"></colgroup>
+        <tr><th>姓名</th><th>可管區域</th><th>可管系統</th><th></th></tr>
         ${S.admins.map(a=>{
           const mine=a.regions||[];
           const cant=mine.filter(r=>!myRegions.includes(r));
@@ -1848,6 +1861,17 @@ function setOpBody(){
               return `<button aria-pressed="${has}" ${can?"":"disabled"}
                 title="${can?(has?"點一下收回":"點一下加開"):"你沒有這一區的權限"}"
                 onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.name||r.code)}</button>`;
+            }).join("")}</div></td>
+          <td><div class="rgrant">${[["inv","盤點",a.canInv],["fleet","車輛",a.canFleet]].map(([k,t,on])=>{
+              const self=me&&me.id===a.id;
+              const mayGrant=(k==="inv")?(me&&me.canInv!==false):(me&&me.canFleet!==false);
+              const no=cant.length||(self&&on)||!mayGrant;
+              return `<button aria-pressed="${on}" ${no?"disabled":""}
+                title="${cant.length?"這個人還管著你沒有的區，不能更動"
+                        :(self&&on?"不能關掉自己的權限"
+                        :(!mayGrant?"你自己沒有這一套的權限，不能調整別人的"
+                        :(on?"點一下收回":"點一下開放")))}"
+                onclick="toggleApp('${a.id}','${k}',${on?"false":"true"})">${t}</button>`;
             }).join("")}</div></td>
           <td class="c-act">
             <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
