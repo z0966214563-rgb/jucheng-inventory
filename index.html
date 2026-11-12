@@ -598,7 +598,8 @@ async function applyState(st,urls){
   N.vehicleUsed={}; (st.vehicles||[]).forEach(v=>N.vehicleUsed[v.code]=v.used);
   N.onCar=st.vehicle_stock||{};
   N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
-  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[]}));
+  N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[],
+    canInv:o.can_inv!==false, canFleet:o.can_fleet!==false}));
   N.locs=(st.locs||[]).slice();
   if(Array.isArray(st.my_regions)&&st.my_regions.length) myRegions=st.my_regions;
   // 區域名稱可能被改過，順手更新選單上的名字
@@ -1058,6 +1059,15 @@ async function toggleGrant(id,region,on){
     await rpc("op_grant",{p_token:token,p_id:id,p_region:region,p_on:on});
     await reload(); render();
   }, on?`已加開 ${region}`:`已收回 ${region}`);
+}
+async function toggleApp(id, app, on){
+  const a=(S.admins||[]).find(x=>x.id===id);
+  const what=app==="inv"?"設備盤點系統":"車輛管理系統";
+  if(!on && !confirm(`要收回「${a?a.name:""}」的${what}管理權限嗎？\n收回後他不會出現在該系統的登入名單，也不能做任何管理動作。`))return;
+  await guard(async()=>{
+    await rpc("op_set_app",{p_token:token,p_id:id,p_app:app,p_on:on});
+    await reload(); render();
+  }, on?`已開放${what}`:`已收回${what}`);
 }
 async function resetPin(id){
   const v=prompt("設定新的 PIN 碼（4 位數字）");
@@ -2970,8 +2980,8 @@ function viewVehicles(){
       </div>`)}
 
     ${sect("op","操作者",`${S.admins.length} 位`,`
-      <div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:80px"></colgroup>
-        <tr><th>姓名</th><th>可管區域</th><th></th></tr>
+      <div class="tw"><table><colgroup><col><col style="width:150px"><col style="width:132px"><col style="width:80px"></colgroup>
+        <tr><th>姓名</th><th>可管區域</th><th>可管系統</th><th></th></tr>
         ${S.admins.map(a=>{
           const mine=a.regions||[];
           const cant=mine.filter(r=>!myRegions.includes(r));
@@ -2982,6 +2992,13 @@ function viewVehicles(){
               return `<button aria-pressed="${has}" ${can?"":"disabled"}
                 title="${can?(has?"點一下收回":"點一下加開"):"你沒有這一區的權限"}"
                 onclick="toggleGrant('${a.id}','${r.code}',${has?"false":"true"})">${esc(r.name||r.code)}</button>`;
+            }).join("")}</div></td>
+          <td><div class="rgrant">${[["inv","盤點",a.canInv],["fleet","車輛",a.canFleet]].map(([k,t,on])=>{
+              const self=me&&me.id===a.id;
+              return `<button aria-pressed="${on}" ${cant.length||(self&&on)?"disabled":""}
+                title="${cant.length?"這個人還管著你沒有的區，不能更動"
+                        :(self&&on?"不能關掉自己的權限":(on?"點一下收回":"點一下開放"))}"
+                onclick="toggleApp('${a.id}','${k}',${on?"false":"true"})">${t}</button>`;
             }).join("")}</div></td>
           <td class="n" style="white-space:nowrap">
             <button class="btn ghost tiny" onclick="resetPin('${a.id}')">改PIN</button>
@@ -3002,7 +3019,7 @@ function viewVehicles(){
               value="${setup.pin2}" placeholder="••••" onchange="setup.pin2=this.value"></label></div>
         <button class="btn block" onclick="addAdmin()">新增操作者</button>
       </div>`,
-      "只能加開或收回你自己管得到的區；對方還管著你沒有的區時，不能刪除也不能改他的 PIN。這份名單與車輛管理系統共用。")}
+      "只能加開或收回你自己管得到的區；對方還管著你沒有的區時，不能刪除也不能改他的 PIN。「可管系統」決定這個人在設備盤點與車輛管理裡各自有沒有管理權限，關掉之後他不會出現在該系統的登入名單上。")}
   </div>`;
 }
 
