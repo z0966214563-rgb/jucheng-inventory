@@ -110,6 +110,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;padding:2px 5px;border-radius:2px;border:1px solid var(--line);color:var(--muted)}
 .tag.v{border-color:var(--amber-d);color:var(--amber-d);background:#FFF6E3}
 .tag.c{border-color:#9AA2AC;color:#5C636D;background:#F1F3F5}
+.tag.m{border-color:#1F5F8B;color:#1F5F8B;background:#E7F0F7}
 .stat{font-family:var(--tc);font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;
   border-radius:3px;padding:9px 8px;min-width:70px;cursor:pointer;color:var(--muted)}
 .stat.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
@@ -450,6 +451,55 @@ label.f>.lbl{display:block;line-height:1.5}
 .upgT{font-size:21px;font-weight:800;letter-spacing:.04em}
 .upgS{font-size:15px;line-height:1.85;color:var(--mut,#667085)}
 .upgS b{color:var(--ink,#15181c)}
+/* ===== ISO 設備與量測儀器 ===== */
+.iseg{display:flex;gap:0;margin-bottom:12px}
+.iseg button{flex:1;font-family:var(--tc);font-size:13.5px;font-weight:700;padding:10px 4px;background:#fff;
+  border:1px solid var(--line);color:var(--muted);margin-left:-1px;cursor:pointer}
+.iseg button:first-child{margin-left:0;border-radius:3px 0 0 3px}
+.iseg button:last-child{border-radius:0 3px 3px 0}
+.iseg button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);position:relative;z-index:1}
+.iseg.am button[aria-pressed="true"]{background:var(--amber);color:#241A00;border-color:var(--amber)}
+.ipill{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 7px;
+  border-radius:2px;border:1px solid var(--line);color:var(--muted);background:#fff;white-space:nowrap}
+.ipill.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.ipill.warn{background:#FFF6E3;border-color:var(--amber-d);color:var(--amber-d)}
+.ipill.bad{background:var(--alert-bg);border-color:var(--alert);color:var(--alert)}
+.ipill.grey{background:#F1F3F5;border-color:#9AA2AC;color:#5C636D}
+.eqrow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:#fff;border:0;
+  border-bottom:1px solid var(--line2);padding:11px 12px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
+.eqrow:last-child{border-bottom:0}
+.eqrow .eno{font-family:var(--mono);font-size:13.5px;font-weight:600;flex:0 0 76px}
+.eqrow .enm{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eqrow .eloc{font-size:12.5px;color:var(--muted);flex:0 0 auto}
+.eqrow.dim{opacity:.5}
+.kv{width:100%;border-collapse:collapse;font-size:13.5px}
+.kv th,.kv td{border:1px solid var(--line2);padding:7px 9px;text-align:left;vertical-align:top}
+.kv th{background:#F4F5F7;font-weight:700;font-size:12.5px;white-space:nowrap;width:1%;color:#49505A}
+.ilist{background:#fff;border:1px solid var(--line);border-radius:3px}
+.ihd{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line2);
+  font-size:12.5px;font-weight:700;color:#49505A;background:#F7F8FA}
+.warnbox{background:var(--alert-bg);border:1px solid var(--alert);border-radius:3px;padding:10px 12px;
+  margin-bottom:12px;font-size:13px;color:#7A2318}
+.okbox{background:var(--ok-bg);border:1px solid var(--ok);border-radius:3px;padding:10px 12px;
+  margin-bottom:12px;font-size:13px;color:#1F5A42}
+/* 列印 */
+.iso-form{background:#fff;border:1px solid #999;padding:14px;margin-bottom:14px;overflow-x:auto}
+.iso-form .fh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#555}
+.iso-form .ft{text-align:center;font-size:15px;font-weight:900;letter-spacing:.18em;margin:6px 0 10px}
+table.pf{width:100%;border-collapse:collapse;font-size:11px;min-width:580px}
+table.pf th,table.pf td{border:1px solid #333;padding:4px 5px;text-align:center;vertical-align:middle;height:24px}
+table.pf th{background:#EFEFEF;font-weight:700}
+table.pf td.l{text-align:left}
+table.pf td.hd{background:#EFEFEF;font-weight:700;white-space:nowrap}
+table.pf .mo{font-family:var(--mono);white-space:nowrap}
+.iso-form .sig{display:flex;gap:22px;justify-content:flex-end;font-size:11px;margin-top:9px;color:#333}
+@media print{
+  .noprint,header.top,nav.tabs,.toast{display:none!important}
+  body{background:#fff;padding:0}
+  .wrap{max-width:none;padding:0}
+  .iso-form{border:0;padding:0;page-break-after:always}
+  table.pf{min-width:0}
+}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -499,7 +549,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=8;
+const APP_VER=9;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -563,6 +613,18 @@ async function signUrls(paths){
     return map;
   }catch(e){ return {}; }
 }
+async function signUrlsB(paths,bucket){
+  const list=[...new Set((paths||[]).filter(Boolean))];
+  if(!list.length) return {};
+  try{
+    const res=await fetch(`${SB_URL}/storage/v1/object/sign/${bucket}`,
+      {method:"POST",headers:H,body:JSON.stringify({paths:list,expiresIn:3600})});
+    if(!res.ok) return {};
+    const arr=await res.json(), map={};
+    arr.forEach(x=>{const u=x.signedURL||x.signedUrl; if(u) map[x.path]=SB_URL+"/storage/v1"+u;});
+    return map;
+  }catch(e){ return {}; }
+}
 const save=async()=>{};          // 資料即時寫入雲端，不再需要本機儲存
 function prune(){}               // 照片保留由資料庫處理
 
@@ -587,12 +649,12 @@ async function applyState(st,urls){
   const N=blankState();
   N.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
   KEEP=(st.settings&&st.settings.keep_sets)||4;
-  N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base}));
+  N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,abbr:i.abbr||""}));
   (st.items||[]).forEach(i=>{N.warehouse[i.name]=i.warehouse;N.safety[i.name]=i.safety;});
   N.pkgs=(st.packages||[]).map(p=>({id:p.id,name:p.name}));
   N.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
     name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
-    valuable:!!r.valuable,consum:!!r.consumable}));
+    valuable:!!r.valuable,consum:!!r.consumable,kind:r.kind||(r.consumable?"consum":"tool")}));
   N.vehicles=(st.vehicles||[]).map(v=>v.code);
   N.vehicleIds={}; (st.vehicles||[]).forEach(v=>N.vehicleIds[v.code]=v.id);
   N.vehicleUsed={}; (st.vehicles||[]).forEach(v=>N.vehicleUsed[v.code]=v.used);
@@ -673,6 +735,8 @@ function sect(k,title,meta,body,foot){
   </div>`;
 }
 let editSku=null, editRow=null, openRec=null, lightbox=null;
+let edKind="tool", edAbbr="";
+let lostPick=null;
 let lastSubmit=null;   // 剛送出的盤點單摘要（上午場用來提醒）
 let rDate=null, rVeh=null;   // 盤點結果頁：看哪一天、只看哪台車
 let nVeh={code:"",preload:false};
@@ -1831,13 +1895,23 @@ async function delManual(id){
 
 
 function locRank(l){const i=LOCS().indexOf(l);return i<=0?9999:i;}
+/* 品項標籤：庫存頁與下拉選單共用（分類放在標配列上） */
+function itemKind(name){ const r=RW().find(x=>x.name===name); return r?(r.kind||"tool"):null; }
+function itemTags(name){
+  const rs=RW().filter(x=>x.name===name); if(!rs.length) return "";
+  const kd=rs[0].kind||"tool";
+  return (kd==="meas"?`<span class="tag m">量測</span>`:"")
+       + (rs.some(x=>x.valuable)?`<span class="tag v">貴重</span>`:"")
+       + (kd==="consum"?`<span class="tag c">耗材</span>`:"");
+}
+const KINDWORD={meas:"量測儀器 量測",tool:"一般工具",consum:"耗材"};
 function viewStock(){
   const ni=nItem;
   const sorted=ITEMS().slice().sort((a,b)=>{
     const d=locRank(a.loc)-locRank(b.loc); return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
   const sq=stockQ.trim().toLowerCase();
   const shownItems=sq?sorted.filter(it=>
-      (it.sku+" "+(it.loc||"")).toLowerCase().indexOf(sq)>=0):sorted;
+      (it.sku+" "+(it.loc||"")+" "+(KINDWORD[itemKind(it.sku)]||"")).toLowerCase().indexOf(sq)>=0):sorted;
   let rows="";
   shownItems.forEach(it=>{
     const k=it.sku, h=S.warehouse[k]||0, sf=S.safety[k]||0;
@@ -1859,7 +1933,7 @@ function viewStock(){
     }
     rows+=`<tr class="${h<sf?"warn":""}">
       <td class="c-loc num${it.loc==="未設定"?" un":""}" style="font-weight:700">${it.loc}</td>
-      <td class="c-name">${k}
+      <td class="c-name">${k}${itemTags(k)}
         <div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div></td>
       <td class="n c-num">${h}</td>
       <td class="n c-num" style="color:var(--muted)">${sf}</td>
@@ -2216,6 +2290,47 @@ function pickRVeh(v){ rVeh=(rVeh===v)?null:v; openRec=null; render(); }
 const SESNAME={am:"上午場",pm:"下午場"};
 const sesOf=r=>r.session==="am"?"am":"pm";
 
+
+/* ---- 盤點短缺：指認是哪一支量測儀器 ---- */
+function isMeas(name){ const r=RW().find(x=>x.name===name); return !!(r&&r.kind==="meas"); }
+function lostOpen(veh,name){
+  const r=RW().find(x=>x.name===name); if(!r) return toast("找不到這個品項");
+  if(!ISO){ isoKick(); return toast("正在載入儀器資料，請稍後再按一次"); }
+  const c=EQ().filter(e=>e.item_id===r.itemId&&e.loc_code===veh&&e.status==="use");
+  if(!c.length) return toast(veh+" 車沒有登記這個品項的儀器編號");
+  lostPick={veh:veh,itemId:r.itemId,name:name,sel:{}}; window.scrollTo(0,0); render();
+}
+function lostToggle(id){ if(lostPick){ lostPick.sel[id]=!lostPick.sel[id]; render(); } }
+async function lostSave(){
+  const L=lostPick; if(!L) return;
+  const ids=Object.keys(L.sel).filter(k=>L.sel[k]);
+  if(!ids.length) return toast("請勾選是哪一支不見了");
+  await guard(async()=>{
+    for(const id of ids) await rpc("eq_lost",{p_token:token,p_id:id,p_note:L.veh+" 車盤點短缺"});
+    lostPick=null; await isoLoad();
+  },"已標記為遺失待查");
+  render();
+}
+function lostPanel(){
+  const L=lostPick; if(!L) return "";
+  const c=EQ().filter(e=>e.item_id===L.itemId&&e.loc_code===L.veh&&e.status==="use");
+  return `<div class="card" style="border-color:var(--alert)">
+    <div class="hd"><h2>指認：${esc(L.name)}</h2>
+      <button class="btn tiny ghost" style="margin-left:auto" onclick="lostPick=null;render()">取消</button></div>
+    <div class="bd">
+      <div class="warnbox">這是量測儀器，請勾選 ${esc(L.veh)} 車不見的是哪一支。
+        確認後會標成「遺失待查」、從該車移除，並自動寫進設備履歷。</div>
+      ${c.map(e=>`<label style="display:flex;align-items:center;gap:9px;background:#fff;
+          border:1px solid ${L.sel[e.id]?"var(--alert)":"var(--line)"};border-radius:3px;
+          padding:10px 12px;margin-bottom:7px;cursor:pointer">
+        <input type="checkbox" ${L.sel[e.id]?"checked":""} style="width:17px;height:17px"
+          onchange="lostToggle('${e.id}')">
+        <span class="num" style="font-weight:600">${esc(e.no)}</span>
+        <span style="color:var(--muted);font-size:13px">登記在 ${esc(e.loc_code)} 車</span></label>`).join("")}
+      <button class="btn block" style="background:var(--alert);border-color:var(--alert)"
+        onclick="lostSave()">確認遺失</button>
+    </div></div>`;
+}
 function sheetCard(r){
   const ab=abLines(r), open=openRec===r.id;
   const ses=sesOf(r);
@@ -2231,7 +2346,9 @@ function sheetCard(r){
   const abTable=ab.length?`<div class="tw"><table>
       <colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
       <tr><th>品項</th><th>包別</th><th class="n">標配</th><th class="n">實際</th><th class="n">狀況</th></tr>
-      ${ab.map(l=>`<tr class="warn"><td>${esc(l.name)}${l.note?`<div class="lbl">${esc(l.note)}</div>`:""}</td>
+      ${ab.map(l=>`<tr class="warn"><td>${esc(l.name)}${l.note?`<div class="lbl">${esc(l.note)}</div>`:""}
+        ${isMeas(l.name)&&l.type!=="損壞"&&l.type!=="多出"?`<div style="margin-top:4px">
+          <button class="btn ghost tiny" onclick="event.stopPropagation();lostOpen('${r.vehicle}','${esc(l.name)}')">指認編號</button></div>`:""}</td>
         <td style="color:var(--muted)">${esc(l.pkg)}</td><td class="n">${l.std}</td><td class="n">${l.actual}</td>
         <td class="n" style="color:var(--alert);font-weight:700">${esc(l.type)}</td></tr>`).join("")}</table></div>`
     :`<div style="padding:12px 14px;color:var(--ok);font-size:13.5px">全部正常</div>`;
@@ -2304,6 +2421,7 @@ function viewResult(){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 
   return `<div class="wrap wide">
+    ${lostPanel()}
     <div class="card"><div class="hd"><h2>各車狀態</h2>
       <span class="lbl" style="margin-left:auto">${D}</span></div>
       <div class="mvf">
@@ -2360,6 +2478,13 @@ function shotList(r){
   return a;
 }
 function lbHTML(){
+  if(lightbox&&lightbox.url){
+    return `<div class="lb" onclick="lbClose()">
+      <div class="lbbox" onclick="event.stopPropagation()">
+        <img src="${lightbox.url}">
+        <div class="lbbar"><button class="btn ghost sm" onclick="lbClose()">關閉</button></div>
+      </div></div>`;
+  }
   const r=S.records.find(x=>x.id===lightbox.rid); if(!r)return "";
   const arr=shotList(r), l=arr[lightbox.idx]; if(!l)return "";
   return `<div class="lb" onclick="lbClose()">
@@ -2379,7 +2504,7 @@ function lbHTML(){
 
 
 /* ---- 盤點項目管理（車輛標配表） ---- */
-let nRow={item:"",std:1,pkg:null,valuable:false,consum:false};
+let nRow={item:"",std:1,pkg:null,valuable:false,consum:false,kind:"tool"};
 let nPkg="", editPkg=null;
 function setNr(k,v){nRow[k]=(k==="std")?Math.max(0,parseInt(v)||0):v;render();}
 
@@ -2397,19 +2522,23 @@ function viewItems(){
           <input type="number" min="0" class="num" id="r_std" value="${r.std}"></label>
         <label class="f"><span class="lbl">所屬包別</span>
           <select id="r_pkg">${pk.map(x=>`<option value="${x.id}" ${x.id===r.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
+        <label class="f"><span class="lbl">分類（必選一個）</span>
+          <div class="iseg am" id="r_kind" style="margin:0">${KINDS.map(([k,t])=>
+            `<button type="button" aria-pressed="${edKind===k}" onclick="edKind='${k}';render()">${t}</button>`).join("")}</div></label>
+        ${edKind==="meas"?`<label class="f"><span class="lbl">編號縮寫（給量具編號用，例如「含水」）</span>
+          <input type="text" id="r_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
+          <div class="lbl" style="margin:-8px 0 14px">目前登記 ${EQ().filter(x=>x.item_id===r.itemId&&x.status!=="scrap").length} 台編號，到「ISO」分頁管理</div>`:""}
         <div style="display:flex;gap:16px;margin-bottom:14px">
           <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
-            <input type="checkbox" id="r_val" ${r.valuable?"checked":""} style="width:17px;height:17px">貴重設備</label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
-            <input type="checkbox" id="r_con" ${r.consum?"checked":""} style="width:17px;height:17px">耗材</label>
+            <input type="checkbox" id="r_val" ${r.valuable?"checked":""} style="width:17px;height:17px">貴重設備（額外標記）</label>
         </div>
         <div class="g2"><button class="btn" onclick="saveRow('${r.rid}')">儲存</button>
           <button class="btn ghost" onclick="editRow=null;render()">取消</button></div></td></tr>`;
       return `<tr><td class="c-name">${r.name}
-          ${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
+          ${r.kind==="meas"?`<span class="tag m">量測</span>`:""}${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
         <td class="n c-num">${r.std}</td>
         <td class="c-act">
-          <button class="btn ghost tiny" onclick="editRow='${r.rid}';render()">編輯</button>
+          <button class="btn ghost tiny" onclick="editRow='${r.rid}';edKind='${r.kind||"tool"}';edAbbr=((S.items.find(x=>x.id==='${r.itemId}')||{}).abbr)||'';render()">編輯</button>
           <button class="btn ghost tiny" onclick="delRow('${r.rid}')">刪除</button></td></tr>`;}).join("");
     const hd = editPkg===p.id
       ? `<div class="bd" style="border-bottom:1px solid var(--line2);background:#FFFBF0">
@@ -2452,13 +2581,13 @@ function viewItems(){
       <label class="f"><span class="lbl">放進哪個包別</span>
         <select onchange="setNr('pkg',this.value)">${pk.map(x=>
           `<option value="${x.id}" ${x.id===nRow.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
+      <label class="f"><span class="lbl">分類（必選一個）</span>
+        <div class="iseg am" id="n_kind" style="margin:0">${KINDS.map(([k,t])=>
+          `<button type="button" aria-pressed="${(nRow.kind||"tool")===k}" onclick="setNr('kind','${k}')">${t}</button>`).join("")}</div></label>
       <div style="display:flex;gap:16px;margin-bottom:14px">
         <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
           <input type="checkbox" ${nRow.valuable?"checked":""} onchange="setNr('valuable',this.checked)"
-            style="width:17px;height:17px">貴重設備</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
-          <input type="checkbox" ${nRow.consum?"checked":""} onchange="setNr('consum',this.checked)"
-            style="width:17px;height:17px">耗材</label>
+            style="width:17px;height:17px">貴重設備（額外標記）</label>
       </div>
       <button class="btn block" onclick="addRow()">新增項目</button>
       <div class="lbl" style="margin-top:8px">
@@ -2495,9 +2624,12 @@ async function addRow(){
   const pid=nRow.pkg, pname=pkgName(pid);
   if(!pname)return toast("請先選擇包別");
   await guard(async()=>{
-    await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:it.id,p_std:Number(nRow.std)||0,
-      p_valuable:!!nRow.valuable,p_consumable:!!nRow.consum});
-    nRow={item:"",std:1,pkg:pid,valuable:false,consum:false};
+    const kd=nRow.kind||"tool";
+    const rid=await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:it.id,p_std:Number(nRow.std)||0,
+      p_valuable:!!nRow.valuable,p_consumable:kd==="consum"});
+    if(kd!=="tool") await rpc("mgr_row_kind",{p_token:token,p_id:rid,p_kind:kd});
+    nRow={item:"",std:1,pkg:pid,valuable:false,consum:false,kind:"tool"};
+    ISO=null;
     await reload(); render();
   },`已新增：${pname} · ${it.sku}`);
 }
@@ -2507,8 +2639,10 @@ async function saveRow(rid){
   await guard(async()=>{
     await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:null,
       p_std:Math.max(0,parseInt(g("r_std").value)||0),p_pkg:g("r_pkg").value,
-      p_valuable:g("r_val").checked,p_consumable:g("r_con").checked});
-    editRow=null; await reload(); render();
+      p_valuable:g("r_val").checked,p_consumable:edKind==="consum"});
+    await rpc("mgr_row_kind",{p_token:token,p_id:rid,p_kind:edKind});
+    if(edKind==="meas"&&g("r_abbr")) await rpc("mgr_item_abbr",{p_token:token,p_id:r.itemId,p_abbr:g("r_abbr").value});
+    editRow=null; ISO=null; await reload(); render();
   },"已更新盤點項目");
 }
 async function delRow(rid){
@@ -3030,10 +3164,996 @@ function viewVehicles(){
   </div>`;
 }
 
+
+/* ===================== ISO 設備與量測儀器 ===================== */
+let ISO=null, isoBusy=false, isoTab="eq";
+let isoQ="", isoLoc="", isoFilt="all";
+let eqOpen=null, eqEdit=null, eqPhoto=null;
+let calNew=null, fixNew=null, stopNew=null, scrapNew=null;
+let cardOpen=null, cardEdit=null, logNew=null, inspNew=null, inspSet=null;
+let printWhat=null, printYear=null, isoUrls={};
+
+const EQST={use:["使用中","ok"],fix:["送修","warn"],stop:["停止使用","bad"],
+            scrap:["報廢","grey"],lost:["遺失待查","bad"]};
+const CALW={in:"內校",out:"外校",none:"免校"};
+const CALR={ok:"合格",adjust:"校準",fix:"維修",scrap:"報廢"};
+const KINDS=[["meas","量測儀器"],["tool","一般工具"],["consum","耗材"]];
+const kindName=k=>(KINDS.find(x=>x[0]===k)||["","一般工具"])[1];
+
+const EQ=()=>((ISO&&ISO.equipment)||[]);
+const eqById=id=>EQ().find(e=>e.id===id);
+const calsOf=id=>((ISO&&ISO.cals)||[]).filter(c=>c.equip_id===id);
+const fixesOf=id=>((ISO&&ISO.fixes)||[]).filter(f=>f.equip_id===id);
+const stopsOf=id=>((ISO&&ISO.stops)||[]).filter(s=>s.equip_id===id);
+const scrapsOf=id=>((ISO&&ISO.scraps)||[]).filter(s=>s.equip_id===id);
+const CARDS=()=>((ISO&&ISO.cards)||[]);
+const cardById=id=>CARDS().find(c=>c.id===id);
+const logsOf=id=>((ISO&&ISO.logs)||[]).filter(l=>l.card_id===id);
+const isoToday=()=>(ISO&&ISO.today)||new Date().toISOString().slice(0,10);
+const isoDays=(a,b)=>Math.round((new Date(a+"T00:00:00")-new Date(b+"T00:00:00"))/86400000);
+const dOnly=s=>s?String(s).slice(0,10):"";
+const locName=c=>c?c+" 車":"公司庫存";
+
+function calState(e){
+  if(e.status==="scrap") return ["grey","報廢"];
+  if(e.cal_type==="none") return ["grey","免校"];
+  if(!e.next_cal) return ["grey","未排"];
+  const d=isoDays(dOnly(e.next_cal),isoToday());
+  if(d<0)  return ["bad","逾期 "+(-d)+" 天"];
+  if(d<=30)return ["warn","剩 "+d+" 天"];
+  return ["",dOnly(e.next_cal)];
+}
+// 標準件：同品項、購入未滿一年、未報廢、不是自己
+function stdCands(e,onDate){
+  const d=onDate||isoToday();
+  return EQ().filter(x=>x.id!==e.id && x.item_id===e.item_id && x.status!=="scrap"
+    && x.buy_date && isoDays(d,dOnly(x.buy_date))<=365 && isoDays(d,dOnly(x.buy_date))>=0);
+}
+const stdLeft=(x,onDate)=>365-isoDays(onDate||isoToday(),dOnly(x.buy_date));
+
+async function isoLoad(){
+  ISO=await rpc("iso_state",{p_token:token,p_region:REG});
+  const ps=[];
+  (ISO.equipment||[]).forEach(e=>{if(e.cert_photo)ps.push(e.cert_photo);});
+  (ISO.cals||[]).forEach(c=>{if(c.photo)ps.push(c.photo);});
+  (ISO.fixes||[]).forEach(f=>{if(f.photo)ps.push(f.photo);});
+  (ISO.stops||[]).forEach(s=>{if(s.tag_photo)ps.push(s.tag_photo);});
+  const pf=[];
+  (ISO.logs||[]).forEach(l=>{ if(l.photo) (l.bucket==="fleet"?pf:ps).push(l.photo); });
+  isoUrls=Object.assign({}, await signUrls(ps), await signUrlsB(pf,"fleet-photos"));
+}
+function isoKick(){
+  if(isoBusy) return;
+  isoBusy=true;
+  isoLoad().then(()=>{isoBusy=false;render();})
+           .catch(e=>{isoBusy=false;toast(e.message||"讀取失敗");render();});
+}
+async function isoDo(fn,msg){
+  await guard(async()=>{ await fn(); await isoLoad(); },msg);
+  render();
+}
+function isoGo(t){ isoTab=t; eqOpen=null; cardOpen=null; eqEdit=null; printWhat=null;
+  calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null;
+  window.scrollTo(0,0); render(); }
+
+/* ---------- 主畫面 ---------- */
+function viewISO(){
+  if(!ISO){ return `<div class="wrap"><div class="card"><div class="bd" style="text-align:center;color:var(--muted)">
+    ${isoBusy?"讀取中…":"資料尚未載入"}</div></div></div>`; }
+  if(printWhat)  return viewPrint();
+  if(calNew)   return `<div class="wrap wide">${calBody()}</div>`;
+  if(fixNew)   return `<div class="wrap wide">${fixBody()}</div>`;
+  if(stopNew)  return `<div class="wrap wide">${stopBody()}</div>`;
+  if(scrapNew) return `<div class="wrap wide">${scrapBody()}</div>`;
+  if(eqEdit)     return `<div class="wrap wide">${viewEqForm()}</div>`;
+  if(eqOpen)     return `<div class="wrap wide">${viewEqDetail()}</div>`;
+  if(cardOpen)   return `<div class="wrap wide">${viewCardDetail()}</div>`;
+  return `${lightbox?lbHTML():""}<div class="wrap wide">
+    <div class="iseg noprint">
+      <button aria-pressed="${isoTab==="eq"}" onclick="isoGo('eq')">量測儀器</button>
+      <button aria-pressed="${isoTab==="card"}" onclick="isoGo('card')">設備履歷</button>
+      <button aria-pressed="${isoTab==="print"}" onclick="isoGo('print')">列印表單</button>
+    </div>
+    ${isoTab==="eq"?viewEqList():isoTab==="card"?viewCardList():viewPrintMenu()}</div>`;
+}
+
+/* ---------- 儀器清單 ---------- */
+function viewEqList(){
+  const all=EQ(), q=isoQ.trim();
+  const nWarn=all.filter(e=>calState(e)[0]==="warn").length;
+  const nBad =all.filter(e=>calState(e)[0]==="bad").length;
+  const nOff =all.filter(e=>["stop","scrap","lost"].includes(e.status)).length;
+  const list=all.filter(e=>{
+    if(q && e.no.indexOf(q)<0 && e.item_name.indexOf(q)<0) return false;
+    if(isoLoc==="_stock"){ if(e.loc_code) return false; }
+    else if(isoLoc && e.loc_code!==isoLoc) return false;
+    if(isoFilt==="warn") return calState(e)[0]==="warn";
+    if(isoFilt==="bad")  return calState(e)[0]==="bad";
+    if(isoFilt==="off")  return ["stop","scrap","lost"].includes(e.status);
+    return true;
+  });
+  const over=all.filter(e=>calState(e)[0]==="bad");
+  const pend=(ISO.scraps||[]).filter(s=>!s.appr_at);
+
+  return `<div class="card">
+    <div class="hd"><h2>量測儀器</h2>
+      <span class="num" style="margin-left:auto;font-size:12px;color:var(--muted)">共 ${all.length} 台</span></div>
+    <div class="bd" style="padding:12px 14px">
+      ${over.length?`<div class="warnbox"><b>校驗逾期 ${over.length} 台</b><br>
+        ${over.slice(0,4).map(e=>`${esc(e.no)}（應於 ${dOnly(e.next_cal)} 前完成${CALW[e.cal_type]||""}）`).join("<br>")}
+        ${over.length>4?`<br>…另外 ${over.length-4} 台`:""}</div>`:""}
+      ${pend.length?`<div class="note"><b>有 ${pend.length} 張報廢呈報單等待核准</b>　${
+        pend.slice(0,3).map(s=>{const e=eqById(s.equip_id);return e?esc(e.no):"";}).join("、")}</div>`:""}
+
+      <div style="display:flex;gap:8px;margin-bottom:11px;flex-wrap:wrap">
+        <input type="text" id="eq_q" value="${esc(isoQ)}" placeholder="搜尋編號或名稱"
+          oninput="isoQ=this.value;clearTimeout(window._eqT);window._eqT=setTimeout(render,250)"
+          style="flex:1;min-width:150px">
+        <select onchange="isoLoc=this.value;render()" style="width:auto">
+          <option value="">全部位置</option>
+          ${VEH().map(v=>`<option value="${v}" ${isoLoc===v?"selected":""}>${v} 車</option>`).join("")}
+          <option value="_stock" ${isoLoc==="_stock"?"selected":""}>公司庫存</option>
+        </select>
+      </div>
+      <div class="iseg">
+        <button aria-pressed="${isoFilt==="all"}"  onclick="isoFilt='all';render()">全部</button>
+        <button aria-pressed="${isoFilt==="warn"}" onclick="isoFilt='warn';render()">快到期 ${nWarn}</button>
+        <button aria-pressed="${isoFilt==="bad"}"  onclick="isoFilt='bad';render()">已逾期 ${nBad}</button>
+        <button aria-pressed="${isoFilt==="off"}"  onclick="isoFilt='off';render()">停用報廢 ${nOff}</button>
+      </div>
+
+      ${list.length?`<div class="ilist">${list.map(e=>{
+        const [c,txt]=calState(e); const st=EQST[e.status]||["",""];
+        const dim=["scrap","lost"].includes(e.status);
+        return `<button class="eqrow ${dim?"dim":""}" onclick="eqOpen='${e.id}';window.scrollTo(0,0);render()">
+          <span class="eno">${esc(e.no)}</span>
+          <span class="enm">${esc(e.item_name)}${e.status!=="use"?` <span class="ipill ${st[1]}">${st[0]}</span>`:""}</span>
+          <span class="eloc">${esc(locName(e.loc_code))}</span>
+          <span class="ipill ${c}">${esc(txt)}</span></button>`;}).join("")}</div>`
+        : `<div style="text-align:center;color:var(--muted);padding:22px 0;font-size:14px">
+             ${all.length?"沒有符合條件的儀器":"還沒有登記任何量測儀器"}</div>`}
+
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm amber" onclick="eqNew()">＋ 新增儀器</button>
+      </div>
+      ${(ISO.meas_items||[]).length?"":`<div class="note" style="margin-top:12px">
+        還沒有任何品項被標成「量測儀器」。請先到<b>項目</b>頁，把要管的品項分類改成量測儀器，才能在這裡登編號。</div>`}
+    </div></div>`;
+}
+
+/* ---------- 單一儀器 ---------- */
+function viewEqDetail(){
+  const e=eqById(eqOpen); if(!e){ eqOpen=null; return viewEqList(); }
+  const [c,txt]=calState(e), st=EQST[e.status]||["",""];
+  const cals=calsOf(e.id), fixes=fixesOf(e.id), stops=stopsOf(e.id), scr=scrapsOf(e.id);
+  const open=scr.find(s=>!s.appr_at);
+  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="eqOpen=null;render()">← 回儀器清單</button>
+  <div class="card">
+    <div class="hd"><h2 class="num">${esc(e.no)}</h2>
+      <span style="font-size:13px;color:var(--muted)">${esc(e.item_name)}</span>
+      <span class="ipill ${st[1]}" style="margin-left:auto">${st[0]}</span></div>
+    <div class="bd">
+      <table class="kv">
+        <tr><th>規格</th><td>${esc(e.spec)||"—"}</td><th>廠牌</th><td>${esc(e.brand)||"—"}</td></tr>
+        <tr><th>容許誤差值</th><td>${esc(e.tol)||"—"}</td><th>校驗區分</th><td>${CALW[e.cal_type]||""}</td></tr>
+        <tr><th>校驗單位</th><td>${esc(e.cal_org)||"—"}</td><th>校驗週期</th><td>${e.cal_type==="none"?"—":e.cal_months+" 個月"}</td></tr>
+        <tr><th>購買日期</th><td class="num">${dOnly(e.buy_date)||"—"}</td><th>保管單位</th><td>${esc(e.keeper)}</td></tr>
+        <tr><th>負責人員</th><td>${esc(e.owner_name)||"—"}</td><th>目前位置</th><td>${esc(locName(e.loc_code))}</td></tr>
+        <tr><th>下次校驗</th><td colspan="3"><span class="ipill ${c}">${esc(txt)}</span>
+          ${e.cert_photo?`　<button class="btn tiny ghost" onclick="showIso('${e.cert_photo}')">原廠證明</button>`
+            :`　<span style="color:var(--alert);font-size:12.5px">尚未上傳原廠校驗證明</span>`}</td></tr>
+      </table>
+      <div style="margin-top:11px;display:flex;gap:7px;flex-wrap:wrap" class="noprint">
+        <button class="btn tiny ghost" onclick="eqEditOpen('${e.id}')">編輯基本資料</button>
+        ${e.status==="use"?`<button class="btn tiny ghost" onclick="stopOpen('${e.id}')">停止使用</button>`:""}
+        ${["stop","fix"].includes(e.status)?`<button class="btn tiny ghost" onclick="isoDo(()=>rpc('eq_resume',{p_token:token,p_id:'${e.id}'}),'已恢復使用')">恢復使用</button>`:""}
+        ${e.status==="lost"?`<button class="btn tiny ghost" onclick="eqFound('${e.id}')">找回來了</button>`:""}
+        ${["stop","fix","lost"].includes(e.status)&&!open?`<button class="btn tiny ghost" onclick="scrapOpen('${e.id}')">呈報報廢</button>`:""}
+        ${!cals.length?`<button class="btn tiny ghost" onclick="eqDel('${e.id}')">刪除</button>`:""}
+      </div>
+
+      ${open?`<div class="note" style="margin-top:13px"><b>報廢呈報單等待核准</b>
+        ｜呈報人 ${esc(open.by_name)}　${dOnly(open.by_date)}<br>
+        事由：${esc(open.reason)||"—"}
+        <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn tiny amber" onclick="scrapOk('${open.id}')">核准報廢</button>
+          <button class="btn tiny ghost" onclick="printWhat='scrap:${open.id}';render()">列印呈報單</button>
+          <button class="btn tiny ghost" onclick="isoDo(()=>rpc('eq_scrap_delete',{p_token:token,p_id:'${open.id}'}),'已撤回')">撤回</button>
+        </div></div>`:""}
+
+      <h3 style="font-size:14px;font-weight:900;margin:20px 0 8px">校驗紀錄</h3>
+      ${cals.length?`<div class="ilist"><div class="ihd"><span style="flex:0 0 78px">日期</span>
+        <span style="flex:0 0 42px">方式</span><span style="flex:1">誤差／判定</span><span style="flex:0 0 46px"></span></div>
+        ${cals.map(c2=>`<div class="eqrow" style="cursor:default">
+          <span class="eno" style="flex:0 0 78px">${dOnly(c2.cal_date)}</span>
+          <span style="flex:0 0 42px;font-size:12.5px">${CALW[c2.way]||""}</span>
+          <span class="enm" style="font-size:13px">${esc(c2.err)||"—"}　<span class="ipill ${c2.result==="ok"?"ok":"bad"}">${CALR[c2.result]||""}</span>
+            ${c2.std_no?`<br><span style="font-size:11.5px;color:var(--muted)">標準件 ${esc(c2.std_no)}（${esc(c2.std_read)} / ${esc(c2.got_read)}）</span>`:""}
+            ${c2.action?`<br><span style="font-size:11.5px;color:var(--muted)">${esc(c2.action)}</span>`:""}</span>
+          <span style="flex:0 0 46px;display:flex;gap:4px">
+            ${c2.photo?`<button class="btn tiny ghost" onclick="showIso('${c2.photo}')">看</button>`:""}
+            <button class="btn tiny ghost" onclick="isoDel('eq_cal_delete','${c2.id}','這筆校驗紀錄')">✕</button></span>
+        </div>`).join("")}</div>`:`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有校驗紀錄</div>`}
+      ${e.status==="scrap"?"":`<button class="btn sm amber noprint" style="margin-top:10px" onclick="calOpen('${e.id}')">＋ 新增校驗紀錄</button>`}
+
+      <h3 style="font-size:14px;font-weight:900;margin:22px 0 8px">修護紀錄</h3>
+      ${fixes.length?`<div class="ilist">${fixes.map(f=>`<div class="eqrow" style="cursor:default">
+          <span class="eno" style="flex:0 0 78px">${dOnly(f.fix_date)}</span>
+          <span class="enm" style="font-size:13px">${esc(f.content)}
+            ${f.doc_no?`<br><span style="font-size:11.5px;color:var(--muted)">${esc(f.doc_no)}</span>`:""}</span>
+          <span style="flex:0 0 46px;display:flex;gap:4px">
+            ${f.photo?`<button class="btn tiny ghost" onclick="showIso('${f.photo}')">看</button>`:""}
+            <button class="btn tiny ghost" onclick="isoDel('eq_fix_delete','${f.id}','這筆修護紀錄')">✕</button></span>
+        </div>`).join("")}</div>`:`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有修護紀錄</div>`}
+      ${e.status==="scrap"?"":`<button class="btn sm ghost noprint" style="margin-top:10px" onclick="fixOpen('${e.id}')">＋ 新增修護紀錄</button>`}
+
+      ${stops.length?`<h3 style="font-size:14px;font-weight:900;margin:22px 0 8px">停用紀錄</h3>
+        <div class="ilist">${stops.map(s=>`<div class="eqrow" style="cursor:default">
+          <span class="eno" style="flex:0 0 78px">${dOnly(s.stop_date)}</span>
+          <span class="enm" style="font-size:13px">${esc(s.reason)}${s.note?"："+esc(s.note):""}
+            <br><span style="font-size:11.5px;color:var(--muted)">
+            ${s.resumed_at?"已恢復使用":"仍停用中"}${s.notify?"｜通知 "+esc(s.notify):""}${s.backup?"｜備用 "+esc(s.backup):""}
+            ${s.reported?"｜已通報送修":""}</span></span>
+          <span style="flex:0 0 46px">${s.tag_photo?`<button class="btn tiny ghost" onclick="showIso('${s.tag_photo}')">掛牌</button>`:""}</span>
+        </div>`).join("")}</div>`:""}
+
+      <div style="margin-top:20px;padding-top:13px;border-top:1px solid var(--line2)" class="noprint">
+        <button class="btn sm ghost" onclick="printWhat='1602:${e.id}';render()">列印 QP-16-02 履歷表</button>
+      </div>
+    </div></div>`;
+}
+
+/* ---------- 照片：ISO 文件要看得清楚，不能用盤點那種縮圖 ---------- */
+function shrinkBig(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
+  img.onload=()=>{const m=1400,sc=Math.min(1,m/Math.max(img.width,img.height));
+    const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.75));};
+  img.src=fr.result;};fr.readAsDataURL(f);}
+function isoShot(inp,slot){ if(!inp.files[0])return;
+  shrinkBig(inp.files[0],d=>{ eqPhoto=eqPhoto||{}; eqPhoto[slot]=d; render(); }); }
+async function isoUp(slot,dir){
+  if(!eqPhoto||!eqPhoto[slot]) return null;
+  const p=`${slugOf(REG)}/iso/${dir}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.jpg`;
+  return await uploadPhoto(p,eqPhoto[slot]);
+}
+function shotBox(slot,label){
+  const has=eqPhoto&&eqPhoto[slot];
+  return `<label class="f"><span class="lbl">${label}</span>
+    ${has?`<div style="position:relative"><img src="${has}" style="width:100%;max-height:220px;object-fit:contain;
+        border:1px solid var(--line);border-radius:3px;background:#fff">
+      <button type="button" class="btn tiny ghost" style="position:absolute;right:6px;bottom:6px"
+        onclick="eqPhoto['${slot}']=null;render()">重拍</button></div>`
+     :`<label style="display:block;border:1px dashed var(--line);border-radius:3px;padding:22px;
+         text-align:center;color:var(--muted);background:#F7F8FA;font-size:13.5px;cursor:pointer">📷 拍照或選檔
+        <input type="file" accept="image/*" class="hide" onchange="isoShot(this,'${slot}')"></label>`}
+  </label>`;
+}
+function showIso(p){ const u=isoUrls[p]; if(!u) return toast("照片還在載入，請稍後再試");
+  lightbox={url:u}; render(); }
+function isoDel(fn,id,what){ if(!confirm(`刪除${what}？`))return;
+  isoDo(()=>rpc(fn,{p_token:token,p_id:id}),"已刪除"); }
+
+/* ---------- 儀器：新增／編輯 ---------- */
+function eqNew(){
+  if(!(ISO.meas_items||[]).length) return toast("請先到「項目」把品項分類改成量測儀器");
+  eqEdit={id:null,item_id:ISO.meas_items[0].id,no:"",spec:"",brand:"",tol:"",
+    cal_type:"out",cal_org:"",cal_months:12,buy_date:isoToday(),keeper:"驗屋部",
+    owner_name:"",loc_code:"",note:""};
+  eqPhoto={}; eqNoSuggest(); window.scrollTo(0,0); render();
+}
+function eqEditOpen(id){ const e=eqById(id); if(!e)return;
+  eqEdit=Object.assign({},e,{buy_date:dOnly(e.buy_date),loc_code:e.loc_code||""});
+  eqPhoto={}; window.scrollTo(0,0); render(); }
+function setEq(k,v){ if(eqEdit) eqEdit[k]=v; }
+function eqItemChange(v){ eqEdit.item_id=v; eqNoSuggest(); }
+async function eqNoSuggest(){
+  if(!eqEdit||eqEdit.id) return;
+  try{ const n=await rpc("eq_next_no",{p_token:token,p_region:REG,p_item:eqEdit.item_id});
+       if(eqEdit&&!eqEdit.id){ eqEdit.no=n; render(); } }catch(e){}
+}
+function viewEqForm(){
+  const E=eqEdit, items=ISO.meas_items||[];
+  const ab=(items.find(i=>i.id===E.item_id)||{}).abbr||"";
+  return `<button class="btn sm ghost" style="margin-bottom:11px" onclick="eqEdit=null;eqPhoto=null;render()">← 取消</button>
+  <div class="card"><div class="hd"><h2>${E.id?"編輯儀器":"新增量測儀器"}</h2></div><div class="bd">
+    <label class="f"><span class="lbl">品項</span>
+      <select onchange="eqItemChange(this.value)" ${E.id?"":""}>
+        ${items.map(i=>`<option value="${i.id}" ${E.item_id===i.id?"selected":""}>${esc(i.name)}</option>`).join("")}
+      </select></label>
+    <label class="f"><span class="lbl">量具編號</span>
+      <input type="text" id="e_no" value="${esc(E.no)}" oninput="setEq('no',this.value)">
+      <span style="font-size:12.5px;color:var(--muted)">${ab?`系統依縮寫「${esc(ab)}」自動給號，可以自己改`
+        :`這個品項還沒設縮寫，先用名稱前兩個字。可到「項目」頁設定縮寫`}</span></label>
+    <div class="g2">
+      <label class="f"><span class="lbl">規格</span><input type="text" value="${esc(E.spec)}" oninput="setEq('spec',this.value)"></label>
+      <label class="f"><span class="lbl">廠牌</span><input type="text" value="${esc(E.brand)}" oninput="setEq('brand',this.value)"></label>
+    </div>
+    <label class="f"><span class="lbl">容許誤差值</span>
+      <input type="text" value="${esc(E.tol)}" placeholder="之後再填也可以" oninput="setEq('tol',this.value)"></label>
+    <label class="f"><span class="lbl">校驗區分</span>
+      <div class="iseg" style="margin:0">
+        ${[["in","內校"],["out","外校"],["none","免校"]].map(([k,t])=>
+          `<button type="button" aria-pressed="${E.cal_type===k}" onclick="setEq('cal_type','${k}');render()">${t}</button>`).join("")}
+      </div></label>
+    <div class="g2">
+      <label class="f"><span class="lbl">校驗單位</span>
+        <input type="text" value="${esc(E.cal_org)}" oninput="setEq('cal_org',this.value)"
+          ${E.cal_type==="none"?"disabled":""}></label>
+      <label class="f"><span class="lbl">校驗週期（月）</span>
+        <input type="number" min="0" value="${E.cal_months}" oninput="setEq('cal_months',this.value)"
+          ${E.cal_type==="none"?"disabled":""}></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span class="lbl">購買日期</span>
+        <input type="date" value="${dOnly(E.buy_date)}" onchange="setEq('buy_date',this.value)"></label>
+      <label class="f"><span class="lbl">保管單位</span>
+        <input type="text" value="${esc(E.keeper)}" oninput="setEq('keeper',this.value)"></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span class="lbl">負責人員</span>
+        <input type="text" value="${esc(E.owner_name)}" oninput="setEq('owner_name',this.value)"></label>
+      <label class="f"><span class="lbl">目前位置</span>
+        <select onchange="setEq('loc_code',this.value)">
+          <option value="" ${!E.loc_code?"selected":""}>公司庫存</option>
+          ${VEH().map(v=>`<option value="${v}" ${E.loc_code===v?"selected":""}>${v} 車</option>`).join("")}
+        </select></label>
+    </div>
+    <div class="note">上傳<b>原廠校驗／檢驗證明</b>之後，這台在購入一年內才能被選為內校的標準件。
+      沒有證明也還是可以選，只是稽核時沒有依據。</div>
+    ${shotBox("cert","原廠校驗／檢驗證明")}
+    ${E.cert_photo&&!(eqPhoto&&eqPhoto.cert)?`<div style="margin:-4px 0 12px">
+      <button class="btn tiny ghost" onclick="showIso('${E.cert_photo}')">看目前已上傳的證明</button></div>`:""}
+    <label class="f"><span class="lbl">備註</span>
+      <textarea rows="2" oninput="setEq('note',this.value)">${esc(E.note||"")}</textarea></label>
+    <button class="btn amber block" onclick="eqSave()">儲存</button>
+  </div></div>`;
+}
+async function eqSave(){
+  const E=eqEdit; if(!E) return;
+  await isoDo(async()=>{
+    const cert=await isoUp("cert","cert");
+    const p={id:E.id,region:REG,item_id:E.item_id,no:E.no,spec:E.spec,brand:E.brand,tol:E.tol,
+      cal_type:E.cal_type,cal_org:E.cal_org,cal_months:String(E.cal_months||0),
+      buy_date:E.buy_date||"",keeper:E.keeper,owner_name:E.owner_name,
+      loc_code:E.loc_code||"",note:E.note||""};
+    if(cert) p.cert_photo=cert;
+    const id=await rpc("eq_save",{p_token:token,p:p});
+    eqEdit=null; eqPhoto=null; eqOpen=id;
+  },"已儲存");
+}
+function eqDel(id){ const e=eqById(id); if(!e)return;
+  if(!confirm(`刪除 ${e.no}？\n沒有校驗紀錄的儀器才能刪。`))return;
+  isoDo(async()=>{ await rpc("eq_delete",{p_token:token,p_id:id}); eqOpen=null; },"已刪除"); }
+function eqFound(id){ const v=prompt("找回來了，現在放在哪？（填車號，例如 A；放庫存就留白）","");
+  if(v===null)return; isoDo(()=>rpc("eq_found",{p_token:token,p_id:id,p_loc:(v||"").trim()}),"已復原"); }
+
+/* ---------- 校驗紀錄 ---------- */
+function calOpen(id){ const e=eqById(id); if(!e)return;
+  calNew={equip_id:id,cal_date:isoToday(),way:e.cal_type==="in"?"in":"out",std_id:"",
+    std_read:"",got_read:"",err:"",org:e.cal_org||"",result:"ok",action:"",doc_no:"",person:(me&&me.name)||""};
+  eqPhoto={}; render(); }
+function setCal(k,v){ if(calNew) calNew[k]=v; }
+function calBody(){
+  const e=eqById(calNew.equip_id), C=calNew;
+  const cands=stdCands(e,C.cal_date);
+  const bad=C.tol&&false;
+  return `<div class="card"><div class="hd"><h2 class="num">${esc(e.no)} · 新增校驗紀錄</h2>
+      <button class="btn tiny ghost" style="margin-left:auto" onclick="calNew=null;eqPhoto=null;render()">取消</button></div>
+    <div class="bd">
+      <label class="f"><span class="lbl">校驗日期</span>
+        <input type="date" value="${C.cal_date}" onchange="setCal('cal_date',this.value);render()"></label>
+      <label class="f"><span class="lbl">校驗方式</span>
+        <div class="iseg" style="margin:0">
+          <button type="button" aria-pressed="${C.way==="in"}" onclick="setCal('way','in');render()">內校</button>
+          <button type="button" aria-pressed="${C.way==="out"}" onclick="setCal('way','out');render()">外校</button>
+        </div></label>
+
+      ${C.way==="in"?`<div style="border:1px solid var(--amber-d);background:#FFF9EC;border-radius:3px;padding:11px 12px;margin-bottom:13px">
+        <span class="lbl" style="display:block;margin-bottom:6px">標準件（只列出購入未滿一年的同類儀器）</span>
+        ${cands.length?`<select onchange="setCal('std_id',this.value);render()" style="margin-bottom:8px">
+            <option value="">請選擇</option>
+            ${cands.map(x=>`<option value="${x.id}" ${C.std_id===x.id?"selected":""}>${esc(x.no)} · ${dOnly(x.buy_date)} 購入（剩 ${stdLeft(x,C.cal_date)} 天）${x.cert_photo?"":" ⚠無原廠證明"}</option>`).join("")}
+          </select>
+          <div class="g2">
+            <label class="f" style="margin-bottom:0"><span class="lbl">標準件讀值</span>
+              <input type="text" value="${esc(C.std_read)}" oninput="setCal('std_read',this.value)"></label>
+            <label class="f" style="margin-bottom:0"><span class="lbl">受校儀器讀值</span>
+              <input type="text" value="${esc(C.got_read)}" oninput="setCal('got_read',this.value)"></label>
+          </div>
+          ${C.std_id&&!(cands.find(x=>x.id===C.std_id)||{}).cert_photo?
+            `<div style="margin-top:9px;font-size:12.5px;color:#7A2318">
+              這台標準件還沒有上傳原廠校驗證明，稽核時沒有依據可以證明它準。</div>`:""}`
+        :`<div style="font-size:13px;color:#7A2318">目前沒有可用的標準件 ──
+            同品項裡沒有購入未滿一年的儀器。請先購入新儀器登記進來，或改用外校。</div>`}
+      </div>`:`<label class="f"><span class="lbl">校驗單位</span>
+        <input type="text" value="${esc(C.org)}" oninput="setCal('org',this.value)"></label>`}
+
+      <div class="g2">
+        <label class="f"><span class="lbl">${C.way==="in"?"差異":"實測誤差值"}</span>
+          <input type="text" value="${esc(C.err)}" oninput="setCal('err',this.value)"></label>
+        <label class="f"><span class="lbl">容許誤差值</span>
+          <input type="text" value="${esc(e.tol)||"（未設定）"}" disabled></label>
+      </div>
+      <label class="f"><span class="lbl">判定</span>
+        <div class="iseg" style="margin:0">
+          ${[["ok","合格"],["adjust","校準"],["fix","維修"],["scrap","報廢"]].map(([k,t])=>
+            `<button type="button" aria-pressed="${C.result===k}" onclick="setCal('result','${k}');render()">${t}</button>`).join("")}
+        </div></label>
+      ${C.result==="fix"?`<div class="note">存檔後這台的狀態會變成「送修」。</div>`:""}
+      ${C.result==="scrap"?`<div class="note">存檔後這台會自動轉為「停止使用」，接著要走報廢呈報給執行長核准。</div>`:""}
+      <label class="f"><span class="lbl">處理情形</span>
+        <textarea rows="2" oninput="setCal('action',this.value)">${esc(C.action)}</textarea></label>
+      <div class="g2">
+        <label class="f"><span class="lbl">校驗紀錄編號</span>
+          <input type="text" value="${esc(C.doc_no)}" oninput="setCal('doc_no',this.value)"></label>
+        <label class="f"><span class="lbl">校驗人員</span>
+          <input type="text" value="${esc(C.person)}" oninput="setCal('person',this.value)"></label>
+      </div>
+      ${shotBox("cal",C.way==="in"?"校驗照片（兩台讀值並排）":"校驗報告")}
+      <button class="btn amber block" onclick="calSave()">儲存</button>
+    </div></div>`;
+}
+async function calSave(){
+  const C=calNew; if(!C) return;
+  if(C.way==="in"&&!C.std_id) return toast("內校一定要選標準件");
+  await isoDo(async()=>{
+    const ph=await isoUp("cal","cal");
+    await rpc("eq_cal_add",{p_token:token,p:Object.assign({},C,ph?{photo:ph}:{})});
+    calNew=null; eqPhoto=null;
+  },"已新增校驗紀錄");
+}
+
+/* ---------- 修護紀錄 ---------- */
+function fixOpen(id){ fixNew={equip_id:id,fix_date:isoToday(),doc_no:"",content:"",person:(me&&me.name)||""};
+  eqPhoto={}; render(); }
+function setFix(k,v){ if(fixNew) fixNew[k]=v; }
+function fixBody(){
+  const e=eqById(fixNew.equip_id), F=fixNew;
+  return `<div class="card"><div class="hd"><h2 class="num">${esc(e.no)} · 新增修護紀錄</h2>
+      <button class="btn tiny ghost" style="margin-left:auto" onclick="fixNew=null;eqPhoto=null;render()">取消</button></div>
+    <div class="bd">
+      <div class="g2">
+        <label class="f"><span class="lbl">日期</span>
+          <input type="date" value="${F.fix_date}" onchange="setFix('fix_date',this.value)"></label>
+        <label class="f"><span class="lbl">文件編號</span>
+          <input type="text" value="${esc(F.doc_no)}" oninput="setFix('doc_no',this.value)"></label>
+      </div>
+      <label class="f"><span class="lbl">修護內容</span>
+        <textarea rows="3" oninput="setFix('content',this.value)">${esc(F.content)}</textarea></label>
+      <label class="f"><span class="lbl">維護人</span>
+        <input type="text" value="${esc(F.person)}" oninput="setFix('person',this.value)"></label>
+      ${shotBox("fix","照片")}
+      <div class="note">這一筆會同步寫進這台儀器所在的設備履歷卡（${esc(locName(e.loc_code))}），不用重複填。</div>
+      <button class="btn amber block" onclick="fixSave()">儲存</button>
+    </div></div>`;
+}
+async function fixSave(){ const F=fixNew; if(!F)return;
+  if(!F.content.trim()) return toast("請填修護內容");
+  await isoDo(async()=>{ const ph=await isoUp("fix","fix");
+    await rpc("eq_fix_add",{p_token:token,p:Object.assign({},F,ph?{photo:ph}:{})});
+    fixNew=null; eqPhoto=null; },"已新增修護紀錄"); }
+
+/* ---------- 停止使用 ---------- */
+function stopOpen(id){ stopNew={equip_id:id,stop_date:isoToday(),reason:"故障",note:"",
+  notify:"",backup:"",reported:false,person:(me&&me.name)||""}; eqPhoto={}; render(); }
+function setStop(k,v){ if(stopNew) stopNew[k]=v; }
+function stopBody(){
+  const e=eqById(stopNew.equip_id), T=stopNew;
+  return `<div class="card"><div class="hd"><h2 class="num">${esc(e.no)} · 停止使用</h2>
+      <button class="btn tiny ghost" style="margin-left:auto" onclick="stopNew=null;eqPhoto=null;render()">取消</button></div>
+    <div class="bd">
+      <div class="note">依程序書 §5.4：停止使用要在設備明顯處<b>懸掛「暫停／停止使用」標示牌</b>、
+        通知主管調派備用裝備，並通報送修。掛牌照片拍起來，稽核就不用再解釋。</div>
+      <label class="f"><span class="lbl">停用日期</span>
+        <input type="date" value="${T.stop_date}" onchange="setStop('stop_date',this.value)"></label>
+      <label class="f"><span class="lbl">停用原因</span>
+        <div class="iseg" style="margin:0">
+          ${["故障","待修","異常"].map(r=>`<button type="button" aria-pressed="${T.reason===r}"
+            onclick="setStop('reason','${r}');render()">${r}</button>`).join("")}
+        </div></label>
+      <label class="f"><span class="lbl">說明</span>
+        <textarea rows="2" oninput="setStop('note',this.value)">${esc(T.note)}</textarea></label>
+      ${shotBox("tag","已懸掛標示牌的照片")}
+      <div class="g2">
+        <label class="f"><span class="lbl">已通知主管</span>
+          <input type="text" value="${esc(T.notify)}" oninput="setStop('notify',this.value)"></label>
+        <label class="f"><span class="lbl">備用裝備調派</span>
+          <input type="text" value="${esc(T.backup)}" oninput="setStop('backup',this.value)"></label>
+      </div>
+      <label class="f" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" ${T.reported?"checked":""} style="width:17px;height:17px"
+          onchange="setStop('reported',this.checked)"><span style="font-size:14.5px">已通報送修</span></label>
+      <button class="btn block" style="background:var(--alert);border-color:var(--alert)" onclick="stopSave()">確認停止使用</button>
+    </div></div>`;
+}
+async function stopSave(){ const T=stopNew; if(!T)return;
+  await isoDo(async()=>{ const ph=await isoUp("tag","tag");
+    await rpc("eq_stop",{p_token:token,p:Object.assign({},T,ph?{tag_photo:ph}:{})});
+    stopNew=null; eqPhoto=null; },"已停止使用"); }
+
+/* ---------- 報廢呈報 ---------- */
+function scrapOpen(id){ scrapNew={equip_id:id,repair_result:"",reason:"",way:"scrap",value:""}; render(); }
+function setScrap(k,v){ if(scrapNew) scrapNew[k]=v; }
+function scrapBody(){
+  const e=eqById(scrapNew.equip_id), R=scrapNew;
+  return `<div class="card"><div class="hd"><h2 class="num">${esc(e.no)} · 報廢呈報</h2>
+      <button class="btn tiny ghost" style="margin-left:auto" onclick="scrapNew=null;render()">取消</button></div>
+    <div class="bd">
+      <div class="note">依程序書 §5.5，停止使用之設備要<b>向執行長呈報核准後</b>才能報廢或出售。</div>
+      <label class="f"><span class="lbl">送修結果</span>
+        <textarea rows="2" oninput="setScrap('repair_result',this.value)">${esc(R.repair_result)}</textarea></label>
+      <label class="f"><span class="lbl">呈報事由</span>
+        <textarea rows="2" oninput="setScrap('reason',this.value)">${esc(R.reason)}</textarea></label>
+      <label class="f"><span class="lbl">處理方式</span>
+        <div class="iseg" style="margin:0">
+          <button type="button" aria-pressed="${R.way==="scrap"}" onclick="setScrap('way','scrap');render()">報廢</button>
+          <button type="button" aria-pressed="${R.way==="sell"}" onclick="setScrap('way','sell');render()">出售</button>
+        </div></label>
+      <label class="f"><span class="lbl">殘值／售價</span>
+        <input type="text" value="${esc(R.value)}" oninput="setScrap('value',this.value)"></label>
+      <button class="btn amber block" onclick="scrapSave()">送出呈報</button>
+    </div></div>`;
+}
+async function scrapSave(){ const R=scrapNew; if(!R)return;
+  if(!R.reason.trim()) return toast("請填呈報事由");
+  await isoDo(async()=>{ await rpc("eq_scrap_add",{p_token:token,p:R}); scrapNew=null; },"已送出呈報"); }
+function scrapOk(id){
+  if(!confirm("核准這張報廢呈報單？\n核准後設備狀態會變成報廢，無法復原。"))return;
+  isoDo(()=>rpc("eq_scrap_approve",{p_token:token,p_id:id}),"已核准報廢"); }
+
+/* ---------- 設備履歷卡 ---------- */
+const curYM=()=>isoToday().slice(0,7);
+function packText(c){
+  if(c.pack_note) return c.pack_note;
+  if(c.kind==="veh"){
+    const parts=(S.pkgs||[]).map(p=>{const n=RW().filter(r=>r.pkg===p.id).length;
+      return n?`${p.name}（${n} 項）`:null;}).filter(Boolean);
+    const eqs=EQ().filter(e=>e.loc_code===c.veh_code&&e.status!=="scrap").map(e=>e.no);
+    return parts.join("、")+(eqs.length?`；儀器 ${eqs.join("、")}`:"");
+  }
+  if(c.kind==="stock"){
+    const eqs=EQ().filter(e=>!e.loc_code&&e.status!=="scrap").map(e=>e.no);
+    return `庫存品項 ${(S.items||[]).length} 項`+(eqs.length?`；儀器 ${eqs.join("、")}`:"");
+  }
+  return "";
+}
+const inspDone=c=>logsOf(c.id).some(l=>l.kind==="insp"&&l.ym===curYM());
+
+function viewCardList(){
+  const cs=CARDS();
+  const late=cs.filter(c=>c.insp_on&&!inspDone(c));
+  return `<div class="card">
+    <div class="hd"><h2>設備履歷與維修紀錄</h2>
+      <span class="num" style="margin-left:auto;font-size:12px;color:var(--muted)">${cs.length} 張</span></div>
+    <div class="bd" style="padding:4px 14px 14px">
+      ${late.length?`<div class="note" style="margin:10px 0"><b>${curYM()} 還有 ${late.length} 張卡沒巡檢</b>：
+        ${late.map(c=>esc(c.name)).join("、")}</div>`:""}
+      ${cs.map(c=>{
+        const lg=logsOf(c.id), last=lg[0];
+        const nEq=EQ().filter(e=>(c.kind==="veh"? e.loc_code===c.veh_code : c.kind==="stock"? !e.loc_code : false)
+                                 &&e.status!=="scrap").length;
+        return `<div class="row">
+          <div class="info">
+            <div class="nm"><b>${esc(c.name)}</b>
+    ${c.insp_on?(inspDone(c)?`<span class="ipill ok">本月已巡檢</span>`
+                                      :`<span class="ipill warn">${curYM().slice(5)} 月尚未巡檢</span>`):""}</div>
+            <div class="meta">${c.kind==="custom"?"自訂":nEq+" 台儀器"} ·
+              ${lg.length?"最後紀錄 "+dOnly(last.log_date):"尚無紀錄"}</div>
+          </div>
+          <button class="btn tiny ghost" onclick="cardOpen='${c.id}';window.scrollTo(0,0);render()">開啟</button>
+        </div>`;}).join("")}
+      <div style="padding:12px 0 2px"><button class="btn sm ghost" onclick="cardNew()">＋ 新增一張履歷卡</button></div>
+    </div></div>`;
+}
+function cardNew(){ cardEdit={id:null,region:REG,name:"",maker:"",buy_date:"",keeper:"驗屋部",
+  owner_name:"",pack_note:"",insp_on:false,insp_day:1}; cardOpen="_new"; window.scrollTo(0,0); render(); }
+function cardEditOpen(id){ const c=cardById(id); if(!c)return;
+  cardEdit=Object.assign({},c,{buy_date:dOnly(c.buy_date)}); render(); }
+function setCard(k,v){ if(cardEdit) cardEdit[k]=v; }
+
+function viewCardDetail(){
+  if(cardOpen==="_new"||cardEdit) return viewCardForm();
+  const c=cardById(cardOpen); if(!c){ cardOpen=null; return viewCardList(); }
+  if(inspSet===c.id) return viewInspSet(c);
+  if(inspNew)        return viewInspRun(c);
+  const lg=logsOf(c.id);
+  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="cardOpen=null;render()">← 回履歷清單</button>
+  <div class="card"><div class="hd"><h2>${esc(c.name)} 設備履歷與維修紀錄</h2></div><div class="bd">
+    <table class="kv">
+      <tr><th>設備名稱</th><td>${esc(c.name)}</td><th>機器編號</th><td class="num">${c.kind==="veh"?"車-"+esc(c.veh_code):"—"}</td></tr>
+      <tr><th>製造廠商</th><td>${esc(c.maker)||"—"}</td><th>購入日期</th><td class="num">${dOnly(c.buy_date)||"—"}</td></tr>
+      <tr><th>保管單位</th><td>${esc(c.keeper)}</td><th>負責人</th><td>${esc(c.owner_name)||"—"}</td></tr>
+    </table>
+    <div style="background:#F7F8FA;border:1px solid var(--line);border-radius:3px;padding:11px 13px;margin:12px 0">
+      <span class="lbl" style="display:block;margin-bottom:5px">套裝內容（自訂）${c.pack_note?"":"　· 系統自動帶出"}</span>
+      <div style="font-size:13.5px;line-height:1.7">${esc(packText(c))||"—"}</div>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px" class="noprint">
+      <button class="btn tiny ghost" onclick="cardEditOpen('${c.id}')">編輯基本資料</button>
+      <button class="btn tiny ghost" onclick="inspSet='${c.id}';render()">巡檢設定</button>
+      ${c.kind==="custom"?`<button class="btn tiny ghost" onclick="cardDel('${c.id}')">刪除這張卡</button>`:""}
+    </div>
+
+    ${c.kind==="veh"?`<div class="note">這台車的<b>保養紀錄由車輛管理系統自動帶入</b>（含發票照片），
+      不用在這裡重打。下面「＋ 新增保養紀錄」只用來補登車輛系統沒有的事，例如工具箱、車內設備的維護。</div>`:""}
+    ${c.insp_on?(inspDone(c)
+      ?`<div class="okbox" style="margin-top:12px">${curYM()} 已完成自主巡檢</div>`
+      :`<div class="note" style="margin-top:12px"><b>${curYM()} 尚未巡檢</b>
+          <button class="btn tiny amber noprint" style="margin-left:8px" onclick="inspOpen('${c.id}')">現在巡檢</button></div>`)
+      :""}
+
+    <h3 style="font-size:14px;font-weight:900;margin:20px 0 8px">保養維護紀錄</h3>
+    ${lg.length?`<table class="kv"><tr><th style="width:15%">日期</th><th style="width:auto">保養維護記錄</th>
+        <th style="width:16%">維護人</th><th style="width:20%">主管</th><th class="noprint" style="width:1%"></th></tr>
+      ${lg.map(l=>{const svc=l.kind==="svc";
+        return `<tr>
+        <td class="num">${dOnly(l.log_date)}</td>
+        <td>${esc(l.content)}${l.kind==="insp"?` <span class="ipill grey">巡檢</span>`:""}${svc?` <span class="tag m">車輛系統</span>`:""}</td>
+        <td>${esc(l.person)||"—"}</td>
+        <td>${l.mgr_name?esc(l.mgr_name)+`<br><span style="font-size:11px;color:var(--muted)" class="num">${String(l.mgr_at).slice(0,16).replace("T"," ")}</span>`
+             :`<button class="btn tiny amber noprint" onclick="${svc
+                 ?`isoDo(()=>rpc('svc_confirm',{p_token:token,p_id:'${String(l.id).slice(4)}'}),'已確認')`
+                 :`isoDo(()=>rpc('log_confirm',{p_token:token,p_id:'${l.id}'}),'已確認')`}">確認</button>`}</td>
+        <td class="noprint" style="white-space:nowrap">
+          ${l.photo?`<button class="btn tiny ghost" onclick="showIso('${l.photo}')">${svc?"發票":"看"}</button>`:""}
+          ${svc?"":`<button class="btn tiny ghost" onclick="isoDel('log_delete','${l.id}','這筆紀錄')">✕</button>`}</td>
+      </tr>`;}).join("")}</table>`
+      :`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有保養紀錄</div>`}
+
+    ${logNew?`<div style="border:1px solid var(--line);border-radius:3px;padding:12px;margin-top:12px;background:#fff">
+      <div class="g2">
+        <label class="f"><span class="lbl">日期</span>
+          <input type="date" value="${logNew.log_date}" onchange="logNew.log_date=this.value"></label>
+        <label class="f"><span class="lbl">維護人</span>
+          <input type="text" value="${esc(logNew.person)}" oninput="logNew.person=this.value"></label>
+      </div>
+      <label class="f"><span class="lbl">保養維護記錄</span>
+        <textarea rows="3" oninput="logNew.content=this.value">${esc(logNew.content)}</textarea></label>
+      ${shotBox("log","照片（選填）")}
+      <div style="display:flex;gap:8px">
+        <button class="btn amber sm" onclick="logSave('${c.id}')">儲存</button>
+        <button class="btn ghost sm" onclick="logNew=null;eqPhoto=null;render()">取消</button>
+      </div></div>`
+     :`<button class="btn sm amber noprint" style="margin-top:11px" onclick="logOpen()">＋ 新增保養紀錄</button>`}
+
+    <div style="margin-top:18px;padding-top:13px;border-top:1px solid var(--line2)" class="noprint">
+      <button class="btn sm ghost" onclick="printWhat='0501:${c.id}';render()">列印 QP-05-01</button>
+    </div>
+  </div></div>`;
+}
+function logOpen(){ logNew={log_date:isoToday(),content:"",person:(me&&me.name)||""}; eqPhoto={}; render(); }
+async function logSave(cardId){
+  if(!logNew||!logNew.content.trim()) return toast("請填保養維護記錄");
+  await isoDo(async()=>{ const ph=await isoUp("log","log");
+    await rpc("log_add",{p_token:token,p:Object.assign({card_id:cardId},logNew,ph?{photo:ph}:{})});
+    logNew=null; eqPhoto=null; },"已新增保養紀錄");
+}
+function cardDel(id){ const c=cardById(id); if(!c)return;
+  if(!confirm(`刪除履歷卡「${c.name}」？\n卡上的保養紀錄會一併刪除。`))return;
+  isoDo(async()=>{ await rpc("card_delete",{p_token:token,p_id:id}); cardOpen=null; },"已刪除"); }
+
+function viewCardForm(){
+  const C=cardEdit||{};
+  return `<button class="btn sm ghost" style="margin-bottom:11px"
+    onclick="cardEdit=null;if(cardOpen==='_new')cardOpen=null;render()">← 取消</button>
+  <div class="card"><div class="hd"><h2>${C.id?"編輯履歷卡":"新增履歷卡"}</h2></div><div class="bd">
+    <label class="f"><span class="lbl">名稱</span>
+      <input type="text" value="${esc(C.name||"")}" oninput="setCard('name',this.value)"
+        ${C.kind&&C.kind!=="custom"?"disabled":""} placeholder="例如：甲醛部門設備">
+      ${C.kind&&C.kind!=="custom"?`<span style="font-size:12.5px;color:var(--muted)">車輛與公司庫存的名稱由系統維護</span>`:""}</label>
+    <div class="g2">
+      <label class="f"><span class="lbl">製造廠商</span>
+        <input type="text" value="${esc(C.maker||"")}" oninput="setCard('maker',this.value)"></label>
+      <label class="f"><span class="lbl">購入日期</span>
+        <input type="date" value="${dOnly(C.buy_date)}" onchange="setCard('buy_date',this.value)"></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span class="lbl">保管單位</span>
+        <input type="text" value="${esc(C.keeper||"驗屋部")}" oninput="setCard('keeper',this.value)"></label>
+      <label class="f"><span class="lbl">負責人</span>
+        <input type="text" value="${esc(C.owner_name||"")}" oninput="setCard('owner_name',this.value)"></label>
+    </div>
+    <label class="f"><span class="lbl">套裝內容（留白＝系統自動帶出）</span>
+      <textarea rows="3" oninput="setCard('pack_note',this.value)">${esc(C.pack_note||"")}</textarea></label>
+    <button class="btn amber block" onclick="cardSave()">儲存</button>
+  </div></div>`;
+}
+async function cardSave(){
+  const C=cardEdit; if(!C) return;
+  if(!(C.name||"").trim()) return toast("請填名稱");
+  await isoDo(async()=>{ const id=await rpc("card_save",{p_token:token,p:Object.assign({region:REG},C)});
+    cardEdit=null; cardOpen=id; },"已儲存");
+}
+
+/* ---------- 巡檢 ---------- */
+function viewInspSet(c){
+  const items=c.insp_items||[];
+  return `<button class="btn sm ghost" style="margin-bottom:11px" onclick="inspSet=null;render()">← 回履歷卡</button>
+  <div class="card"><div class="hd"><h2>${esc(c.name)} · 巡檢設定</h2></div><div class="bd">
+    <label class="f"><span class="lbl">每月自主巡檢</span>
+      <div class="iseg" style="margin:0">
+        <button type="button" aria-pressed="${c.insp_on}"  onclick="inspOn('${c.id}',true)">要</button>
+        <button type="button" aria-pressed="${!c.insp_on}" onclick="inspOn('${c.id}',false)">不用</button>
+      </div></label>
+    <span class="lbl" style="display:block;margin-bottom:6px">檢查項目（系統不預設，自己加）</span>
+    ${items.length?`<div class="ilist" style="margin-bottom:10px">${items.map((n,i)=>`<div class="eqrow" style="cursor:default">
+        <span class="enm">${esc(n)}</span>
+        <button class="btn tiny ghost" onclick="inspItemDel('${c.id}',${i})">刪</button></div>`).join("")}</div>`
+      :`<div style="color:var(--muted);font-size:13.5px;padding:4px 0 10px">還沒有任何檢查項目</div>`}
+    <div style="display:flex;gap:7px;margin-bottom:14px">
+      <input type="text" id="insp_new" placeholder="新增一個檢查項目" style="flex:1">
+      <button class="btn sm ghost" onclick="inspItemAdd('${c.id}')">加入</button>
+    </div>
+    <div class="note">QP-05 §5.3.2 要求每月對重要機具自主巡檢並記錄在這張表。項目完全由你決定，
+      不同的卡可以設不同項目。</div>
+  </div></div>`;
+}
+function inspOn(id,on){ const c=cardById(id); if(!c)return;
+  isoDo(()=>rpc("card_save",{p_token:token,p:{id:id,name:c.name,insp_on:on?"true":"false"}}),
+    on?"已開啟每月巡檢":"已關閉每月巡檢"); }
+function inspItemAdd(id){ const c=cardById(id); if(!c)return;
+  const v=(document.getElementById("insp_new").value||"").trim();
+  if(!v) return toast("請先輸入項目名稱");
+  const list=(c.insp_items||[]).concat([v]);
+  isoDo(()=>rpc("card_insp_set",{p_token:token,p_card:id,p_items:list}),"已加入"); }
+function inspItemDel(id,i){ const c=cardById(id); if(!c)return;
+  const list=(c.insp_items||[]).filter((_,k)=>k!==i);
+  isoDo(()=>rpc("card_insp_set",{p_token:token,p_card:id,p_items:list}),"已刪除"); }
+
+function inspOpen(id){ const c=cardById(id); if(!c)return;
+  if(!(c.insp_items||[]).length){ inspSet=id; render(); return toast("請先設定巡檢項目"); }
+  inspNew={card_id:id,ym:curYM(),log_date:isoToday(),note:"",person:(me&&me.name)||"",
+    detail:(c.insp_items||[]).map(n=>({name:n,ok:true}))}; eqPhoto={}; render(); }
+function inspTick(i,ok){ if(inspNew) inspNew.detail[i].ok=ok; render(); }
+function viewInspRun(c){
+  const N=inspNew, bad=N.detail.filter(d=>!d.ok);
+  return `<button class="btn sm ghost" style="margin-bottom:11px" onclick="inspNew=null;eqPhoto=null;render()">← 取消</button>
+  <div class="card"><div class="hd"><h2>${esc(c.name)} · ${N.ym} 巡檢</h2></div><div class="bd">
+    <div class="ilist" style="margin-bottom:12px">
+      ${N.detail.map((d,i)=>`<div class="eqrow" style="cursor:default">
+        <span class="enm">${esc(d.name)}</span>
+        <span class="iseg" style="flex:0 0 132px;margin:0">
+          <button type="button" aria-pressed="${d.ok}"  onclick="inspTick(${i},true)">正常</button>
+          <button type="button" aria-pressed="${!d.ok}" onclick="inspTick(${i},false)">異常</button>
+        </span></div>`).join("")}
+    </div>
+    ${bad.length?`<div class="warnbox">${bad.map(d=>esc(d.name)).join("、")} 異常，請在下面說明處理情形</div>`:""}
+    <label class="f"><span class="lbl">異常說明${bad.length?"":"（選填）"}</span>
+      <textarea rows="2" oninput="inspNew.note=this.value">${esc(N.note)}</textarea></label>
+    <div class="g2">
+      <label class="f"><span class="lbl">日期</span>
+        <input type="date" value="${N.log_date}" onchange="inspNew.log_date=this.value"></label>
+      <label class="f"><span class="lbl">巡檢人</span>
+        <input type="text" value="${esc(N.person)}" oninput="inspNew.person=this.value"></label>
+    </div>
+    ${shotBox("insp","照片（選填）")}
+    <button class="btn amber block" onclick="inspSave()">送出巡檢</button>
+  </div></div>`;
+}
+async function inspSave(){
+  const N=inspNew; if(!N)return;
+  if(N.detail.some(d=>!d.ok)&&!N.note.trim()) return toast("有項目異常，請填寫說明");
+  await isoDo(async()=>{ const ph=await isoUp("insp","insp");
+    await rpc("insp_submit",{p_token:token,p:Object.assign({},N,ph?{photo:ph}:{})});
+    inspNew=null; eqPhoto=null; },"巡檢已送出");
+}
+
+/* ---------- 列印表單 ---------- */
+function viewPrintMenu(){
+  const Y=new Date(isoToday()).getFullYear();
+  return `<div class="card"><div class="hd"><h2>列印 ISO 表單</h2></div><div class="bd">
+    <div class="note">印出來的內容直接取自系統目前的資料。<b>需要主管或執行長手簽的，就印出來簽。</b>
+      系統裡已經按過確認的，會印出姓名與時間。</div>
+    ${[["1601","QP-16-01 量測儀器一覽表","所有量測儀器，一台一列"],
+       ["1603:"+Y,"QP-16-03 量測儀器年度校驗計畫表",Y+" 年度，○ 計劃 ⊕ 實施，自動排"],
+       ["0502:meas","QP-05-02 設備一覽表 · 量測儀器",""],
+       ["0502:veh","QP-05-02 設備一覽表 · 車輛",""],
+       ["0502:tool","QP-05-02 設備一覽表 · 一般工具",""]].map(([k,t,d])=>
+      `<div class="row"><div class="info"><div class="nm">${t}</div>
+        ${d?`<div class="meta">${d}</div>`:""}</div>
+        <button class="btn tiny ghost" onclick="printWhat='${k}';window.scrollTo(0,0);render()">列印</button></div>`).join("")}
+    <div class="note" style="margin-top:12px">
+      QP-16-02 履歷表在每一台儀器的頁面底下；QP-05-01 設備履歷在每一張履歷卡底下；
+      QP-05-03 報廢呈報單在有呈報單的儀器頁面裡。
+    </div>
+  </div></div>`;
+}
+const pfHead=(no,ver)=>`<div class="fh"><span>表單編號：${no}</span><span>版次：${ver||"A"}</span></div>`;
+const pfSig=`<div class="sig"><span>審核：____________</span><span>製表：____________</span></div>`;
+const CO='<div style="text-align:center;font-size:12px;margin-bottom:2px">囍悅家居有限公司</div>';
+
+function viewPrint(){
+  const [k,arg]=String(printWhat).split(":");
+  let body="";
+  if(k==="1601")      body=pf1601();
+  else if(k==="1602") body=pf1602(arg);
+  else if(k==="1603") body=pf1603(parseInt(arg,10));
+  else if(k==="0501") body=pf0501(arg);
+  else if(k==="0502") body=pf0502(arg);
+  else if(k==="scrap")body=pfScrap(arg);
+  return `<div class="wrap wide">
+    <div class="noprint" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn sm ghost" onclick="printWhat=null;render()">← 返回</button>
+      <button class="btn sm amber" onclick="window.print()">列印</button>
+      ${k==="1603"?`<select style="width:auto" onchange="printWhat='1603:'+this.value;render()">
+        ${[0,1,2].map(d=>{const y=new Date(isoToday()).getFullYear()+d-1;
+          return `<option value="${y}" ${String(y)===arg?"selected":""}>${y} 年度</option>`;}).join("")}
+      </select>`:""}
+    </div>${body}</div>`;
+}
+function pf1601(){
+  const list=EQ().filter(e=>e.status!=="scrap");
+  return `<div class="iso-form">${pfHead("QP-16-01")}
+    <div class="ft">量 測 儀 器 一 覽 表</div>
+    <table class="pf">
+      <tr><th style="width:11%">NO</th><th style="width:28%">量具名稱／規格</th><th style="width:12%">廠牌</th>
+        <th style="width:13%">容許誤差值</th><th style="width:13%">校驗單位</th><th style="width:11%">校驗週期</th>
+        <th style="width:12%">購買日期</th></tr>
+      ${list.map(e=>`<tr><td class="mo">${esc(e.no)}</td>
+        <td class="l">${esc(e.item_name)}${e.spec?"／"+esc(e.spec):""}</td>
+        <td>${esc(e.brand)||"—"}</td><td>${esc(e.tol)||"—"}</td>
+        <td>${e.cal_type==="none"?"—":e.cal_type==="in"?"本公司內校":(esc(e.cal_org)||"—")}</td>
+        <td>${e.cal_type==="none"?"免校":e.cal_months+" 個月"}</td>
+        <td class="mo">${dOnly(e.buy_date)||"—"}</td></tr>`).join("")}
+      ${list.length<8?Array(8-list.length).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join(""):""}
+    </table>${pfSig}</div>`;
+}
+function pf1602(id){
+  const e=eqById(id); if(!e) return "";
+  const cals=calsOf(id).slice().reverse(), fx=fixesOf(id).slice().reverse();
+  const pair=[]; for(let i=0;i<Math.max(3,Math.ceil(fx.length/2)*1);i++) pair.push([fx[i*2],fx[i*2+1]]);
+  return `<div class="iso-form">${pfHead("QP-16-02")}
+    <div class="ft">量 測 儀 器 履 歷 表</div>
+    <table class="pf">
+      <tr><td class="hd">量具名稱</td><td class="l">${esc(e.item_name)}</td>
+          <td class="hd">規　　格</td><td class="l">${esc(e.spec)||"—"}</td>
+          <td class="hd">購買日期</td><td class="mo">${dOnly(e.buy_date)||"—"}</td></tr>
+      <tr><td class="hd">量具編號</td><td class="l mo">${esc(e.no)}</td>
+          <td class="hd">校驗週期</td><td>${e.cal_type==="none"?"免校":e.cal_months+" 個月"}</td>
+          <td class="hd">填 表 人</td><td>${esc((me&&me.name)||"")}</td></tr>
+      <tr><td class="hd">廠　　牌</td><td class="l">${esc(e.brand)||"—"}</td>
+          <td class="hd">保管單位</td><td>${esc(e.keeper)}</td>
+          <td class="hd">容許誤差值</td><td>${esc(e.tol)||"—"}</td></tr>
+    </table>
+    <table class="pf" style="margin-top:9px">
+      <tr><th colspan="6">量 具 修 護 記 錄</th></tr>
+      <tr><th style="width:13%">日期</th><th style="width:14%">編號</th><th style="width:23%">內容</th>
+          <th style="width:13%">日期</th><th style="width:14%">編號</th><th style="width:23%">內容</th></tr>
+      ${pair.map(([a,b])=>`<tr>
+        <td class="mo">${a?dOnly(a.fix_date):"&nbsp;"}</td><td class="mo">${a?esc(a.doc_no):""}</td><td class="l">${a?esc(a.content):""}</td>
+        <td class="mo">${b?dOnly(b.fix_date):""}</td><td class="mo">${b?esc(b.doc_no):""}</td><td class="l">${b?esc(b.content):""}</td>
+      </tr>`).join("")}
+    </table>
+    <table class="pf" style="margin-top:9px">
+      <tr><th colspan="10">校 　 驗 　 記 　 錄</th></tr>
+      <tr><th rowspan="2" style="width:11%">日期</th><th colspan="2">校驗方式</th>
+          <th rowspan="2" style="width:13%">校驗單位</th><th rowspan="2" style="width:9%">誤差值</th>
+          <th colspan="3">判定</th><th rowspan="2" style="width:19%">處　理　情　形</th>
+          <th rowspan="2" style="width:13%">編號</th></tr>
+      <tr><th style="width:6%">內校</th><th style="width:6%">外校</th>
+          <th style="width:6%">維修</th><th style="width:6%">報廢</th><th style="width:6%">校準</th></tr>
+      ${cals.map(c=>`<tr><td class="mo">${dOnly(c.cal_date)}</td>
+        <td>${c.way==="in"?"✓":""}</td><td>${c.way==="out"?"✓":""}</td>
+        <td>${c.way==="in"?"本公司內校":(esc(c.org)||"—")}</td><td class="mo">${esc(c.err)||"—"}</td>
+        <td>${c.result==="fix"?"✓":""}</td><td>${c.result==="scrap"?"✓":""}</td><td>${c.result==="adjust"?"✓":""}</td>
+        <td class="l">${esc(c.action)||(c.result==="ok"?"合格，無須處理":"")}${
+          c.std_no?`（標準件 ${esc(c.std_no)}：${esc(c.std_read)} / ${esc(c.got_read)}）`:""}</td>
+        <td class="mo">${esc(c.doc_no)||"—"}</td></tr>`).join("")}
+      ${Array(Math.max(0,3-cals.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
+    </table>${pfSig}</div>`;
+}
+function planMonths(e,Y){
+  const out={}; if(e.cal_type==="none"||!e.cal_months) return out;
+  const base=dOnly(e.last_cal)||dOnly(e.buy_date); if(!base) return out;
+  const d=new Date(base+"T00:00:00"); if(d.getFullYear()>Y) return out;
+  let g=0;
+  while(d.getFullYear()<Y && g++<900) d.setMonth(d.getMonth()+e.cal_months);
+  while(d.getFullYear()===Y && g++<900){ out[d.getMonth()+1]=true; d.setMonth(d.getMonth()+e.cal_months); }
+  return out;
+}
+function pf1603(Y){
+  const list=EQ().filter(e=>e.status!=="scrap"&&e.cal_type!=="none");
+  return `<div class="iso-form">${pfHead("QP-16-03")}
+    <div class="ft">${Y} 年 度 量 測 儀 器 校 驗 計 畫 表</div>
+    <table class="pf">
+      <tr><th rowspan="2" style="width:11%">量具編號</th><th rowspan="2" style="width:19%">量具名稱</th>
+          <th rowspan="2" style="width:10%">使用單位</th><th colspan="12">月　份</th>
+          <th rowspan="2" style="width:9%">校驗週期</th></tr>
+      <tr>${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<th>${m}</th>`).join("")}</tr>
+      ${list.map(e=>{
+        const pl=planMonths(e,Y), done={};
+        calsOf(e.id).forEach(c=>{const d=dOnly(c.cal_date); if(d.slice(0,4)===String(Y)) done[parseInt(d.slice(5,7),10)]=true;});
+        return `<tr><td class="mo">${esc(e.no)}</td><td class="l">${esc(e.item_name)}</td><td>${esc(e.keeper)}</td>
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<td class="mo">${pl[m]?"○":""}${done[m]?"⊕":""}</td>`).join("")}
+          <td>${e.cal_months} 個月</td></tr>`;}).join("")}
+      ${list.length?"":'<tr><td colspan="16" style="height:40px">尚未登記需校驗的量測儀器</td></tr>'}
+      <tr><td class="hd l" colspan="3">備　註</td><td class="l" colspan="13">計劃：○　　實施：⊕</td></tr>
+    </table>${pfSig}</div>`;
+}
+function pf0501(cardId){
+  const c=cardById(cardId); if(!c) return "";
+  const lg=logsOf(cardId).slice().reverse();
+  const rows=lg.concat(Array(Math.max(0,6-lg.length)).fill(null));
+  return `<div class="iso-form">${pfHead("QP-05-01")}
+    <div class="ft">設 備 履 歷 與 維 修 紀 錄 表</div>
+    <table class="pf">
+      <tr><td class="hd">設備名稱</td><td class="l">${esc(c.name)}</td>
+          <td class="hd">機器編號</td><td class="l mo">${c.kind==="veh"?"車-"+esc(c.veh_code):"—"}</td></tr>
+      <tr><td class="hd">製造廠商</td><td class="l">${esc(c.maker)||"—"}</td>
+          <td class="hd">購入日期</td><td class="l mo">${dOnly(c.buy_date)||"—"}</td></tr>
+      <tr><td class="hd">保管單位</td><td class="l">${esc(c.keeper)}</td>
+          <td class="hd">負責人</td><td class="l">${esc(c.owner_name)||"—"}</td></tr>
+      <tr><td class="hd">套裝內容<br>（自訂）</td>
+          <td class="l" colspan="3" style="height:54px;vertical-align:top;padding-top:5px">${esc(packText(c))||"—"}</td></tr>
+    </table>
+    <table class="pf" style="margin-top:9px">
+      <tr><th style="width:15%">日　期</th><th style="width:49%">保養維護記錄</th>
+          <th style="width:18%">維護人簽名</th><th style="width:18%">主管簽名</th></tr>
+      ${rows.map(l=>`<tr><td class="mo">${l?dOnly(l.log_date):"&nbsp;"}</td>
+        <td class="l">${l?esc(l.content):""}</td><td>${l?esc(l.person):""}</td>
+        <td>${l&&l.mgr_name?esc(l.mgr_name):""}</td></tr>`).join("")}
+    </table></div>`;
+}
+function pf0502(cat){
+  const title={meas:"量測儀器",veh:"車輛",tool:"一般工具"}[cat]||"";
+  let rows=[];
+  if(cat==="meas"){
+    rows=EQ().filter(e=>e.status!=="scrap").map(e=>[e.no,
+      esc(e.item_name)+(e.spec?"／"+esc(e.spec):""),esc(e.brand)||"—",esc(e.owner_name)||"—",
+      dOnly(e.buy_date)||"—",locName(e.loc_code)+(e.status==="use"?"":"・"+(EQST[e.status]||["",""])[0])]);
+  }else if(cat==="veh"){
+    rows=VEH().map(v=>{const c=CARDS().find(x=>x.kind==="veh"&&x.veh_code===v)||{};
+      return ["車-"+v,v+" 車 勤務車",esc(c.maker)||"—",esc(c.owner_name)||"—",dOnly(c.buy_date)||"—",regName(REG)];});
+  }else{
+    const seen={};
+    RW().filter(r=>r.kind==="tool").forEach(r=>{ if(!seen[r.name]) seen[r.name]={std:0}; seen[r.name].std+=r.std; });
+    rows=Object.keys(seen).map((n,i)=>[String(i+1),esc(n),"—","—","—",
+      `各車標配合計 ${seen[n].std*VEH().length} 個／庫存 ${(S.warehouse&&S.warehouse[n])||0} 個`]);
+  }
+  return `<div class="iso-form">${pfHead("QP-05-02")}${CO}
+    <div class="ft">設 備 一 覽 表</div>
+    <div style="font-size:11.5px;margin:0 0 5px 2px"><b>類別：</b>${title}</div>
+    <table class="pf">
+      <tr><th style="width:11%">NO.</th><th style="width:30%">設備名稱</th><th style="width:14%">廠牌名稱</th>
+        <th style="width:12%">負責人員</th><th style="width:14%">購買日期</th><th style="width:19%">備註</th></tr>
+      ${rows.map(r=>`<tr><td class="mo">${r[0]}</td><td class="l">${r[1]}</td><td>${r[2]}</td>
+        <td>${r[3]}</td><td class="mo">${r[4]}</td><td class="l">${r[5]}</td></tr>`).join("")}
+      ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
+    </table>
+    ${cat==="tool"?'<div style="font-size:11px;color:#555;margin-top:6px">一般工具不逐支編號，以品項為單位列一行。耗材不列入本表。</div>':""}
+    ${pfSig}</div>`;
+}
+function pfScrap(id){
+  const r=(ISO.scraps||[]).find(x=>x.id===id); if(!r) return "";
+  const e=eqById(r.equip_id)||{}, stp=stopsOf(r.equip_id)[0]||{};
+  return `<div class="iso-form">${pfHead("QP-05-03")}${CO}
+    <div class="ft">設 備 報 廢 呈 報 單</div>
+    <table class="pf">
+      <tr><td class="hd">設備編號</td><td class="l mo">${esc(e.no||"")}</td>
+          <td class="hd">設備名稱</td><td class="l">${esc(e.item_name||"")}${e.spec?"／"+esc(e.spec):""}</td></tr>
+      <tr><td class="hd">廠　　牌</td><td class="l">${esc(e.brand||"")||"—"}</td>
+          <td class="hd">購入日期</td><td class="l mo">${dOnly(e.buy_date)||"—"}</td></tr>
+      <tr><td class="hd">保管單位</td><td class="l">${esc(e.keeper||"")}</td>
+          <td class="hd">負責人員</td><td class="l">${esc(e.owner_name||"")||"—"}</td></tr>
+      <tr><td class="hd">停用日期</td><td class="l mo">${dOnly(stp.stop_date)||"—"}</td>
+          <td class="hd">停用原因</td><td class="l">${esc(stp.reason||"")||"—"}</td></tr>
+      <tr><td class="hd">送修結果</td><td class="l" colspan="3">${esc(r.repair_result)||"—"}</td></tr>
+      <tr><td class="hd">呈報事由</td><td class="l" colspan="3" style="height:48px;vertical-align:top;padding-top:5px">${esc(r.reason)||"—"}</td></tr>
+      <tr><td class="hd">處理方式</td><td class="l">${r.way==="scrap"?"☑ 報廢　　☐ 出售":"☐ 報廢　　☑ 出售"}</td>
+          <td class="hd">殘值／售價</td><td class="l">${esc(r.value)||"無"}</td></tr>
+    </table>
+    <div class="sig" style="justify-content:space-around;margin-top:14px">
+      <span>呈報人：${esc(r.by_name)}　${dOnly(r.by_date)}</span>
+      <span>部門主管：__________</span>
+      <span>執行長核准：${r.appr_name?esc(r.appr_name)+"　"+String(r.appr_at).slice(0,10):"__________"}</span>
+    </div></div>`;
+}
+
 /* ===================== 導覽 ===================== */
 const TABS={field:[["count","☑","盤點"]],
   admin:[["restock","⚑","待補料"],["stock","▤","庫存"],["items","☑","項目"],
-         ["move","⇅","出入庫"],["result","▦","結果"],["month","◷","月報"],["veh","⚙","設定"]]};
+         ["move","⇅","出入庫"],["result","▦","結果"],["month","◷","月報"],
+         ["iso","◎","ISO"],["veh","⚙","設定"]]};
 function render(){
   if(UPGRADING) return;
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
@@ -3055,12 +4175,16 @@ function render(){
   } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
   app.innerHTML = role==="field" ? viewField()
     : tab==="move" ? viewMove() : tab==="result" ? viewResult()
-    : tab==="veh" ? viewVehicles() : tab==="items" ? viewItems()
+    : tab==="veh" ? viewVehicles() : tab==="iso" ? viewISO() : tab==="items" ? viewItems()
     : tab==="month" ? viewMonthly()
     : tab==="stock" ? viewStock() : viewRestock();
   restoreSearch();
   saveDraftSoon();
 }
-function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;window.scrollTo(0,0);render();}
+function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;
+  if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;}
+  window.scrollTo(0,0);render();
+  if(k==="iso"&&!ISO) isoKick();
+}
 boot();
 </script>
