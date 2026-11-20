@@ -549,7 +549,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=10;
+const APP_VER=11;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -631,12 +631,13 @@ function prune(){}               // 照片保留由資料庫處理
 /* ---- 伺服器資料 → 畫面用的資料結構 ---- */
 function blankState(){
   return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],
-          items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",
+          items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",photoPx:1280,
           amItems:[],amIds:[],amRows:[],needs:[],locs:[]};
 }
 function applyConfig(cfg){
   S=S||blankState();
   S.photoMode=cfg.photo_mode||"pkg";
+  S.photoPx=cfg.photo_px||1280;
   S.pkgs=(cfg.packages||[]).map(p=>({id:p.id,name:p.name}));
   S.vehicles=cfg.vehicles||[];
   S.rows=(cfg.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
@@ -648,7 +649,8 @@ async function applyState(st,urls){
   // 先組好一份完整資料，最後才整個換掉；中途失敗不會把畫面清空
   const N=blankState();
   N.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
-  KEEP=(st.settings&&st.settings.keep_sets)||4;
+  N.photoPx=(st.settings&&st.settings.photo_px)||1280;
+  KEEP=(st.settings&&st.settings.keep_sets)||10;
   N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
     abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable}));
   (st.items||[]).forEach(i=>{N.warehouse[i.name]=i.warehouse;N.safety[i.name]=i.safety;});
@@ -713,7 +715,7 @@ async function guard(fn,okMsg){
 }
 /* ===================== 狀態 ===================== */
 let S=null, role=null, tab="count", curPkg=null, draft=null, toastT=null;
-let token=null, KEEP=4, busy=false;
+let token=null, KEEP=10, busy=false;
 let me=null, gate="pick", setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
 let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"",loss:"遺失"};
 let rs={vehicle:"",sku:"",qty:1,note:""};
@@ -1045,6 +1047,20 @@ async function delAdmin(id){
   if(!confirm("刪除這位操作者？既有紀錄上的名字會保留。"))return;
   await guard(async()=>{ await rpc("op_delete",{p_token:token,p_id:id}); await reload(); render(); },"已刪除");
 }
+const MBP=px=>({640:0.03,1280:0.18,1800:0.40})[px]||0.18;
+function estPct(){
+  const n=(byItem()?RW().length:PKGS().length)*VEH().length*KEEP;
+  return Math.round(n*MBP(S.photoPx)/1024*100);
+}
+async function setPhotoPx(px){
+  await guard(async()=>{ await rpc("mgr_photo_cfg",{p_token:token,p_region:REG,p_sets:null,p_px:px});
+    await reload(); render(); },`照片畫質已改成「${PXNAME[px]}」`);
+}
+async function saveKeepSets(){
+  const v=Math.max(1,Math.min(60,parseInt(document.getElementById("kd").value)||10));
+  await guard(async()=>{ await rpc("mgr_photo_cfg",{p_token:token,p_region:REG,p_sets:v,p_px:null});
+    await reload(); render(); },`照片改成每車保留最新 ${v} 組`);
+}
 async function setPhotoMode(m){
   if(S.photoMode===m)return;
   await guard(async()=>{
@@ -1363,10 +1379,14 @@ function startCount(){const n=document.getElementById("pname");if(n)draft.person
   if(!draft.person)return toast("請先填盤點人姓名");
   if(!draft.vehicle)return toast("請選擇車別");
   curPkg=firstPkg();render();}
+const PXQ={640:0.62,1280:0.72,1800:0.78};
+const PXNAME={640:"省流量",1280:"標準",1800:"高畫質"};
+const photoPx=()=>{const v=(S&&S.photoPx)|0; return PXQ[v]?v:1280;};
 function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
-  img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));
+  img.onload=()=>{const m=photoPx(),q=PXQ[m]||0.72,
+      sc=Math.min(1,m/Math.max(img.width,img.height));
     const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
-    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.5));};
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",q));};
   img.src=fr.result;};fr.readAsDataURL(f);}
 function shoot(rid,inp){ if(!inp.files[0])return;
   shrink(inp.files[0],d=>{const x=st(rid);x.photo=d;
@@ -2395,7 +2415,7 @@ function sheetCard(r){
   const grid=shots.length?`<div class="grid">${shots.map((x,k)=>`
       <div class="cell ${x.bad?"bad":""}" onclick="zoom('${r.id}',${k})">
         <img src="${x.src}"><div class="cap">${esc(x.t)}</div><div class="cap2">${esc(x.s)}</div></div>`).join("")}</div>`
-    :`<div class="lbl" style="padding:10px 14px">照片已刪除（每車只保留最新 ${KEEP} 組）</div>`;
+    :`<div class="lbl" style="padding:10px 14px">照片已清除（每車只保留最新 ${KEEP} 組）</div>`;
   return head+`<div class="sdetail">
       <div class="lbl" style="padding:10px 14px 0">異常明細</div>${abTable}
       <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">照片　點圖可放大</div>
@@ -3096,28 +3116,47 @@ function viewVehicles(){
       </div>`,
       "改名時放在那個位置的品項會一起更新；刪除時那些品項會變成「未設定」，品項本身不會消失。每一區的位置各自獨立。")}
 
-    ${sect("photo","盤點拍照",`${byItem()?"每項一張":"每包一張"}　·　每車留 ${KEEP} 組`,`
+    ${sect("photo","盤點拍照",`${byItem()?"每項一張":"每包一張"}　·　${PXNAME[S.photoPx]||"標準"}　·　留 ${KEEP} 組`,`
       <div class="bd">
-        <div class="g2" style="margin-bottom:12px">
+        <span class="lbl" style="display:block;margin-bottom:6px">拍幾張</span>
+        <div class="g2" style="margin-bottom:14px">
           <button class="btn ${byItem()?"ghost":"amber"}" onclick="setPhotoMode('pkg')">每包一張</button>
           <button class="btn ${byItem()?"amber":"ghost"}" onclick="setPhotoMode('item')">每項一張</button>
         </div>
+        <span class="lbl" style="display:block;margin-bottom:6px">照片畫質</span>
+        <div class="iseg" style="margin-bottom:14px">
+          ${[640,1280,1800].map(px=>`<button type="button" aria-pressed="${S.photoPx===px}"
+            onclick="setPhotoPx(${px})">${PXNAME[px]}</button>`).join("")}
+        </div>
+        <div class="lbl" style="margin:-8px 0 14px;line-height:1.7">
+          省流量 640px（約 30KB）　標準 1280px（約 180KB）　高畫質 1800px（約 400KB）<br>
+          拍一整包工具要看得清楚哪一支不見，建議至少用標準。
+        </div>
+        <span class="lbl" style="display:block;margin-bottom:6px">每台車保留最新幾組照片</span>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+          <input type="number" min="1" max="60" id="kd" class="num" value="${KEEP}" style="width:92px">
+          <span style="font-size:14px">組</span>
+          <button class="btn sm" onclick="saveKeepSets()">儲存</button>
+        </div>
+        <div class="lbl" style="margin-bottom:14px;line-height:1.7">
+          一組＝一張盤點單。一天盤兩場的話，${KEEP} 組大約是 ${(KEEP/2).toFixed(KEEP%2?1:0)} 天。
+        </div>
         <div class="tw"><table>
-          <colgroup><col><col style="width:76px"><col style="width:80px"><col style="width:88px"></colgroup>
-          <tr><th></th><th class="n">每車每次</th><th class="n">全隊上限</th><th class="n">估算容量</th></tr>
+          <colgroup><col><col style="width:76px"><col style="width:84px"><col style="width:88px"></colgroup>
+          <tr><th></th><th class="n">每車每場</th><th class="n">${KEEP} 組共計</th><th class="n">估算容量</th></tr>
           ${[["每包一張",PKGS().length,!byItem()],["每項一張",RW().length,byItem()]].map(([t,n,cur])=>{
-            const tot=n*VEH().length*KEEP, mb=Math.round(tot*0.1);
+            const tot=n*VEH().length*KEEP, mb=Math.round(tot*MBP(S.photoPx));
             return `<tr class="${cur?"warn":""}"><td class="c-name">${t}${cur?"（目前）":""}</td>
               <td class="n c-num">${n} 張</td><td class="n">${tot} 張</td>
-              <td class="n">${mb} MB</td></tr>`;}).join("")}
+              <td class="n" style="${mb>900?"color:var(--alert);font-weight:700":""}">${mb} MB</td></tr>`;}).join("")}
         </table></div>
         <div class="lbl" style="margin-top:9px;line-height:1.7">
-          估算以每張約 100KB 計。免費雲端空間為 1024 MB，
-          目前上限用量約 ${Math.round((byItem()?RW().length:PKGS().length)*VEH().length*KEEP*0.1/1024*100)}%。<br>
-          每台車只保留最新 ${KEEP} 組照片，更舊的自動刪除，盤點紀錄本身永久保留。<br>
+          免費雲端空間 1024 MB，目前設定約用 ${estPct()}%。${estPct()>80?`
+          <b style="color:var(--alert)">已經接近上限，建議降低畫質或減少保留組數。</b>`:""}<br>
+          每台車只保留最新 ${KEEP} 組照片，更舊的自動刪除；盤點紀錄本身永久保留。<br>
           目前存有照片：${S.records.filter(r=>!r.pruned).length} 組　／　已清除：${S.records.filter(r=>r.pruned).length} 組</div>
       </div>`,
-      "切換後下一張盤點單即生效，已送出的紀錄不受影響")}
+      "改了之後下一張盤點單即生效，已送出的紀錄不受影響")}
 
     ${sect("am","上午場清單",`已選 ${(S.amIds||[]).length} 項`, amListBody(),
       "清單改了之後，外勤下一次進上午場就會跟著換。只盤這份清單，約兩分鐘。")}
