@@ -549,7 +549,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=9;
+const APP_VER=10;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -649,7 +649,8 @@ async function applyState(st,urls){
   const N=blankState();
   N.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
   KEEP=(st.settings&&st.settings.keep_sets)||4;
-  N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,abbr:i.abbr||""}));
+  N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
+    abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable}));
   (st.items||[]).forEach(i=>{N.warehouse[i.name]=i.warehouse;N.safety[i.name]=i.safety;});
   N.pkgs=(st.packages||[]).map(p=>({id:p.id,name:p.name}));
   N.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
@@ -716,7 +717,7 @@ let token=null, KEEP=4, busy=false;
 let me=null, gate="pick", setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
 let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"",loss:"遺失"};
 let rs={vehicle:"",sku:"",qty:1,note:""};
-let nItem={name:"",qty:0,safe:1,loc:"未設定"};
+let nItem={name:"",qty:0,safe:1,loc:"未設定",kind:"tool",valuable:false,abbr:""};
 /* ---------- 設定頁：可收合的區塊 ---------- */
 let setOpen={}, pickLoc=null;
 function toggleSet(k){ setOpen[k]=!setOpen[k]; if(k!=="loc") pickLoc=null; render();
@@ -735,7 +736,7 @@ function sect(k,title,meta,body,foot){
   </div>`;
 }
 let editSku=null, editRow=null, openRec=null, lightbox=null;
-let edKind="tool", edAbbr="";
+let edKind="tool", edAbbr="", edVal=false;
 let lostPick=null;
 let lastSubmit=null;   // 剛送出的盤點單摘要（上午場用來提醒）
 let rDate=null, rVeh=null;   // 盤點結果頁：看哪一天、只看哪台車
@@ -1896,15 +1897,21 @@ async function delManual(id){
 
 function locRank(l){const i=LOCS().indexOf(l);return i<=0?9999:i;}
 /* 品項標籤：庫存頁與下拉選單共用（分類放在標配列上） */
-function itemKind(name){ const r=RW().find(x=>x.name===name); return r?(r.kind||"tool"):null; }
+function itemKind(name){ const i=(S.items||[]).find(x=>x.sku===name); return i?(i.kind||"tool"):null; }
 function itemTags(name){
-  const rs=RW().filter(x=>x.name===name); if(!rs.length) return "";
-  const kd=rs[0].kind||"tool";
+  const i=(S.items||[]).find(x=>x.sku===name); if(!i) return "";
+  const kd=i.kind||"tool";
   return (kd==="meas"?`<span class="tag m">量測</span>`:"")
-       + (rs.some(x=>x.valuable)?`<span class="tag v">貴重</span>`:"")
+       + (i.valuable?`<span class="tag v">貴重</span>`:"")
        + (kd==="consum"?`<span class="tag c">耗材</span>`:"");
 }
 const KINDWORD={meas:"量測儀器 量測",tool:"一般工具",consum:"耗材"};
+function goStockItem(name){
+  const it=(S.items||[]).find(x=>x.sku===name);
+  tab="stock"; stockQ=name; editSku=name;
+  if(it){ edKind=it.kind||"tool"; edVal=!!it.valuable; edAbbr=it.abbr||""; }
+  window.scrollTo(0,0); render();
+}
 function viewStock(){
   const ni=nItem;
   const sorted=ITEMS().slice().sort((a,b)=>{
@@ -1926,6 +1933,15 @@ function viewStock(){
         </div>
         <label class="f"><span class="lbl">安全庫存</span>
           <input type="number" min="0" id="e_safe" class="num" value="${sf}"></label>
+        <label class="f"><span class="lbl">分類（必選一個）</span>
+          <div class="iseg am" id="e_kind" style="margin:0">${KINDS.map(([kk,t])=>
+            `<button type="button" aria-pressed="${edKind===kk}" onclick="edKind='${kk}';render()">${t}</button>`).join("")}</div></label>
+        ${edKind==="meas"?`<label class="f"><span class="lbl">編號縮寫（給量具編號用，例如「含水」）</span>
+            <input type="text" id="e_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
+          <div class="lbl" style="margin:-8px 0 14px">目前登記 ${EQ().filter(x=>x.item_id===it.id&&x.status!=="scrap").length} 台編號，到「ISO」分頁管理</div>`:""}
+        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:14px">
+          <input type="checkbox" id="e_val" ${edVal?"checked":""} style="width:17px;height:17px">貴重設備（額外標記）</label>
+        <div class="lbl" style="margin-bottom:12px">分類改這裡就好，所有包別的盤點項目會自動跟著變。</div>
         <div class="g2"><button class="btn" onclick="saveEdit('${k}')">儲存</button>
           <button class="btn ghost" onclick="editSku=null;render()">取消</button></div>
       </td></tr>`;
@@ -1938,7 +1954,7 @@ function viewStock(){
       <td class="n c-num">${h}</td>
       <td class="n c-num" style="color:var(--muted)">${sf}</td>
       <td class="c-act">
-        <button class="btn ghost tiny" onclick="editSku='${k}';render()">編輯</button>
+        <button class="btn ghost tiny" onclick="editSku='${k}';edKind='${it.kind||"tool"}';edVal=${!!it.valuable};edAbbr='${esc(it.abbr||"")}';render()">編輯</button>
         <button class="btn ghost tiny" onclick="delSku('${k}')">刪除</button></td></tr>`;});
 
   const lowN=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k]).length;
@@ -1985,6 +2001,14 @@ function viewStock(){
         <label class="f"><span class="lbl">安全庫存</span>
           <input type="number" min="0" class="num" value="${ni.safe}" onchange="setNi('safe',this.value)"></label>
       </div>
+      <label class="f"><span class="lbl">分類（必選一個）</span>
+        <div class="iseg am" id="ni_kind" style="margin:0">${KINDS.map(([kk,t])=>
+          `<button type="button" aria-pressed="${(ni.kind||"tool")===kk}" onclick="setNiK('${kk}')">${t}</button>`).join("")}</div></label>
+      ${ni.kind==="meas"?`<label class="f"><span class="lbl">編號縮寫（給量具編號用）</span>
+        <input type="text" value="${esc(ni.abbr||"")}" placeholder="例：含水" onchange="setNi('abbr',this.value)"></label>`:""}
+      <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:14px">
+        <input type="checkbox" ${ni.valuable?"checked":""} onchange="setNiV(this.checked)"
+          style="width:17px;height:17px">貴重設備（額外標記）</label>
       <button class="btn block" onclick="addSku()">新增品項</button>
     </div></div>
   </div>`;
@@ -1997,7 +2021,9 @@ async function setSafety(k,v){
     await reload(); render();
   });
 }
-function setNi(k,v){nItem[k]=(k==="name"||k==="loc")?v:Math.max(0,parseInt(v)||0);}
+function setNi(k,v){nItem[k]=(k==="name"||k==="loc"||k==="abbr")?v:Math.max(0,parseInt(v)||0);}
+function setNiK(k){nItem.kind=k;render();}
+function setNiV(v){nItem.valuable=v;}
 async function addSku(){
   const n=(nItem.name||"").trim();
   if(!n)return toast("請填品項名稱");
@@ -2005,8 +2031,15 @@ async function addSku(){
   await guard(async()=>{
     await rpc("mgr_item_add",{p_token:token,p_region:REG,p_name:n,p_loc:nItem.loc||"未設定",
       p_qty:Number(nItem.qty)||0,p_safety:Number(nItem.safe)||0});
-    nItem={name:"",qty:0,safe:1,loc:"未設定"};
-    await reload(); render();
+    const kd=nItem.kind||"tool", vl=!!nItem.valuable, ab=nItem.abbr||"";
+    await reload();
+    if(kd!=="tool"||vl||ab){
+      const made=(S.items||[]).find(x=>x.sku===n);
+      if(made) await rpc("mgr_item_tags",{p_token:token,p_id:made.id,p_kind:kd,p_valuable:vl,p_abbr:ab});
+      await reload();
+    }
+    nItem={name:"",qty:0,safe:1,loc:"未設定",kind:"tool",valuable:false,abbr:""};
+    ISO=null; render();
   },`已新增品項：${n}`);
 }
 async function saveEdit(k){
@@ -2018,7 +2051,9 @@ async function saveEdit(k){
   await guard(async()=>{
     await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:nn,
       p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
-    editSku=null; await reload(); render();
+    await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:edKind,
+      p_valuable:g("e_val").checked,p_abbr:(g("e_abbr")?g("e_abbr").value:null)});
+    editSku=null; ISO=null; await reload(); render();
   },nn!==k?`已改名為「${nn}」，盤點項目已同步`:"已更新");
 }
 async function delSku(k){
@@ -2522,23 +2557,16 @@ function viewItems(){
           <input type="number" min="0" class="num" id="r_std" value="${r.std}"></label>
         <label class="f"><span class="lbl">所屬包別</span>
           <select id="r_pkg">${pk.map(x=>`<option value="${x.id}" ${x.id===r.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
-        <label class="f"><span class="lbl">分類（必選一個）</span>
-          <div class="iseg am" id="r_kind" style="margin:0">${KINDS.map(([k,t])=>
-            `<button type="button" aria-pressed="${edKind===k}" onclick="edKind='${k}';render()">${t}</button>`).join("")}</div></label>
-        ${edKind==="meas"?`<label class="f"><span class="lbl">編號縮寫（給量具編號用，例如「含水」）</span>
-          <input type="text" id="r_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
-          <div class="lbl" style="margin:-8px 0 14px">目前登記 ${EQ().filter(x=>x.item_id===r.itemId&&x.status!=="scrap").length} 台編號，到「ISO」分頁管理</div>`:""}
-        <div style="display:flex;gap:16px;margin-bottom:14px">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
-            <input type="checkbox" id="r_val" ${r.valuable?"checked":""} style="width:17px;height:17px">貴重設備（額外標記）</label>
-        </div>
+        <div class="lbl" style="margin-bottom:14px">標籤：${itemTags(r.name)||"（一般工具）"}
+          　<button class="btn ghost tiny" onclick="editRow=null;goStockItem('${esc(r.name)}')">到庫存頁改標籤</button>
+          <div style="margin-top:5px">分類與貴重標記是跟著<b>庫存品項</b>走的，改一次所有包別都會同步。</div></div>
         <div class="g2"><button class="btn" onclick="saveRow('${r.rid}')">儲存</button>
           <button class="btn ghost" onclick="editRow=null;render()">取消</button></div></td></tr>`;
       return `<tr><td class="c-name">${r.name}
           ${r.kind==="meas"?`<span class="tag m">量測</span>`:""}${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
         <td class="n c-num">${r.std}</td>
         <td class="c-act">
-          <button class="btn ghost tiny" onclick="editRow='${r.rid}';edKind='${r.kind||"tool"}';edAbbr=((S.items.find(x=>x.id==='${r.itemId}')||{}).abbr)||'';render()">編輯</button>
+          <button class="btn ghost tiny" onclick="editRow='${r.rid}';render()">編輯</button>
           <button class="btn ghost tiny" onclick="delRow('${r.rid}')">刪除</button></td></tr>`;}).join("");
     const hd = editPkg===p.id
       ? `<div class="bd" style="border-bottom:1px solid var(--line2);background:#FFFBF0">
@@ -2581,14 +2609,8 @@ function viewItems(){
       <label class="f"><span class="lbl">放進哪個包別</span>
         <select onchange="setNr('pkg',this.value)">${pk.map(x=>
           `<option value="${x.id}" ${x.id===nRow.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
-      <label class="f"><span class="lbl">分類（必選一個）</span>
-        <div class="iseg am" id="n_kind" style="margin:0">${KINDS.map(([k,t])=>
-          `<button type="button" aria-pressed="${(nRow.kind||"tool")===k}" onclick="setNr('kind','${k}')">${t}</button>`).join("")}</div></label>
-      <div style="display:flex;gap:16px;margin-bottom:14px">
-        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer">
-          <input type="checkbox" ${nRow.valuable?"checked":""} onchange="setNr('valuable',this.checked)"
-            style="width:17px;height:17px">貴重設備（額外標記）</label>
-      </div>
+      <div class="lbl" style="margin-bottom:14px">${nRow.item?`標籤：${itemTags((itemOf(nRow.item)||{}).sku)||"（一般工具）"}`
+        :"標籤會自動沿用庫存品項的設定"}　·　要改標籤請到「庫存」分頁</div>
       <button class="btn block" onclick="addRow()">新增項目</button>
       <div class="lbl" style="margin-top:8px">
         只能從庫存總表既有的品項挑選。要盤的東西還不在清單裡的話，
@@ -2624,12 +2646,9 @@ async function addRow(){
   const pid=nRow.pkg, pname=pkgName(pid);
   if(!pname)return toast("請先選擇包別");
   await guard(async()=>{
-    const kd=nRow.kind||"tool";
-    const rid=await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:it.id,p_std:Number(nRow.std)||0,
-      p_valuable:!!nRow.valuable,p_consumable:kd==="consum"});
-    if(kd!=="tool") await rpc("mgr_row_kind",{p_token:token,p_id:rid,p_kind:kd});
-    nRow={item:"",std:1,pkg:pid,valuable:false,consum:false,kind:"tool"};
-    ISO=null;
+    await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:it.id,p_std:Number(nRow.std)||0,
+      p_valuable:false,p_consumable:false});
+    nRow={item:"",std:1,pkg:pid,valuable:false,consum:false};
     await reload(); render();
   },`已新增：${pname} · ${it.sku}`);
 }
@@ -2639,10 +2658,8 @@ async function saveRow(rid){
   await guard(async()=>{
     await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:null,
       p_std:Math.max(0,parseInt(g("r_std").value)||0),p_pkg:g("r_pkg").value,
-      p_valuable:g("r_val").checked,p_consumable:edKind==="consum"});
-    await rpc("mgr_row_kind",{p_token:token,p_id:rid,p_kind:edKind});
-    if(edKind==="meas"&&g("r_abbr")) await rpc("mgr_item_abbr",{p_token:token,p_id:r.itemId,p_abbr:g("r_abbr").value});
-    editRow=null; ISO=null; await reload(); render();
+      p_valuable:null,p_consumable:null});
+    editRow=null; await reload(); render();
   },"已更新盤點項目");
 }
 async function delRow(rid){
@@ -3317,7 +3334,7 @@ function viewEqList(){
         <button class="btn sm amber" onclick="eqNew()">＋ 新增儀器</button>
       </div>
       ${(ISO.meas_items||[]).length?"":`<div class="note" style="margin-top:12px">
-        還沒有任何品項被標成「量測儀器」。請先到<b>項目</b>頁，把要管的品項分類改成量測儀器，才能在這裡登編號。</div>`}
+        還沒有任何品項被標成「量測儀器」。請先到<b>庫存</b>頁，把要管的品項分類改成量測儀器，才能在這裡登編號。</div>`}
     </div></div>`;
 }
 
@@ -3435,7 +3452,7 @@ function isoDel(fn,id,what){ if(!confirm(`刪除${what}？`))return;
 
 /* ---------- 儀器：新增／編輯 ---------- */
 function eqNew(){
-  if(!(ISO.meas_items||[]).length) return toast("請先到「項目」把品項分類改成量測儀器");
+  if(!(ISO.meas_items||[]).length) return toast("請先到「庫存」把品項分類改成量測儀器");
   eqEdit={id:null,item_id:ISO.meas_items[0].id,no:"",spec:"",brand:"",tol:"",
     cal_type:"out",cal_org:"",cal_months:12,buy_date:isoToday(),keeper:"驗屋部",
     owner_name:"",loc_code:"",note:""};
@@ -3463,7 +3480,7 @@ function viewEqForm(){
     <label class="f"><span class="lbl">量具編號</span>
       <input type="text" id="e_no" value="${esc(E.no)}" oninput="setEq('no',this.value)">
       <span style="font-size:12.5px;color:var(--muted)">${ab?`系統依縮寫「${esc(ab)}」自動給號，可以自己改`
-        :`這個品項還沒設縮寫，先用名稱前兩個字。可到「項目」頁設定縮寫`}</span></label>
+        :`這個品項還沒設縮寫，先用名稱前兩個字。可到「庫存」頁設定縮寫`}</span></label>
     <div class="g2">
       <label class="f"><span class="lbl">規格</span><input type="text" value="${esc(E.spec)}" oninput="setEq('spec',this.value)"></label>
       <label class="f"><span class="lbl">廠牌</span><input type="text" value="${esc(E.brand)}" oninput="setEq('brand',this.value)"></label>
