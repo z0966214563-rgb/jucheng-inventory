@@ -732,7 +732,7 @@ function prune(){}               // 照片保留由資料庫處理
 
 /* ---- 伺服器資料 → 畫面用的資料結構 ---- */
 function blankState(){
-  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],units:[],
+  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],units:[],toolOwner:"",
           items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",photoPx:1280,
           amItems:[],amIds:[],amRows:[],needs:[],locs:[]};
 }
@@ -753,6 +753,7 @@ async function applyState(st,urls){
   N.photoMode=(st.settings&&st.settings.photo_mode)||"pkg";
   N.photoPx=(st.settings&&st.settings.photo_px)||1280;
   KEEP=(st.settings&&st.settings.keep_sets)||10;
+  N.toolOwner=(st.settings&&st.settings.tool_owner)||"";
   N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
     abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable,track:!!i.track}));
   // 有編號管理的品項，每一台的編號與目前位置
@@ -3659,6 +3660,12 @@ async function isoDo(fn,msg){
   await guard(async()=>{ await fn(); await isoLoad(); },msg);
   render();
 }
+async function saveToolOwner(v){
+  await guard(async()=>{
+    await rpc("mgr_iso_cfg",{p_token:token,p_region:REG,p_tool_owner:(v||"").trim()});
+    await reload(); render();
+  },"已設定一般工具的負責人員");
+}
 function isoGo(t){ isoTab=t; eqOpen=null; cardOpen=null; eqEdit=null; printWhat=null;
   calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null;
   window.scrollTo(0,0); render(); }
@@ -4430,6 +4437,10 @@ function viewPrintMenu(){
       `<div class="row"><div class="info"><div class="nm">${t}</div>
         ${d?`<div class="meta">${d}</div>`:""}</div>
         <button class="btn tiny ghost" onclick="printWhat='${k}';window.scrollTo(0,0);render()">列印</button></div>`).join("")}
+    <label class="f" style="margin-top:14px"><span class="lbl">一般工具的負責人員（整張 QP-05-02 一般工具表都帶這個名字）</span>
+      <input type="text" id="t_owner" value="${esc(S.toolOwner||"")}" placeholder="例：冠揚"
+        onchange="saveToolOwner(this.value)"></label>
+    <div class="lbl" style="margin:-8px 0 4px">一般工具通常同一個人管，所以設一次就好，不用每一項填。</div>
     <div class="note" style="margin-top:12px">
       QP-16-02 履歷表在每一台儀器的頁面底下；QP-05-01 設備履歷在每一張履歷卡底下；
       QP-05-03 報廢呈報單在有呈報單的儀器頁面裡。
@@ -4590,25 +4601,28 @@ function pf0502(cat){
       const o=seen[n], it=(S.items||[]).find(x=>x.sku===n)||{};
       const onCar=o.std*VEH().length, wh=(S.warehouse&&S.warehouse[n])||0;
       const us=it.track?unitsLive(it.id):[];
+      // 編號不另外開一欄：只有貴重、有開編號管理的品項才在備註列出來
       return [String(i+1), esc(n), esc(it.loc||"—"),
               String(onCar), String(wh), String(onCar+wh),
-              us.length?us.map(u=>esc(u.no)).join("、"):""];});
+              esc(S.toolOwner||""),
+              us.length?"編號："+us.map(u=>esc(u.no)).join("、"):""];});
     return `<div class="iso-form">${pfHead("QP-05-02")}${CO}
       <div class="ft">設 備 一 覽 表</div>
       <div style="font-size:11.5px;margin:0 0 5px 2px"><b>類別：</b>${title}</div>
-      <table class="pf">
-        <tr><th style="width:7%" rowspan="2">NO.</th><th style="width:30%" rowspan="2">設備名稱</th>
-          <th style="width:14%" rowspan="2">擺放位置</th>
-          <th colspan="3">數量</th><th style="width:19%" rowspan="2">編號</th></tr>
-        <tr><th style="width:10%">車上</th><th style="width:10%">庫存</th><th style="width:10%">合計</th></tr>
+      <table class="pf" style="table-layout:fixed">
+        <tr><th style="width:6%" rowspan="2">NO.</th><th style="width:34%" rowspan="2">設備名稱</th>
+          <th style="width:12%" rowspan="2">擺放位置</th>
+          <th colspan="3">數量</th>
+          <th style="width:13%" rowspan="2">負責人員</th><th style="width:17%" rowspan="2">備註</th></tr>
+        <tr><th style="width:6%">車上</th><th style="width:6%">庫存</th><th style="width:6%">合計</th></tr>
         ${rows.map(r=>`<tr><td class="mo">${r[0]}</td><td class="l">${r[1]}</td><td>${r[2]}</td>
           <td class="mo">${r[3]}</td><td class="mo">${r[4]}</td><td class="mo">${r[5]}</td>
-          <td class="l mo">${r[6]}</td></tr>`).join("")}
-        ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
+          <td>${r[6]||"—"}</td><td class="l mo">${r[7]}</td></tr>`).join("")}
+        ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
       </table>
       <div style="font-size:11px;color:#555;margin-top:6px">
         一般工具每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行。
-        有開編號管理的品項才會列出編號。耗材不列入本表。</div>
+        貴重設備有編號的，編號列在備註欄。耗材不列入本表。</div>
       ${pfSig}</div>`;
   }
 
