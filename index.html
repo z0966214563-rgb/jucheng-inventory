@@ -549,7 +549,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=11;
+const APP_VER=12;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -593,14 +593,91 @@ async function rpc(fn,args){
 }
 // 雲端儲存的檔名只接受英數，中文車名要先轉碼
 const pathSafe=t=>String(t).replace(/[^A-Za-z0-9_-]/g,c=>"u"+c.charCodeAt(0).toString(16));
-async function uploadPhoto(path,dataUrl){
-  const blob=await (await fetch(dataUrl)).blob();
-  const res=await fetch(`${SB_URL}/storage/v1/object/count-photos/${encodeURI(path)}`,
-    {method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
-      "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
-  if(!res.ok) throw new Error("照片上傳失敗："+(await res.text()));
-  return path;
+/* ===================== 照片上傳 =====================
+   一張一張慢慢傳最怕的是：中途斷一次就整張單重來。
+   這裡做三件事：單張有逾時與重試、多張同時傳、以及拍完就先在背景傳。  */
+const BUCKET="count-photos";
+const UP_TIMEOUT=30000, UP_TRIES=3, UP_CONC=4, UP_BG_CONC=2;
+const upSleep=ms=>new Promise(r=>setTimeout(r,ms));
+const upOnline=()=>{ try{ return navigator.onLine!==false; }catch(e){ return true; } };
+
+async function uploadOnce(path,blob){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),UP_TIMEOUT);
+  try{
+    const res=await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${encodeURI(path)}`,
+      {method:"POST",signal:ctl.signal,
+       headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
+                "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
+    if(!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0,80)}`);
+    return path;
+  }finally{ clearTimeout(t); }
 }
+// 單張：逾時 30 秒，最多試 3 次，間隔 0.8s → 1.6s
+async function uploadPhoto(path,dataUrl,opt){
+  opt=opt||{};
+  const blob=await (await fetch(dataUrl)).blob();
+  const tries=opt.tries||UP_TRIES;
+  let last=null;
+  for(let i=0;i<tries;i++){
+    if(!upOnline()){ last=new Error("目前沒有網路"); await upSleep(1500); continue; }
+    try{ return await uploadOnce(path,blob); }
+    catch(e){
+      last=(e&&e.name==="AbortError")?new Error("上傳逾時"):e;
+      if(i<tries-1) await upSleep(800*Math.pow(2,i));
+    }
+  }
+  throw new Error("照片上傳失敗："+((last&&last.message)||""));
+}
+// 多張：同時 conc 張，回傳失敗的那幾張
+async function uploadMany(jobs,onTick,conc){
+  const list=jobs.slice(); let i=0; const fails=[];
+  const n=Math.max(1,Math.min(conc||UP_CONC,list.length));
+  await Promise.all(Array.from({length:n},async()=>{
+    while(i<list.length){
+      const j=list[i++];
+      try{ j.path=await uploadPhoto(j.path,j.data); j.ok=true; }
+      catch(e){ j.err=e.message||""; fails.push(j); }
+      if(onTick) onTick(j);
+    }
+  }));
+  return fails;
+}
+
+/* ---- 背景上傳：拍完就傳，人還在盤下一項 ---- */
+let bgQueue=[], bgRunning=false, bgDone=0, bgFail=0;
+function bgPush(key,path,data,onSaved){
+  bgQueue=bgQueue.filter(j=>j.key!==key);          // 同一格重拍就換掉舊的
+  bgQueue.push({key,path,data,onSaved,tries:0});
+  bgPump();
+}
+function bgDrop(key){ bgQueue=bgQueue.filter(j=>j.key!==key); }
+function bgClear(){ bgQueue=[]; bgDone=0; bgFail=0; }
+const bgPending=()=>bgQueue.length;
+async function bgPump(){
+  if(bgRunning) return; bgRunning=true;
+  try{
+    while(bgQueue.length){
+      if(!upOnline()){ await upSleep(5000); continue; }   // 沒訊號就安靜等，不狂重試
+      const batch=bgQueue.slice(0,UP_BG_CONC);
+      let okThisRound=0;
+      await Promise.all(batch.map(async j=>{
+        try{
+          await uploadPhoto(j.path,j.data,{tries:1});
+          bgQueue=bgQueue.filter(x=>x!==j); bgDone++; okThisRound++;
+          if(j.onSaved) j.onSaved(j.path);
+        }catch(e){
+          j.tries++;
+          if(j.tries>=6){ bgQueue=bgQueue.filter(x=>x!==j); bgFail++; }  // 放棄，送出時再傳
+        }
+      }));
+      // 只有整輪都失敗才需要退讓等待，順利的時候要一張接一張傳
+      if(bgQueue.length && okThisRound===0) await upSleep(4000);
+    }
+  }finally{ bgRunning=false; }
+}
+try{ window.addEventListener("online",()=>bgPump()); }catch(e){}
+
 async function signUrls(paths){
   const list=[...new Set(paths.filter(Boolean))];
   if(!list.length) return {};
@@ -856,7 +933,7 @@ function saveDraftNow(force){
             if(el) el.textContent="已自動存檔 "+savedAt; }
   });
 }
-function clearDraft(){ clearTimeout(_dT); savedAt=null; _sig=""; kvDel(DKEY()); }
+function clearDraft(){ clearTimeout(_dT); savedAt=null; _sig=""; bgClear(); kvDel(DKEY()); }
 
 let resume=null;                               // 等待使用者決定要不要接續的那一張
 async function checkResume(){
@@ -1168,7 +1245,8 @@ function switchRole(){
 }
 
 /* ===================== 盤點人員頁 ===================== */
-const newDraft=()=>({person:"",vehicle:"",date:today(),session:"pm",items:{},pkgPhoto:{}});  // pkgPhoto[包別id] = [照片1, 照片2]
+const newDraft=()=>({person:"",vehicle:"",date:today(),session:"pm",items:{},pkgPhoto:{},
+  uid:(Date.now().toString(36)+Math.random().toString(36).slice(2,7)), up:{}});  // pkgPhoto[包別id] = [照片1, 照片2]
 function st(rid){ if(!draft.items[rid])draft.items[rid]={status:"pending",type:"",actual:null,note:"",photo:null,open:false};
   return draft.items[rid]; }
 const pkgRows=id=>RW().filter(r=>r.pkg===id);
@@ -1243,6 +1321,12 @@ function viewField(){
     <button class="btn block" ${allDone()&&!busy?"":"disabled"} onclick="submitCount()">
       <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
         (allDone()?"送出盤點單":(byItem()?`還有 ${RW().length-RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} 項未拍照`:`還有 ${PKGS().length-doneCount()} 個包別未完成`))}</button>
+    ${(()=>{const u=upStat(); if(!u.need) return "";
+      const left=u.need-u.done;
+      return `<div class="lbl" style="margin-top:9px;text-align:center;line-height:1.7;
+        color:${left?"var(--amber-d)":"var(--ok)"}">
+        ${left?`照片上傳中 ${u.done}/${u.need}　·　邊盤邊傳，送出時就不用等了`
+              :`照片已全部上傳 ${u.done}/${u.need}　·　送出會很快`}</div>`;})()}
     <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
       <button class="btn ghost tiny" onclick="resetDraft()">清空重填</button>
       <span class="lbl" id="savetag" style="font-size:11px">${savedAt?"已自動存檔 "+savedAt:"會自動存檔，重整也不會掉"}</span>
@@ -1382,6 +1466,35 @@ function startCount(){const n=document.getElementById("pname");if(n)draft.person
 const PXQ={640:0.62,1280:0.72,1800:0.78};
 const PXNAME={640:"省流量",1280:"標準",1800:"高畫質"};
 const photoPx=()=>{const v=(S&&S.photoPx)|0; return PXQ[v]?v:1280;};
+
+/* 拍完就先在背景傳，人繼續盤下一項；路徑記在暫存單裡，送出時不用重傳 */
+function upBase(){
+  const veh=(draft&&draft.vehicle)||"_";
+  return `${slugOf(REG)}/${pathSafe(veh)}/${(draft&&draft.uid)||"x"}`;
+}
+function bgKick(key,name,data){
+  if(!draft)return;
+  if(!draft.up) draft.up={};
+  delete draft.up[key];
+  const path=`${upBase()}/${name}.jpg`;
+  bgPush(key,path,data,p=>{ if(draft){ (draft.up||(draft.up={}))[key]=p; saveDraftSoon(); render(); } });
+}
+function bgForget(key){ bgDrop(key); if(draft&&draft.up) delete draft.up[key]; }
+// 這張單總共要傳幾張、已經好了幾張
+function upStat(){
+  let need=0, done=0;
+  if(!draft) return {need,done};
+  if(byItem()){ RW().forEach(r=>{ const x=draft.items[r.rid]; if(x&&x.photo){ need++;
+      if(draft.up&&draft.up["item:"+r.rid]) done++; } }); }
+  else{
+    PKGS().forEach(p=>((draft.pkgPhoto[p.id]||[]).forEach((d,i)=>{ if(d){ need++;
+      if(draft.up&&draft.up[`pkg:${p.id}:${i}`]) done++; } })));
+    RW().forEach(r=>{ const x=draft.items[r.rid];
+      if(x&&x.status==="abnormal"&&x.photo){ need++;
+        if(draft.up&&draft.up["item:"+r.rid]) done++; } });
+  }
+  return {need,done};
+}
 function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
   img.onload=()=>{const m=photoPx(),q=PXQ[m]||0.72,
       sc=Math.min(1,m/Math.max(img.width,img.height));
@@ -1390,12 +1503,19 @@ function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Ima
   img.src=fr.result;};fr.readAsDataURL(f);}
 function shoot(rid,inp){ if(!inp.files[0])return;
   shrink(inp.files[0],d=>{const x=st(rid);x.photo=d;
-    if(byItem()&&x.status==="pending")x.status="ok"; render();});}
+    if(byItem()&&x.status==="pending")x.status="ok";
+    bgKick("item:"+rid,"item-"+rid,d); render();});}
 function shootPkg(inp,idx){ if(!inp.files[0]||!pkgRows(curPkg).length)return;
-  shrink(inp.files[0],d=>{ const a=draft.pkgPhoto[curPkg]||(draft.pkgPhoto[curPkg]=[]);
-    a[idx||0]=d; if(a.length>2)a.length=2; render();});}
+  const pid=curPkg, i=idx||0;
+  shrink(inp.files[0],d=>{ const a=draft.pkgPhoto[pid]||(draft.pkgPhoto[pid]=[]);
+    a[i]=d; if(a.length>2)a.length=2;
+    bgKick(`pkg:${pid}:${i}`,`pkg-${pid}-${i}`,d); render();});}
 function removePkgPhoto(idx){ const a=draft.pkgPhoto[curPkg]; if(!a)return;
-  a.splice(idx,1); render(); }
+  a.splice(idx,1);
+  // 位置會往前移，乾脆把這個包別的上傳紀錄重排
+  for(let i=0;i<3;i++) bgForget(`pkg:${curPkg}:${i}`);
+  (a||[]).forEach((d,i)=>{ if(d) bgKick(`pkg:${curPkg}:${i}`,`pkg-${curPkg}-${i}`,d); });
+  render(); }
 function markPkgOK(){
   pkgRows(curPkg).forEach(r=>{const s=st(r.rid);
     if(s.status!=="abnormal"){s.status="ok";s.type="";s.actual=null;s.photo=null;s.note="";s.open=false;}});
@@ -1443,20 +1563,19 @@ async function submitCount(){
   try{
     const veh=draft.vehicle;
     const slot=await rpc("field_next_slot",{p_region:REG,p_vehicle:veh});
-    const base=`${slugOf(REG)}/${pathSafe(veh)}/${slot}`;   // 三個區都有 A 車，路徑要分開
-    let done=0;
-    const total=(byItem()?RW().filter(r=>draft.items[r.rid].photo).length
-                        :PKGS().reduce((t,p)=>t+((draft.pkgPhoto[p.id]||[]).length),0))
-               +RW().filter(r=>draft.items[r.rid].status==="abnormal"&&draft.items[r.rid].photo&&!byItem()).length;
-    const tick=()=>{done++; setProgress(`上傳照片 ${done}/${total}`);};
+    const base=upBase();            // 三個區都有 A 車，路徑用這張單的唯一代號分開
+    const up=draft.up||{};
+    const jobs=[];                  // 背景還沒傳成功的，現在補傳
 
     const pkgPhotos=[];
     if(!byItem()){
       for(const p of PKGS()){
         const arr=draft.pkgPhoto[p.id]||[];
         for(let i=0;i<arr.length;i++){
-          const path=`${base}/pkg-${p.id}-${i}.jpg`;
-          await uploadPhoto(path,arr[i]); tick();
+          if(!arr[i]) continue;
+          const key=`pkg:${p.id}:${i}`;
+          let path=up[key];
+          if(!path){ path=`${base}/pkg-${p.id}-${i}.jpg`; jobs.push({key,path,data:arr[i]}); }
           pkgPhotos.push({package_name:p.name,photo_path:path});
         }
       }
@@ -1468,11 +1587,24 @@ async function submitCount(){
       const actual=ab?Number(st0.actual):r.std;
       let path=null;
       if(st0.photo && (byItem()||ab)){
-        path=`${base}/item-${r.rid}.jpg`;
-        await uploadPhoto(path,st0.photo); tick();
+        const key="item:"+r.rid;
+        path=up[key];
+        if(!path){ path=`${base}/item-${r.rid}.jpg`; jobs.push({key,path,data:st0.photo}); }
       }
       lines.push({item_name:r.name,package_name:r.pkgName,std:r.std,actual,
         status:ab?st0.type:"正常",note:st0.note||"",photo_path:path});
+    }
+
+    if(jobs.length){
+      jobs.forEach(j=>bgDrop(j.key));          // 別跟背景佇列搶著傳同一張
+      let done=0; const total=jobs.length;
+      setProgress(`上傳照片 0/${total}`);
+      const fails=await uploadMany(jobs,()=>{ done++; setProgress(`上傳照片 ${done}/${total}`); });
+      jobs.forEach(j=>{ if(j.ok) (draft.up||(draft.up={}))[j.key]=j.path; });
+      saveDraftSoon();
+      if(fails.length) throw new Error(
+        `還有 ${fails.length} 張照片沒傳成功（${fails[0].err||""}）。`+
+        `盤點內容已經留著，網路好一點再按一次送出就好，已經傳好的不會重傳。`);
     }
     setProgress("寫入盤點單…");
     const ses=draft.session||"pm";
