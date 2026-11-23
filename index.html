@@ -549,7 +549,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=12;
+const APP_VER=13;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -3626,18 +3626,60 @@ function eqNew(){
   if(!(ISO.meas_items||[]).length) return toast("請先到「庫存」把品項分類改成量測儀器");
   eqEdit={id:null,item_id:ISO.meas_items[0].id,no:"",spec:"",brand:"",tol:"",
     cal_type:"out",cal_org:"",cal_months:12,buy_date:isoToday(),keeper:"驗屋部",
-    owner_name:"",loc_code:"",note:""};
+    owner_name:"",loc_code:"",note:"",_model:""};
+  const ms=eqModels(eqEdit.item_id);
+  if(ms.length===1) applyModel(ms[0].key);          // 只有一種機型就自動帶
   eqPhoto={}; eqNoSuggest(); window.scrollTo(0,0); render();
 }
 function eqEditOpen(id){ const e=eqById(id); if(!e)return;
-  eqEdit=Object.assign({},e,{buy_date:dOnly(e.buy_date),loc_code:e.loc_code||""});
+  eqEdit=Object.assign({},e,{buy_date:dOnly(e.buy_date),loc_code:e.loc_code||"",
+    _model:[e.brand||"",e.spec||"",e.tol||"",e.cal_type||"out",e.cal_org||"",e.cal_months||0].join("|")});
   eqPhoto={}; window.scrollTo(0,0); render(); }
 function setEq(k,v){ if(eqEdit) eqEdit[k]=v; }
-function eqItemChange(v){ eqEdit.item_id=v; eqNoSuggest(); }
+function eqItemChange(v){
+  eqEdit.item_id=v; eqEdit._model="";
+  // 換品項一定要把上一個品項帶進來的欄位清掉，
+  // 不然會把別台儀器的廠牌和容許誤差值留在表單上，直接印到履歷表就錯了
+  Object.assign(eqEdit,{brand:"",spec:"",tol:"",cal_type:"out",cal_org:"",cal_months:12});
+  const ms=eqModels(v);
+  if(!eqEdit.id && ms.length===1) applyModel(ms[0].key);   // 只有一種機型就自動帶
+  eqNoSuggest();
+  render();
+}
 async function eqNoSuggest(){
   if(!eqEdit||eqEdit.id) return;
   try{ const n=await rpc("eq_next_no",{p_token:token,p_region:REG,p_item:eqEdit.item_id});
        if(eqEdit&&!eqEdit.id){ eqEdit.no=n; render(); } }catch(e){}
+}
+
+/* 機型＝同一個品項底下，廠牌／規格／容許誤差值／校驗設定一樣的那一組。
+   直接從已登記的儀器歸納，建越多選項越齊，不用另外維護一份機型清單。 */
+function eqModels(itemId){
+  const seen={}, out=[];
+  EQ().filter(e=>e.item_id===itemId).forEach(e=>{
+    const m={brand:e.brand||"",spec:e.spec||"",tol:e.tol||"",
+             cal_type:e.cal_type||"out",cal_org:e.cal_org||"",cal_months:e.cal_months||0};
+    if(!m.brand&&!m.spec&&!m.tol&&!m.cal_org) return;      // 整組空白的不算機型
+    const k=[m.brand,m.spec,m.tol,m.cal_type,m.cal_org,m.cal_months].join("|");
+    if(seen[k]){ seen[k].n++; return; }
+    m.key=k; m.n=1; seen[k]=m; out.push(m);
+  });
+  return out.sort((a,b)=>b.n-a.n);
+}
+function modelLabel(m){
+  const bits=[(m.brand+" "+m.spec).trim()];
+  if(m.tol) bits.push(m.tol);
+  if(m.cal_type==="none") bits.push("免校");
+  else { if(m.cal_org) bits.push(m.cal_org); if(m.cal_months) bits.push(m.cal_months+" 個月"); }
+  return bits.filter(Boolean).join("　");
+}
+function applyModel(k){
+  if(!eqEdit) return;
+  const m=eqModels(eqEdit.item_id).find(x=>x.key===k);
+  eqEdit._model=k||"";
+  if(m) Object.assign(eqEdit,{brand:m.brand,spec:m.spec,tol:m.tol,
+    cal_type:m.cal_type,cal_org:m.cal_org,cal_months:m.cal_months});
+  render();
 }
 function viewEqForm(){
   const E=eqEdit, items=ISO.meas_items||[];
@@ -3648,6 +3690,13 @@ function viewEqForm(){
       <select onchange="eqItemChange(this.value)" ${E.id?"":""}>
         ${items.map(i=>`<option value="${i.id}" ${E.item_id===i.id?"selected":""}>${esc(i.name)}</option>`).join("")}
       </select></label>
+    ${(()=>{const ms=eqModels(E.item_id); if(!ms.length) return "";
+      return `<label class="f"><span class="lbl">沿用已登記的機型</span>
+        <select id="e_model" onchange="applyModel(this.value)">
+          <option value="">空白（自己填）</option>
+          ${ms.map(m=>`<option value="${esc(m.key)}" ${E._model===m.key?"selected":""}>${esc(modelLabel(m))}</option>`).join("")}
+        </select>
+        <span style="font-size:12.5px;color:var(--muted)">選了會把廠牌、規格、容許誤差值、校驗設定一次帶進來，帶進來之後還是可以改</span></label>`;})()}
     <label class="f"><span class="lbl">量具編號</span>
       <input type="text" id="e_no" value="${esc(E.no)}" oninput="setEq('no',this.value)">
       <span style="font-size:12.5px;color:var(--muted)">${ab?`系統依縮寫「${esc(ab)}」自動給號，可以自己改`
