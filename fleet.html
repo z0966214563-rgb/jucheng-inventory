@@ -356,7 +356,7 @@ const BUCKET="fleet-photos";
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="fleet";
-const APP_VER=8;
+const APP_VER=10;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -397,14 +397,90 @@ async function rpc(fn,args){
 }
 // 雲端檔名只收英數，中文車號先轉碼
 const pathSafe=t=>String(t).replace(/[^A-Za-z0-9_-]/g,c=>"u"+c.charCodeAt(0).toString(16));
-async function uploadPhoto(path,dataUrl){
-  const blob=await (await fetch(dataUrl)).blob();
-  const res=await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${encodeURI(path)}`,
-    {method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
-      "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
-  if(!res.ok) throw new Error("照片上傳失敗："+(await res.text()));
-  return path;
+/* ===================== 照片上傳 =====================
+   一張一張慢慢傳最怕的是：中途斷一次就整張單重來。
+   這裡做三件事：單張有逾時與重試、多張同時傳、以及拍完就先在背景傳。  */
+const UP_TIMEOUT=30000, UP_TRIES=3, UP_CONC=4, UP_BG_CONC=2;
+const upSleep=ms=>new Promise(r=>setTimeout(r,ms));
+const upOnline=()=>{ try{ return navigator.onLine!==false; }catch(e){ return true; } };
+
+async function uploadOnce(path,blob){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),UP_TIMEOUT);
+  try{
+    const res=await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${encodeURI(path)}`,
+      {method:"POST",signal:ctl.signal,
+       headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
+                "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
+    if(!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0,80)}`);
+    return path;
+  }finally{ clearTimeout(t); }
 }
+// 單張：逾時 30 秒，最多試 3 次，間隔 0.8s → 1.6s
+async function uploadPhoto(path,dataUrl,opt){
+  opt=opt||{};
+  const blob=await (await fetch(dataUrl)).blob();
+  const tries=opt.tries||UP_TRIES;
+  let last=null;
+  for(let i=0;i<tries;i++){
+    if(!upOnline()){ last=new Error("目前沒有網路"); await upSleep(1500); continue; }
+    try{ return await uploadOnce(path,blob); }
+    catch(e){
+      last=(e&&e.name==="AbortError")?new Error("上傳逾時"):e;
+      if(i<tries-1) await upSleep(800*Math.pow(2,i));
+    }
+  }
+  throw new Error("照片上傳失敗："+((last&&last.message)||""));
+}
+// 多張：同時 conc 張，回傳失敗的那幾張
+async function uploadMany(jobs,onTick,conc){
+  const list=jobs.slice(); let i=0; const fails=[];
+  const n=Math.max(1,Math.min(conc||UP_CONC,list.length));
+  await Promise.all(Array.from({length:n},async()=>{
+    while(i<list.length){
+      const j=list[i++];
+      try{ j.path=await uploadPhoto(j.path,j.data); j.ok=true; }
+      catch(e){ j.err=e.message||""; fails.push(j); }
+      if(onTick) onTick(j);
+    }
+  }));
+  return fails;
+}
+
+/* ---- 背景上傳：拍完就傳，人還在盤下一項 ---- */
+let bgQueue=[], bgRunning=false, bgDone=0, bgFail=0;
+function bgPush(key,path,data,onSaved){
+  bgQueue=bgQueue.filter(j=>j.key!==key);          // 同一格重拍就換掉舊的
+  bgQueue.push({key,path,data,onSaved,tries:0});
+  bgPump();
+}
+function bgDrop(key){ bgQueue=bgQueue.filter(j=>j.key!==key); }
+function bgClear(){ bgQueue=[]; bgDone=0; bgFail=0; }
+const bgPending=()=>bgQueue.length;
+async function bgPump(){
+  if(bgRunning) return; bgRunning=true;
+  try{
+    while(bgQueue.length){
+      if(!upOnline()){ await upSleep(5000); continue; }   // 沒訊號就安靜等，不狂重試
+      const batch=bgQueue.slice(0,UP_BG_CONC);
+      let okThisRound=0;
+      await Promise.all(batch.map(async j=>{
+        try{
+          await uploadPhoto(j.path,j.data,{tries:1});
+          bgQueue=bgQueue.filter(x=>x!==j); bgDone++; okThisRound++;
+          if(j.onSaved) j.onSaved(j.path);
+        }catch(e){
+          j.tries++;
+          if(j.tries>=6){ bgQueue=bgQueue.filter(x=>x!==j); bgFail++; }  // 放棄，送出時再傳
+        }
+      }));
+      // 只有整輪都失敗才需要退讓等待，順利的時候要一張接一張傳
+      if(bgQueue.length && okThisRound===0) await upSleep(4000);
+    }
+  }finally{ bgRunning=false; }
+}
+try{ window.addEventListener("online",()=>bgPump()); }catch(e){}
+
 async function signUrls(paths){
   const list=[...new Set(paths.filter(Boolean))];
   if(!list.length) return {};
@@ -443,8 +519,9 @@ function applyState(st,urls){
   N.crews=st.crews||[];
   N.cards=(st.cards||[]).map(c=>({id:c.id,vehicle:c.code,kind:c.kind,amount:c.amount,
     balance:c.balance,expected:c.expected,diff:c.diff,person:c.person,note:c.note||"",
-    photo:(urls||{})[c.photo]||null,date:c.date,time:c.time}));
-  N.cardDels=(st.cardDels||[]).map(d=>({...d, photo:(urls||{})[d.photo]||null}));
+    photo:(urls||{})[c.photo]||null,photo2:(urls||{})[c.photo2]||null,date:c.date,time:c.time}));
+  N.cardDels=(st.cardDels||[]).map(d=>({...d, photo:(urls||{})[d.photo]||null,
+    photo2:(urls||{})[d.photo2]||null}));
   N.vehicles=(st.vehicles||[]).map(v=>({id:v.id,code:v.code,plate:v.plate||"",odo:v.odo,
     lastSvc:v.lastSvc,next:v.next,interval:v.interval,used:v.used,card:v.card}));
   const U=urls||{};
@@ -458,8 +535,8 @@ function applyState(st,urls){
   N.services=(st.services||[]).map(x=>({id:x.id,vehicle:x.code,date:x.date,odo:x.odo,
     next:x.next,note:x.note,person:x.person,
     items:(x.items||[]).map(i=>({name:i.name||"",qty:Number(i.qty)||0,price:Number(i.price)||0})),
-    total:Number(x.total)||0, receipt:x.receipt||null,
-    receiptUrl:(urls||{})[x.receipt]||null}));
+    total:Number(x.total)||0, receipt:x.receipt||null, receipt2:x.receipt2||null,
+    receiptUrl:(urls||{})[x.receipt]||null, receiptUrl2:(urls||{})[x.receipt2]||null}));
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[],
     canInv:o.can_inv!==false, canFleet:o.can_fleet!==false}));
   // 把自己的權限旗標補到 me 上，按鈕才知道能不能按
@@ -475,9 +552,9 @@ async function reload(){
   if(!st||typeof st!=="object") throw new Error("讀取資料失敗，請重試");
   const paths=[];
   (st.trips||[]).forEach(t=>(t.photos||[]).forEach(p=>paths.push(p.path)));
-  (st.services||[]).forEach(x=>{ if(x.receipt) paths.push(x.receipt); });
-  (st.cards||[]).forEach(c=>{ if(c.photo) paths.push(c.photo); });
-  (st.cardDels||[]).forEach(d=>{ if(d.photo) paths.push(d.photo); });
+  (st.services||[]).forEach(x=>{ if(x.receipt) paths.push(x.receipt); if(x.receipt2) paths.push(x.receipt2); });
+  (st.cards||[]).forEach(c=>{ if(c.photo) paths.push(c.photo); if(c.photo2) paths.push(c.photo2); });
+  (st.cardDels||[]).forEach(d=>{ if(d.photo) paths.push(d.photo); if(d.photo2) paths.push(d.photo2); });
   applyState(st,await signUrls(paths));
 }
 async function guard(fn,okMsg){
@@ -861,8 +938,9 @@ function switchRole(){
 }
 
 /* ===================== 出車登記 ===================== */
-const newDraft=()=>({person:"",crew:"",vehicle:"",odo:"",photos:{}});
-const newCard=()=>({vehicle:"",kind:"spend",amount:"",balance:"",person:"",photo:null});
+const newDraft=()=>({person:"",crew:"",vehicle:"",odo:"",photos:{},
+  uid:(Date.now().toString(36)+Math.random().toString(36).slice(2,7)), up:{}});
+const newCard=()=>({vehicle:"",kind:"spend",amount:"",balance:"",person:"",photo:null,photo2:null});
 let card=newCard(), cardResult=null;
 const CREWS=()=>(S&&S.crews)?S.crews:[];
 const cash=n=>(n==null||n==="")?"—":Number(n).toLocaleString("zh-TW");
@@ -912,6 +990,12 @@ function viewTrip(){
     <button class="btn block" ${ready&&!busy?"":"disabled"} onclick="submitTrip()">
       <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
         (ready?"送出出車登記":odoNum<=0?"請先輸入里程":odoNum<(v.odo||0)?"里程數字有誤":`還有 ${items.length-done} 張照片沒拍`)}</button>
+    ${(()=>{const u=tripUp(); if(!u.need) return "";
+      const left=u.need-u.done;
+      return `<div class="lbl" style="margin-top:9px;text-align:center;line-height:1.7;
+        color:${left?"var(--amber-d)":"var(--ok)"}">
+        ${left?`照片上傳中 ${u.done}/${u.need}　·　拍完就先傳，送出時不用等`
+              :`照片已全部上傳 ${u.done}/${u.need}　·　送出會很快`}</div>`;})()}
     <div style="margin-top:10px"><button class="btn ghost tiny" onclick="resetDraft()">清空重填</button></div>
   </div>`;
 }
@@ -967,7 +1051,26 @@ function cardCalc(){
   return {prev,exp,bal,diff:(bal==null||isNaN(bal))?null:bal-exp};
 }
 function setCard(k,v){ card[k]=v; render(); }
-function shootCard(inp){ if(!inp.files[0])return; shrink(inp.files[0],d=>{card.photo=d;render();}); }
+function shootCard(inp,n){ if(!inp.files[0])return;
+  shrink(inp.files[0],d=>{ if((n||1)===2) card.photo2=d; else card.photo=d; render(); }); }
+function dropCardPhoto(n){
+  if((n||1)===2){ card.photo2=null; }
+  else { card.photo=card.photo2||null; card.photo2=null; }   // 刪第一張時第二張遞補
+  render();
+}
+// 一格發票（拍照前 / 拍照後）
+function cardSlot(n){
+  const img=n===2?card.photo2:card.photo;
+  const need=(card.kind==="topup"&&n===1&&!card.photo);
+  return `<label class="shotbox ${img?"has":""}${need?" need":""}" style="width:100%;height:150px">
+      ${img?`<img src="${img}"><span class="redo">重拍</span>`
+          :`<span>📷 ${n===2?"加第二張（選填）"
+                      :(card.kind==="topup"?"拍儲值收據":"拍發票／選照片")}</span>`}
+      <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootCard(this,${n})">
+    </label>
+    ${img?`<div style="text-align:right;margin-top:5px">
+      <button class="btn ghost tiny" onclick="dropCardPhoto(${n})">移除第 ${n} 張</button></div>`:""}`;
+}
 
 function viewCardAdmin(){
   const low=VEH().filter(v=>v.card!=null&&v.card<cardLow()).sort(byCode);
@@ -1007,7 +1110,7 @@ function viewCardAdmin(){
           <td class="num">${esc(c.vehicle)}</td>
           <td class="num" style="font-size:12.5px">$${cash(c.balance)} / $${cash(c.expected)}</td>
           <td class="n num" style="color:var(--alert);font-weight:700">${c.diff>0?"+":""}${c.diff}</td>
-          <td class="n">${c.photo?`<button class="btn ghost tiny" onclick="showCardPhoto('${c.id}')">發票</button>`
+          <td class="n">${c.photo?`<button class="btn ghost tiny" onclick="showCardPhoto('${c.id}')">發票${c.photo2?" 2":""}</button>`
                                   :`<span class="lbl">沒拍</span>`}</td></tr>`).join("")}
       </table></div>
       <div class="foot"><span class="lbl">通常是有一筆忘了登記。餘額以發票為準往下接，不影響之後的試算</span></div></div>`:""}
@@ -1076,7 +1179,7 @@ function viewCardAdmin(){
             ${isBad(c)?`<span class="badtag">差額 ${c.diff>0?"+":""}${c.diff}</span>`:""}
             <div class="lbl">${esc(c.person)}${c.note?"　"+esc(c.note):""}</div></td>
           <td class="n" style="white-space:nowrap">
-            ${c.photo?`<button class="btn ghost tiny" onclick="showCardPhoto('${c.id}')">發票</button>`
+            ${c.photo?`<button class="btn ghost tiny" onclick="showCardPhoto('${c.id}')">發票${c.photo2?" 2":""}</button>`
                       :`<span class="lbl">沒拍</span>`}
             <button class="btn ghost tiny" onclick="delCard('${c.id}')">刪</button></td></tr>`).join("")}
       </table></div>`:`<div class="bd"><div class="empty">${
@@ -1096,7 +1199,7 @@ function viewCardAdmin(){
             ${d.kind==="topup"?"+":"−"}${cash(d.amount)}</td>
           <td style="font-size:12.5px">${esc(d.person)}
             <div class="lbl">${esc(d.by)} 於 ${d.at} 刪除</div></td>
-          <td class="n">${d.photo?`<button class="btn ghost tiny" onclick="showDelPhoto('${d.id}')">發票</button>`
+          <td class="n">${d.photo?`<button class="btn ghost tiny" onclick="showDelPhoto('${d.id}')">發票${d.photo2?" 2":""}</button>`
                                  :`<span class="lbl">沒拍</span>`}</td></tr>`).join("")}
       </table></div>
       <div class="foot"><span class="lbl">刪掉的紀錄本身不會回來，但這裡看得到原本的內容、是誰刪的；照片也還留著</span></div></div>`:""}
@@ -1114,14 +1217,15 @@ function showCardPhoto(id){
   const c=(S.cards||[]).find(x=>x.id===id);
   if(!c) return;
   if(!c.photo) return toast("這筆沒有拍發票");
-  lightbox={url:c.photo, title:"發票照片",
+  lightbox={url:c.photo, url2:c.photo2||null, title:c.photo2?"發票照片（2 張）":"發票照片",
     sub:`${c.vehicle} 車　${c.date} ${c.time||""}　${c.kind==="topup"?"儲值":"消費"} $${cash(c.amount)}　${c.person}`};
   render();
 }
 function showDelPhoto(id){
   const d=(S.cardDels||[]).find(x=>x.id===id);
   if(!d||!d.photo) return toast("這筆沒有照片");
-  lightbox={url:d.photo, title:"發票照片（已刪除的紀錄）",
+  lightbox={url:d.photo, url2:d.photo2||null,
+    title:d.photo2?"發票照片 2 張（已刪除的紀錄）":"發票照片（已刪除的紀錄）",
     sub:`${d.vehicle} 車　${d.date} ${d.time||""}　${d.kind==="topup"?"儲值":"消費"} $${cash(d.amount)}　`
        +`原登錄 ${d.person}　${d.by} 於 ${d.at} 刪除`};
   render();
@@ -1194,13 +1298,10 @@ function viewCardEntry(){
           <input type="text" value="${esc(card.person)}" placeholder="請填全名" oninput="card.person=this.value"></label>
 
         <div class="lbl" style="margin-bottom:6px">${
-          card.kind==="topup"?`儲值收據照片<b style="color:var(--alert)">（必拍）</b>`:"發票照片（沒有可以不拍）"}</div>
-        <label class="shotbox ${card.photo?"has":""}${card.kind==="topup"&&!card.photo?" need":""}"
-          style="width:100%;height:150px">
-          ${card.photo?`<img src="${card.photo}"><span class="redo">重拍</span>`
-            :`<span>📷 ${card.kind==="topup"?"拍儲值收據":"拍發票／選照片"}</span>`}
-          <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootCard(this)">
-        </label>
+          card.kind==="topup"?`儲值收據照片<b style="color:var(--alert)">（必拍）</b>　最多兩張`
+                             :"發票照片（沒有可以不拍）　最多兩張"}</div>
+        ${cardSlot(1)}
+        ${card.photo?`<div style="margin-top:10px">${cardSlot(2)}</div>`:""}
 
         <button class="btn block" style="margin-top:16px" ${busy?"disabled":""} onclick="submitCard()">
           ${busy?(progressMsg||"送出中…"):"送出登記"}</button>
@@ -1237,15 +1338,21 @@ async function submitCard(){
     return toast("這台車還沒有餘額基準，第一次請把發票上的餘額填進去");
   busy=true; setProgress("上傳中…"); render();
   try{
-    let path=null;
-    if(card.photo){
-      path=`${slugOf(REG)}/card/${pathSafe(card.vehicle)}/${Date.now()}.jpg`;
-      await uploadPhoto(path,card.photo);
+    const stamp=Date.now();
+    const dir=`${slugOf(REG)}/card/${pathSafe(card.vehicle)}`;
+    const jobs=[];
+    if(card.photo)  jobs.push({path:`${dir}/${stamp}.jpg`,  data:card.photo});
+    if(card.photo2) jobs.push({path:`${dir}/${stamp}-2.jpg`,data:card.photo2});
+    if(jobs.length){
+      const fails=await uploadMany(jobs,null,2);
+      if(fails.length) throw new Error(`照片沒傳成功（${fails[0].err||""}），內容都留著，請再按一次`);
     }
+    const path =jobs[0]?jobs[0].path:null;
+    const path2=jobs[1]?jobs[1].path:null;
     setProgress("寫入紀錄…");
     const r=await rpc("fleet_card_submit",{p:{region:REG,code:card.vehicle,kind:card.kind,
       amount:amt,balance:card.balance===""?null:String(parseInt(card.balance,10)),
-      person:card.person.trim(),photo:path,time:nowHM()}});
+      person:card.person.trim(),photo:path,photo2:path2,time:nowHM()}});
     cardResult={code:card.vehicle,kind:card.kind,amount:amt,
       balance:r.balance,diff:r.diff,low:r.low,low_at:r.low_at};
     const keep=card.person;
@@ -1265,7 +1372,23 @@ function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Ima
     const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
     c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.6));};
   img.src=fr.result;};fr.readAsDataURL(f);}
-function shoot(t,inp){ if(!inp.files[0])return; shrink(inp.files[0],d=>{draft.photos[t]=d;render();}); }
+function tripBase(){
+  return `${slugOf(REG)}/${pathSafe((draft&&draft.vehicle)||"_")}/${(draft&&draft.uid)||"x"}`;
+}
+function shoot(t,inp){ if(!inp.files[0])return;
+  shrink(inp.files[0],d=>{ draft.photos[t]=d;
+    if(!draft.up) draft.up={};
+    delete draft.up[t];
+    bgPush("trip:"+t,`${tripBase()}/${pathSafe(t)}.jpg`,d,
+      pth=>{ if(draft){ (draft.up||(draft.up={}))[t]=pth; render(); } });
+    render(); }); }
+// 這趟總共要傳幾張、好了幾張
+function tripUp(){
+  const items=(S.settings&&S.settings.photoItems)||[];
+  let need=0,done=0;
+  items.forEach(t=>{ if(draft&&draft.photos[t]){ need++; if(draft.up&&draft.up[t]) done++; } });
+  return {need,done};
+}
 function resetDraft(){ if(confirm("清空目前的登記？")){draft=newDraft();render();} }
 async function submitTrip(){
   if(busy)return;
@@ -1278,19 +1401,29 @@ async function submitTrip(){
   busy=true; render();
   try{
     const slot=await rpc("fleet_next_slot",{p_region:REG,p_code:v.code});
-    const base=`${slugOf(REG)}/${pathSafe(v.code)}/${slot}`;   // 三個區都有 A 車，路徑要分開
-    const photos=[]; let n=0;
+    const base=tripBase();          // 三個區都有 A 車，路徑用這趟的唯一代號分開
+    const up=draft.up||{};
+    const photos=[], jobs=[];
     for(const t of S.settings.photoItems){
-      const path=`${base}/${pathSafe(t)}.jpg`;
-      setProgress(`上傳照片 ${++n}/${S.settings.photoItems.length}`);
-      await uploadPhoto(path,draft.photos[t]);
+      let path=up[t];
+      if(!path){ path=`${base}/${pathSafe(t)}.jpg`; jobs.push({key:"trip:"+t,path,data:draft.photos[t],label:t}); }
       photos.push({label:t,path});
+    }
+    if(jobs.length){
+      jobs.forEach(j=>bgDrop(j.key));          // 別跟背景佇列搶著傳同一張
+      let n=0; const total=jobs.length;
+      setProgress(`上傳照片 0/${total}`);
+      const fails=await uploadMany(jobs,()=>{ n++; setProgress(`上傳照片 ${n}/${total}`); });
+      jobs.forEach(j=>{ if(j.ok) (draft.up||(draft.up={}))[j.label]=j.path; });
+      if(fails.length) throw new Error(
+        `還有 ${fails.length} 張照片沒傳成功（${fails[0].err||""}）。`+
+        `里程和照片都留著，網路好一點再按一次送出就好，已經傳好的不會重傳。`);
     }
     setProgress("寫入登記…");
     const r=await rpc("fleet_submit",{p:{region:REG,code:v.code,person:draft.person,crew:draft.crew||"",odo,
       time:nowHM(),slot,photos}});
     v.odo=odo;
-    draft=null; setProgress(null); busy=false; render();
+    bgClear(); draft=null; setProgress(null); busy=false; render();
     if(r&&r.level!=="ok"){
       toast(r.remain<=0?`已登記。${v.code} 車已超過保養里程 ${km(-r.remain)} 公里`
                        :`已登記。${v.code} 車距離保養剩 ${km(r.remain)} 公里`);
@@ -1417,7 +1550,7 @@ async function delVeh(code){
 
 /* ===== 保養明細 ===== */
 const blankSvc=(code)=>({vehicle:code||(VEH()[0]?VEH()[0].code:""),odo:"",next:"",note:"",
-  items:[], receipt:null, reading:false});
+  items:[], receipt:null, receipt2:null, reading:null});
 const money=n=>"$"+(Number(n)||0).toLocaleString("en-US");
 const lineSub=i=>Math.round((Number(i.qty)||0)*(Number(i.price)||0));
 const sumItems=a=>(a||[]).reduce((t,i)=>t+lineSub(i),0);
@@ -1455,15 +1588,17 @@ function shrinkFile(f,cb){
     img.src=fr.result; };
   fr.readAsDataURL(f);
 }
-async function readReceipt(){
-  if(!svc.receipt) return toast("請先拍保養單或選照片");
+async function readReceipt(n){
+  n=n||1;
+  const img=n===2?svc.receipt2:svc.receipt;
+  if(!img) return toast("請先拍保養單或選照片");
   if(svc.reading) return;
-  svc.reading=true; render();
+  svc.reading=n; render();
   try{
     const res=await fetch(`${SB_URL}/functions/v1/read-receipt`,{
       method:"POST",
       headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"},
-      body:JSON.stringify({token,image:svc.receipt})});
+      body:JSON.stringify({token,image:img})});
     const txt=await res.text();
     let j={}; try{ j=JSON.parse(txt); }catch(e){}
     if(!res.ok){
@@ -1474,18 +1609,46 @@ async function readReceipt(){
     const items=(j.items||[]).map(i=>({name:i.name||"",qty:Number(i.qty)||0,price:Number(i.price)||0}));
     if(!items.length){ toast("這張單沒讀到明細，請手動填"); }
     else{
-      svc.items=items;
+      // 第一張：取代明細（重讀一次不會變兩倍）。第二張：加在後面
+      svc.items = n===2 ? (svc.items||[]).concat(items) : items;
       if(j.note&&!String(svc.note||"").trim()) svc.note=j.note;
-      toast(`辨識到 ${items.length} 項，合計 ${money(sumItems(items))}，請核對後再送出`);
+      toast(`第 ${n} 張辨識到 ${items.length} 項，目前合計 ${money(sumItems(svc.items))}，請核對後再送出`);
     }
   }catch(e){ toast("辨識失敗："+(e.message||"")); }
-  svc.reading=false; render();
+  svc.reading=null; render();
 }
-function pickReceipt(inp){
+function pickReceipt(inp,n){
   if(!inp.files||!inp.files[0])return;
-  shrinkFile(inp.files[0],d=>{ svc.receipt=d; render(); });
+  shrinkFile(inp.files[0],d=>{ if((n||1)===2) svc.receipt2=d; else svc.receipt=d; render(); });
 }
-function dropReceipt(){ svc.receipt=null; render(); }
+function dropReceipt(n){
+  if((n||1)===2){ svc.receipt2=null; }
+  else { svc.receipt=svc.receipt2||null; svc.receipt2=null; }   // 刪第一張時第二張遞補
+  render();
+}
+// 一格保養單（拍照前 / 拍照後）
+function rcptSlot(n){
+  const img = n===2?svc.receipt2:svc.receipt;
+  const busy2 = svc.reading===n;
+  if(!img) return `<label class="shootbox">
+      <input type="file" accept="image/*" capture="environment" style="display:none"
+        onchange="pickReceipt(this,${n})">
+      <div class="h2b">📷 ${n===1?"拍保養單／選照片":"加第二張（選填）"}</div>
+      <div class="lbl" style="margin-top:5px">${n===1
+        ?"拍完可以按「自動讀取明細」，或自己填"
+        :"工單和發票分開、或單子太長拍不完時用"}</div>
+    </label>`;
+  return `<div class="rcpt"><img src="${img}">
+      <div class="ract">
+        <button class="btn" ${svc.reading?"disabled":""} onclick="readReceipt(${n})">
+          ${busy2?"辨識中…":(n===1?"自動讀取明細":"讀取並加入明細")}</button>
+        <button class="btn ghost tiny" onclick="dropReceipt(${n})">移除</button>
+      </div>
+      <div class="lbl" style="margin-top:7px;line-height:1.7">${n===1
+        ?"辨識結果一定要自己核對。贈品、0 元工資可以直接刪掉，照片會跟著紀錄一起存起來。"
+        :"第二張的明細會「加在」第一張後面，不會蓋掉。如果兩張是同一批品項，記得刪掉重複的。"}</div>
+    </div>`;
+}
 
 /* 展開既有紀錄的明細 */
 let openSvc=null, editSvc=null;
@@ -1543,8 +1706,12 @@ function viewService(){
         :`<div style="margin-top:11px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
             <button class="btn ghost" onclick="startEditSvc('${x.id}')">編輯明細</button>
             <span class="lbl">贈品、0 元工資可以直接刪掉，合計會自動重算</span></div>`}
-      ${x.receiptUrl?`<div style="margin-top:13px"><div class="lbl" style="margin-bottom:6px">保養單</div>
-          <img class="rcptimg" src="${x.receiptUrl}" onclick="window.open('${x.receiptUrl}','_blank')"></div>`:""}
+      ${x.receiptUrl?`<div style="margin-top:13px">
+          <div class="lbl" style="margin-bottom:6px">保養單${x.receiptUrl2?"（2 張）":""}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <img class="rcptimg" src="${x.receiptUrl}" onclick="window.open('${x.receiptUrl}','_blank')">
+            ${x.receiptUrl2?`<img class="rcptimg" src="${x.receiptUrl2}" onclick="window.open('${x.receiptUrl2}','_blank')">`:""}
+          </div></div>`:""}
     </td></tr>`;
   }).join("");
   return `<div class="wrap wide">
@@ -1566,21 +1733,9 @@ function viewService(){
       <label class="f"><span class="lbl">備註</span>
         <input type="text" value="${esc(svc.note)}" placeholder="例：定保、輪胎調位" oninput="svc.note=this.value"></label>
 
-      <div class="lbl" style="margin:16px 0 8px">保養單</div>
-      ${svc.receipt?`<div class="rcpt"><img src="${svc.receipt}">
-          <div class="ract">
-            <button class="btn" ${svc.reading?"disabled":""} onclick="readReceipt()">
-              ${svc.reading?"辨識中…":"自動讀取明細"}</button>
-            <button class="btn ghost tiny" onclick="dropReceipt()">移除照片</button>
-          </div>
-          <div class="lbl" style="margin-top:7px;line-height:1.7">
-            辨識結果一定要自己核對。贈品、0 元工資可以直接刪掉，照片會跟著紀錄一起存起來。</div>
-          </div>`
-        :`<label class="shootbox">
-            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="pickReceipt(this)">
-            <div class="h2b">📷 拍保養單／選照片</div>
-            <div class="lbl" style="margin-top:5px">拍完可以按「自動讀取明細」，或自己填</div>
-          </label>`}
+      <div class="lbl" style="margin:16px 0 8px">保養單（最多兩張）</div>
+      ${rcptSlot(1)}
+      ${svc.receipt?`<div style="margin-top:10px">${rcptSlot(2)}</div>`:""}
 
       <div class="lbl" style="margin:16px 0 8px">更換明細</div>
       ${itemsEditor()}
@@ -1602,14 +1757,20 @@ async function addSvc(){
   if(odo<=0)return toast("請填本次保養里程");
   const next=parseInt(svc.next)||0;
   await guard(async()=>{
-    let path=null;
-    if(svc.receipt){
-      path=`${slugOf(REG)}/svc/${pathSafe(v.code)}/${Date.now()}.jpg`;
-      await uploadPhoto(path,svc.receipt);
+    const stamp=Date.now();
+    const dir=`${slugOf(REG)}/svc/${pathSafe(v.code)}`;
+    const jobs=[];
+    if(svc.receipt)  jobs.push({path:`${dir}/${stamp}.jpg`,  data:svc.receipt});
+    if(svc.receipt2) jobs.push({path:`${dir}/${stamp}-2.jpg`,data:svc.receipt2});
+    if(jobs.length){
+      const fails=await uploadMany(jobs,null,2);
+      if(fails.length) throw new Error(`照片沒傳成功（${fails[0].err||""}），內容都留著，請再按一次`);
     }
+    const path =jobs[0]?jobs[0].path:null;
+    const path2=jobs[1]?jobs[1].path:null;
     const items=cleanItems(svc.items);
     await rpc("fleet_service_add",{p_token:token,p_region:REG,p_code:v.code,p_odo:odo,
-      p_next:next,p_note:svc.note.trim(),p_items:items,p_receipt:path});
+      p_next:next,p_note:svc.note.trim(),p_items:items,p_receipt:path,p_receipt2:path2});
     const code=v.code;
     svc=blankSvc(code);
     await reload(); render();
@@ -1747,15 +1908,20 @@ async function delTrip(id){
     openRec=null; await reload(); render(); },"已刪除");
 }
 function lbHTML(){
-  // 單張圖片：lightbox 直接是 {url, title, sub}
+  // 單張或兩張圖片：lightbox 是 {url, url2, title, sub}
   if(lightbox&&lightbox.url){
+    const two=!!lightbox.url2;
     return `<div class="lb" onclick="lightbox=null;render()">
       <div class="lbbox" onclick="event.stopPropagation()">
+        ${two?`<div class="lbl" style="padding:6px 10px 0">第 1 張</div>`:""}
         <img src="${lightbox.url}">
+        ${two?`<div class="lbl" style="padding:8px 10px 0">第 2 張</div>
+               <img src="${lightbox.url2}">`:""}
         <div class="lbinfo"><div style="font-weight:900;font-size:15px">${esc(lightbox.title||"照片")}</div>
           ${lightbox.sub?`<div class="lbl" style="margin-top:3px">${esc(lightbox.sub)}</div>`:""}</div>
         <div class="lbbar">
-          <a class="btn ghost sm" href="${lightbox.url}" target="_blank" rel="noopener">在新分頁開啟</a>
+          <a class="btn ghost sm" href="${lightbox.url}" target="_blank" rel="noopener">${two?"開啟第 1 張":"在新分頁開啟"}</a>
+          ${two?`<a class="btn ghost sm" href="${lightbox.url2}" target="_blank" rel="noopener">開啟第 2 張</a>`:""}
           <button class="btn ghost sm" onclick="lightbox=null;render()">關閉</button></div>
       </div></div>`;
   }
