@@ -521,6 +521,10 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
 .upk input{width:17px;height:17px;flex:none}
 .upk .uno{flex:none}
 .upk .ulbl{margin-top:0}
+.isoreg{font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--line);
+  border-radius:3px;padding:9px 12px;margin-bottom:10px}
+.isoreg b{color:var(--ink);font-size:14px}
+.isoreg span{display:block;font-size:12px;margin-top:3px}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -1051,10 +1055,14 @@ async function hdrRegion(k){
      !confirm("目前這張盤點單尚未送出，換區會遺失已盤的項目。確定要換區嗎？")) return;
   if(role==="field"&&hasProgress()) clearDraft();
   draft=null; resume=null;
+  // ISO 的資料是一次抓一區的，換區一定要丟掉重抓，不然畫面會留著上一區的儀器與履歷
+  ISO=null; isoUrls={}; eqOpen=null; eqEdit=null; cardOpen=null; cardEdit=null;
+  printWhat=null; lostPick=null; openSku=null; unitEdit=null; mvClearUnits();
   saveReg(k); S=blankState(); render();
   await loadRegion();
   if(role==="admin"&&token){ await guard(async()=>{ await reload(); render(); }); }
   else render();
+  if(tab==="iso") isoKick();
   toast(`已切換到${regName(k)}`);
 }
 function setRole(r){ role=r; tab=r==="field"?"count":"restock"; draft=null;
@@ -3668,6 +3676,8 @@ function viewISO(){
   if(eqOpen)     return `<div class="wrap wide">${viewEqDetail()}</div>`;
   if(cardOpen)   return `<div class="wrap wide">${viewCardDetail()}</div>`;
   return `${lightbox?lbHTML():""}<div class="wrap wide">
+    <div class="isoreg noprint">ISO 設備管理　·　<b>${esc(regName(REG))}</b>
+      <span>儀器、履歷與表單都只看這一區，換區請按上面的區域鈕</span></div>
     <div class="iseg noprint">
       <button aria-pressed="${isoTab==="eq"}" onclick="isoGo('eq')">量測儀器</button>
       <button aria-pressed="${isoTab==="card"}" onclick="isoGo('card')">設備履歷</button>
@@ -4426,7 +4436,8 @@ function viewPrintMenu(){
     </div>
   </div></div>`;
 }
-const pfHead=(no,ver)=>`<div class="fh"><span>表單編號：${no}</span><span>版次：${ver||"A"}</span></div>`;
+const pfHead=(no,ver)=>`<div class="fh"><span>表單編號：${no}</span>
+  <span>${esc(regName(REG))}</span><span>版次：${ver||"A"}</span></div>`;
 const pfSig=`<div class="sig"><span>審核：____________</span><span>製表：____________</span></div>`;
 const CO='<div style="text-align:center;font-size:12px;margin-bottom:2px">囍悅家居有限公司</div>';
 
@@ -4564,19 +4575,54 @@ function pf0501(cardId){
 }
 function pf0502(cat){
   const title={meas:"量測儀器",veh:"車輛",tool:"一般工具"}[cat]||"";
+
+  // ---- 一般工具：每一項都不同批、不同廠家，所以不列廠牌與購買日期 ----
+  if(cat==="tool"){
+    const seen={};
+    RW().filter(r=>r.kind==="tool").forEach(r=>{
+      if(!seen[r.name]) seen[r.name]={std:0,id:r.itemId};
+      seen[r.name].std+=r.std; });
+    // 只放在倉庫、沒排進盤點表的一般工具也要列進來
+    ITEMS().filter(i=>i.kind==="tool").forEach(i=>{
+      if(!seen[i.sku]) seen[i.sku]={std:0,id:i.id}; });
+    const names=Object.keys(seen).sort((a,b)=>a.localeCompare(b,"zh-Hant"));
+    const rows=names.map((n,i)=>{
+      const o=seen[n], it=(S.items||[]).find(x=>x.sku===n)||{};
+      const onCar=o.std*VEH().length, wh=(S.warehouse&&S.warehouse[n])||0;
+      const us=it.track?unitsLive(it.id):[];
+      return [String(i+1), esc(n), esc(it.loc||"—"),
+              String(onCar), String(wh), String(onCar+wh),
+              us.length?us.map(u=>esc(u.no)).join("、"):""];});
+    return `<div class="iso-form">${pfHead("QP-05-02")}${CO}
+      <div class="ft">設 備 一 覽 表</div>
+      <div style="font-size:11.5px;margin:0 0 5px 2px"><b>類別：</b>${title}</div>
+      <table class="pf">
+        <tr><th style="width:7%" rowspan="2">NO.</th><th style="width:30%" rowspan="2">設備名稱</th>
+          <th style="width:14%" rowspan="2">擺放位置</th>
+          <th colspan="3">數量</th><th style="width:19%" rowspan="2">編號</th></tr>
+        <tr><th style="width:10%">車上</th><th style="width:10%">庫存</th><th style="width:10%">合計</th></tr>
+        ${rows.map(r=>`<tr><td class="mo">${r[0]}</td><td class="l">${r[1]}</td><td>${r[2]}</td>
+          <td class="mo">${r[3]}</td><td class="mo">${r[4]}</td><td class="mo">${r[5]}</td>
+          <td class="l mo">${r[6]}</td></tr>`).join("")}
+        ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
+      </table>
+      <div style="font-size:11px;color:#555;margin-top:6px">
+        一般工具每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行。
+        有開編號管理的品項才會列出編號。耗材不列入本表。</div>
+      ${pfSig}</div>`;
+  }
+
   let rows=[];
   if(cat==="meas"){
     rows=EQ().filter(e=>e.status!=="scrap").map(e=>[e.no,
       esc(e.item_name)+(e.spec?"／"+esc(e.spec):""),esc(e.brand)||"—",esc(e.owner_name)||"—",
       dOnly(e.buy_date)||"—",locName(e.loc_code)+(e.status==="use"?"":"・"+(EQST[e.status]||["",""])[0])]);
-  }else if(cat==="veh"){
-    rows=VEH().map(v=>{const c=CARDS().find(x=>x.kind==="veh"&&x.veh_code===v)||{};
-      return ["車-"+v,v+" 車 勤務車",esc(c.maker)||"—",esc(c.owner_name)||"—",dOnly(c.buy_date)||"—",regName(REG)];});
   }else{
-    const seen={};
-    RW().filter(r=>r.kind==="tool").forEach(r=>{ if(!seen[r.name]) seen[r.name]={std:0}; seen[r.name].std+=r.std; });
-    rows=Object.keys(seen).map((n,i)=>[String(i+1),esc(n),"—","—","—",
-      `各車標配合計 ${seen[n].std*VEH().length} 個／庫存 ${(S.warehouse&&S.warehouse[n])||0} 個`]);
+    // 車：以車輛管理系統的車為準（履歷卡就是照那邊產生的），不是盤點表的車／組清單
+    rows=CARDS().filter(c=>c.kind==="veh").map(c=>
+      ["車-"+c.veh_code,
+       c.veh_code+" 車 勤務車"+(c.plate?`（${esc(c.plate)}）`:""),
+       esc(c.maker)||"—",esc(c.owner_name)||"—",dOnly(c.buy_date)||"—",regName(REG)]);
   }
   return `<div class="iso-form">${pfHead("QP-05-02")}${CO}
     <div class="ft">設 備 一 覽 表</div>
@@ -4588,7 +4634,7 @@ function pf0502(cat){
         <td>${r[3]}</td><td class="mo">${r[4]}</td><td class="l">${r[5]}</td></tr>`).join("")}
       ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
     </table>
-    ${cat==="tool"?'<div style="font-size:11px;color:#555;margin-top:6px">一般工具不逐支編號，以品項為單位列一行。耗材不列入本表。</div>':""}
+    ${cat==="veh"&&!rows.length?'<div style="font-size:11px;color:#555;margin-top:6px">車輛清單來自車輛管理系統。沒有列出來表示你沒有車輛管理的權限，或那一區還沒有登記車輛。</div>':""}
     ${pfSig}</div>`;
 }
 function pfScrap(id){
