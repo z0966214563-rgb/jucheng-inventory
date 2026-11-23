@@ -500,6 +500,27 @@ table.pf .mo{font-family:var(--mono);white-space:nowrap}
   .iso-form{border:0;padding:0;page-break-after:always}
   table.pf{min-width:0}
 }
+
+/* ---- 編號管理：庫存頁的母子列 ---- */
+.uexp{display:inline;padding:0 6px 0 0;margin:0;border:0;background:none;
+  color:var(--muted);font-size:11px;line-height:1;cursor:pointer}
+.uexp:hover{color:var(--ink)}
+.unm{cursor:pointer;white-space:nowrap}
+.ulbl{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+.ulbl2{font-size:12px;color:var(--muted);margin-left:8px}
+tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);padding-top:9px;padding-bottom:9px}
+.uno{font-family:var(--mono);font-weight:700;font-size:13.5px}
+.upill{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:3px;
+  border:1px solid var(--line);background:#fff;color:var(--muted)}
+.upill.veh{border-color:#1F5F8B;color:#1F5F8B;background:#E7F0F7}
+.upill.wh{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+/* ---- 出入庫：勾選編號 ---- */
+.upk{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);
+  border-radius:3px;padding:9px 11px;margin-bottom:6px;cursor:pointer}
+.upk.on{border-color:var(--ink);background:#F5F7FA}
+.upk input{width:17px;height:17px;flex:none}
+.upk .uno{flex:none}
+.upk .ulbl{margin-top:0}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -549,7 +570,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=13;
+const APP_VER=14;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -707,7 +728,7 @@ function prune(){}               // 照片保留由資料庫處理
 
 /* ---- 伺服器資料 → 畫面用的資料結構 ---- */
 function blankState(){
-  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],
+  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],units:[],
           items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",photoPx:1280,
           amItems:[],amIds:[],amRows:[],needs:[],locs:[]};
 }
@@ -729,7 +750,11 @@ async function applyState(st,urls){
   N.photoPx=(st.settings&&st.settings.photo_px)||1280;
   KEEP=(st.settings&&st.settings.keep_sets)||10;
   N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
-    abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable}));
+    abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable,track:!!i.track}));
+  // 有編號管理的品項，每一台的編號與目前位置
+  N.units=(st.units||[]).map(u=>({id:u.id,no:u.no,itemId:u.item_id,item:u.item_name,
+    loc:u.loc||null,status:u.status||"use",kind:u.kind||"tool",
+    brand:u.brand||"",spec:u.spec||"",buyDate:u.buy_date||null,note:u.note||""}));
   (st.items||[]).forEach(i=>{N.warehouse[i.name]=i.warehouse;N.safety[i.name]=i.safety;});
   N.pkgs=(st.packages||[]).map(p=>({id:p.id,name:p.name}));
   N.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
@@ -763,6 +788,7 @@ async function applyState(st,urls){
   }));
   N.moves=(st.moves||[]).map(m=>({id:m.id,date:m.date,type:m.type,sku:m.item,qty:m.qty,
     reason:m.reason,person:m.person,note:m.note,vehicle:m.vehicle||"",
+    unitNo:m.unit_no||"",unitFrom:m.unit_from||null,
     fromCount:m.from_count,loss:m.loss,wh:m.type==="in"?1:-1,
     car:["遺失","損壞","遺失或損壞"].includes(m.reason)?1:0}));
   N.amIds=(st.am_items||[]).map(x=>({rid:x.row_id,id:x.id,name:x.name,
@@ -794,7 +820,7 @@ async function guard(fn,okMsg){
 let S=null, role=null, tab="count", curPkg=null, draft=null, toastT=null;
 let token=null, KEEP=10, busy=false;
 let me=null, gate="pick", setup={name:"",pin:"",pin2:""}, login={id:"",pin:""};
-let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"",loss:"遺失"};
+let mv={type:"in",sku:"",qty:1,reason:"採購入庫",vehicle:"",person:"",note:"",loss:"遺失",units:{}};
 let rs={vehicle:"",sku:"",qty:1,note:""};
 let nItem={name:"",qty:0,safe:1,loc:"未設定",kind:"tool",valuable:false,abbr:""};
 /* ---------- 設定頁：可收合的區塊 ---------- */
@@ -815,7 +841,8 @@ function sect(k,title,meta,body,foot){
   </div>`;
 }
 let editSku=null, editRow=null, openRec=null, lightbox=null;
-let edKind="tool", edAbbr="", edVal=false;
+let edKind="tool", edAbbr="", edVal=false, edTrack=false;
+let openSku=null, unitEdit=null;      // 庫存頁展開的品項、正在編輯的編號
 let lostPick=null;
 let lastSubmit=null;   // 剛送出的盤點單摘要（上午場用來提醒）
 let rDate=null, rVeh=null;   // 盤點結果頁：看哪一天、只看哪台車
@@ -2048,6 +2075,92 @@ async function delManual(id){
 
 
 function locRank(l){const i=LOCS().indexOf(l);return i<=0?9999:i;}
+
+/* ---- 庫存頁：編號子列 ---- */
+function toggleSku(k){ openSku=(openSku===k?null:k); unitEdit=null; render(); }
+function unitRows(it){
+  const us=unitsOf(it.id).slice().sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+  if(!us.length) return `<tr class="unitrow"><td></td><td colspan="4">
+    <div class="ulbl">這個品項還沒有編號。到「出入庫」用「採購入庫」登錄，系統會自動產號；
+      或按下面的「＋ 手動補一個編號」。</div>
+    <button class="btn ghost tiny" onclick="unitNew('${it.id}')">＋ 手動補一個編號</button></td></tr>`;
+  let out="";
+  us.forEach(u=>{
+    if(unitEdit&&unitEdit.id===u.id){ out+=unitEditRow(it,u); return; }
+    const st=UST[u.status]||["",""];
+    out+=`<tr class="unitrow"><td></td>
+      <td><span class="uno">${esc(u.no)}</span>
+        ${u.brand||u.spec?`<span class="ulbl2">${esc([u.brand,u.spec].filter(Boolean).join(" "))}</span>`:""}
+        ${u.note?`<div class="ulbl">${esc(u.note)}</div>`:""}</td>
+      <td colspan="2"><span class="upill ${u.loc?"veh":"wh"}">${esc(unitLoc(u))}</span>
+        ${u.status!=="use"?`<span class="ipill ${st[1]}">${st[0]}</span>`:""}</td>
+      <td class="c-act">
+        <button class="btn ghost tiny" onclick="unitOpen('${u.id}')">編輯</button>
+        ${u.kind==="meas"?`<button class="btn ghost tiny" onclick="goEq('${u.id}')">履歷</button>`
+          :`<button class="btn ghost tiny" onclick="unitDel('${u.id}')">刪除</button>`}</td></tr>`;});
+  if(unitEdit&&unitEdit.id===null&&unitEdit.itemId===it.id) out+=unitEditRow(it,null);
+  else out+=`<tr class="unitrow"><td></td><td colspan="4">
+    <button class="btn ghost tiny" onclick="unitNew('${it.id}')">＋ 手動補一個編號</button>
+    <span class="ulbl">正常情況不用手動補，採購入庫時系統就會產號</span></td></tr>`;
+  return out;
+}
+function unitEditRow(it,u){
+  const e=unitEdit;
+  return `<tr class="edit"><td colspan="5">
+    <div class="lbl" style="margin-bottom:9px">${u?`編輯編號　·　${esc(u.no)}`:`新增 ${esc(it.sku)} 的編號`}</div>
+    <div class="g2">
+      <label class="f"><span class="lbl">編號</span>
+        <input type="text" value="${esc(e.no)}" placeholder="留白由系統產號"
+          onchange="unitSet('no',this.value)"></label>
+      <label class="f"><span class="lbl">目前位置</span>
+        <select onchange="unitSet('loc',this.value)">
+          <option value="" ${!e.loc?"selected":""}>公司庫存</option>
+          ${VEH().map(v=>`<option value="${v}" ${e.loc===v?"selected":""}>${v} 車</option>`).join("")}
+        </select></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span class="lbl">廠牌</span>
+        <input type="text" value="${esc(e.brand)}" onchange="unitSet('brand',this.value)"></label>
+      <label class="f"><span class="lbl">型號規格</span>
+        <input type="text" value="${esc(e.spec)}" onchange="unitSet('spec',this.value)"></label>
+    </div>
+    <label class="f"><span class="lbl">狀態</span>
+      <select onchange="unitSet('status',this.value)">${Object.keys(UST).map(kk=>
+        `<option value="${kk}" ${e.status===kk?"selected":""}>${UST[kk][0]}</option>`).join("")}</select></label>
+    <label class="f"><span class="lbl">備註</span>
+      <input type="text" value="${esc(e.note)}" onchange="unitSet('note',this.value)"></label>
+    <div class="g2"><button class="btn" onclick="unitSave()">儲存</button>
+      <button class="btn ghost" onclick="unitEdit=null;render()">取消</button></div>
+  </td></tr>`;
+}
+function unitNew(itemId){
+  unitEdit={id:null,itemId:itemId,no:"",loc:"",brand:"",spec:"",status:"use",note:""};
+  render();
+}
+function unitOpen(id){
+  const u=UNITS().find(x=>x.id===id); if(!u) return toast("找不到這個編號");
+  unitEdit={id:u.id,itemId:u.itemId,no:u.no,loc:u.loc||"",brand:u.brand,spec:u.spec,
+            status:u.status,note:u.note};
+  render();
+}
+function unitSet(k,v){ if(unitEdit){ unitEdit[k]=v; } }
+async function unitSave(){
+  const e=unitEdit; if(!e) return;
+  await guard(async()=>{
+    await rpc("mgr_unit_save",{p_token:token,p:{id:e.id||null,item_id:e.itemId,
+      no:(e.no||"").trim(),loc_code:e.loc||null,brand:e.brand||"",spec:e.spec||"",
+      status:e.status||"use",note:e.note||""}});
+    unitEdit=null; ISO=null; await reload(); render();
+  },e.id?"編號已更新":"編號已新增");
+}
+async function unitDel(id){
+  const u=UNITS().find(x=>x.id===id); if(!u) return;
+  if(!confirm(`刪除編號「${u.no}」？\n已經有出入庫或校驗紀錄的編號不能刪，要改用報廢。`))return;
+  await guard(async()=>{
+    await rpc("mgr_unit_delete",{p_token:token,p_id:id});
+    unitEdit=null; ISO=null; await reload(); render();
+  },`已刪除編號：${u.no}`);
+}
 /* 品項標籤：庫存頁與下拉選單共用（分類放在標配列上） */
 function itemKind(name){ const i=(S.items||[]).find(x=>x.sku===name); return i?(i.kind||"tool"):null; }
 function itemTags(name){
@@ -2058,6 +2171,21 @@ function itemTags(name){
        + (kd==="consum"?`<span class="tag c">耗材</span>`:"");
 }
 const KINDWORD={meas:"量測儀器 量測",tool:"一般工具",consum:"耗材"};
+
+/* ---- 編號管理：有編號的品項，每一台都查得到在哪 ---- */
+const UNITS=()=>(S&&S.units)?S.units:[];
+const unitsOf=id=>UNITS().filter(u=>u.itemId===id);
+const UST={use:["使用中","ok"],fix:["送修","warn"],stop:["停用","bad"],
+           scrap:["報廢","grey"],lost:["遺失待查","bad"],out:["已出庫","grey"]};
+/* 還在管理中的（報廢、已出庫不算） */
+const unitsLive=id=>unitsOf(id).filter(u=>u.status!=="scrap"&&u.status!=="out");
+/* 公司庫存可用的 */
+const unitsWh=id=>unitsOf(id).filter(u=>!u.loc&&u.status==="use");
+/* 某台車上的 */
+const unitsVeh=(id,veh)=>unitsOf(id).filter(u=>u.loc===veh&&u.status==="use");
+function isTracked(name){ const i=(S.items||[]).find(x=>x.sku===name); return !!(i&&i.track); }
+function trackedOf(id){ const i=(S.items||[]).find(x=>x.id===id); return !!(i&&i.track); }
+function unitLoc(u){ return u.loc?u.loc+" 車":"公司庫存"; }
 function goStockItem(name){
   const it=(S.items||[]).find(x=>x.sku===name);
   tab="stock"; stockQ=name; editSku=name;
@@ -2088,26 +2216,50 @@ function viewStock(){
         <label class="f"><span class="lbl">分類（必選一個）</span>
           <div class="iseg am" id="e_kind" style="margin:0">${KINDS.map(([kk,t])=>
             `<button type="button" aria-pressed="${edKind===kk}" onclick="edKind='${kk}';render()">${t}</button>`).join("")}</div></label>
-        ${edKind==="meas"?`<label class="f"><span class="lbl">編號縮寫（給量具編號用，例如「含水」）</span>
-            <input type="text" id="e_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
-          <div class="lbl" style="margin:-8px 0 14px">目前登記 ${EQ().filter(x=>x.item_id===it.id&&x.status!=="scrap").length} 台編號，到「ISO」分頁管理</div>`:""}
-        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:11px">
           <input type="checkbox" id="e_val" ${edVal?"checked":""} style="width:17px;height:17px">貴重設備（額外標記）</label>
+        ${edKind==="consum"?"":`
+        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;margin-bottom:9px;
+            cursor:${edKind==="meas"?"not-allowed":"pointer"};opacity:${edKind==="meas"?".65":"1"}">
+          <input type="checkbox" id="e_track" ${edKind==="meas"||edTrack?"checked":""}
+            ${edKind==="meas"?"disabled":""} style="width:17px;height:17px"
+            onchange="edTrack=this.checked;render()">用編號管理（每一台給一個編號，出入庫要指定哪一台）</label>
+        ${edKind==="meas"?`<div class="lbl" style="margin:-4px 0 12px">量測儀器一定要編號管理，ISO 要求每一台都有履歷，所以這個不能關。</div>`
+          +(it.kind!=="meas"?`<div class="warnbox" style="margin-bottom:12px">
+              改成量測儀器之後，這個品項的倉庫數量＝<b>你已經在「ISO」分頁登記、而且放在公司的台數</b>。
+              系統不會幫量測儀器自動產生空白編號（那會混進 ISO 的儀器一覽），
+              所以存檔後數量會先變少，等你把每一台的廠牌、型號、容許誤差值建進去就會對。</div>`:"")
+          :(edTrack&&!it.track?`<div class="warnbox" style="margin-bottom:12px">
+              打開之後，系統會照現在的數量自動產生編號（車上的照各車在庫、剩下的放公司庫存），
+              產完你可以在庫存頁展開改。之後這個品項的倉庫數量就改成由編號自動算，不能手改。</div>`
+            :(!edTrack&&it.track?`<div class="warnbox" style="margin-bottom:12px">
+              要關掉編號管理，得先把這個品項的編號全部報廢或出庫，不然會擋住。</div>`:""))}
+        ${(edKind==="meas"||edTrack)?`<label class="f"><span class="lbl">編號代號（例如「熱像」，會變成 熱像-01）</span>
+            <input type="text" id="e_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
+          <div class="lbl" style="margin:-8px 0 14px">目前 ${unitsLive(it.id).length} 台有編號${
+            it.kind==="meas"?"，履歷在「ISO」分頁":"，在庫存頁展開這個品項就能看每一台在哪"}</div>`:""}`}
         <div class="lbl" style="margin-bottom:12px">分類改這裡就好，所有包別的盤點項目會自動跟著變。</div>
         <div class="g2"><button class="btn" onclick="saveEdit('${k}')">儲存</button>
           <button class="btn ghost" onclick="editSku=null;render()">取消</button></div>
       </td></tr>`;
       return;
     }
+    const tk=!!it.track, us=tk?unitsLive(it.id):[];
+    const onCar=us.filter(u=>u.loc&&u.status==="use").length;
+    const open=openSku===k;
     rows+=`<tr class="${h<sf?"warn":""}">
       <td class="c-loc num${it.loc==="未設定"?" un":""}" style="font-weight:700">${it.loc}</td>
-      <td class="c-name">${k}${itemTags(k)}
-        <div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div></td>
+      <td class="c-name">${tk?`<span class="unm" onclick="toggleSku('${esc(k)}')"
+          role="button" aria-expanded="${open}" title="展開編號"><button class="uexp"
+          >${open?"▾":"▸"}</button>${k}</span>`:k}${itemTags(k)}
+        ${tk?`<div class="ulbl">庫存 ${h} ／ 車上 ${onCar}　·　共 ${us.length} 台有編號</div>`
+            :`<div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div>`}</td>
       <td class="n c-num">${h}</td>
       <td class="n c-num" style="color:var(--muted)">${sf}</td>
       <td class="c-act">
-        <button class="btn ghost tiny" onclick="editSku='${k}';edKind='${it.kind||"tool"}';edVal=${!!it.valuable};edAbbr='${esc(it.abbr||"")}';render()">編輯</button>
-        <button class="btn ghost tiny" onclick="delSku('${k}')">刪除</button></td></tr>`;});
+        <button class="btn ghost tiny" onclick="editSku='${k}';edKind='${it.kind||"tool"}';edVal=${!!it.valuable};edAbbr='${esc(it.abbr||"")}';edTrack=${tk};render()">編輯</button>
+        <button class="btn ghost tiny" onclick="delSku('${k}')">刪除</button></td></tr>`;
+    if(tk&&open) rows+=unitRows(it);});
 
   const lowN=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k]).length;
   const noLoc=ITEMS().filter(i=>i.loc==="未設定").length;
@@ -2205,6 +2357,12 @@ async function saveEdit(k){
       p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
     await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:edKind,
       p_valuable:g("e_val").checked,p_abbr:(g("e_abbr")?g("e_abbr").value:null)});
+    // 編號管理開關：量測儀器由伺服器強制開，不用送
+    const wantTrack = (edKind==="meas") ? true : !!(g("e_track")&&g("e_track").checked);
+    if(edKind!=="consum" && wantTrack!==!!it.track){
+      const made=await rpc("mgr_item_track",{p_token:token,p_id:it.id,p_on:wantTrack});
+      if(wantTrack && made) toast(`已自動產生 ${made} 個編號，展開品項可以修改`);
+    }
     editSku=null; ISO=null; await reload(); render();
   },nn!==k?`已改名為「${nn}」，盤點項目已同步`:"已更新");
 }
@@ -2254,12 +2412,62 @@ const REASONS={
 };
 const rdef=()=>REASONS[mv.type].find(x=>x.r===mv.reason)||REASONS[mv.type][0];
 
+/* 有編號管理的品項，每個原因要怎麼處理編號（跟資料庫的 _move_unit_mode 對齊） */
+const UMODE={"採購入庫":"new","工具製作完成入庫":"new","盤盈調整":"new",
+             "車輛多出繳回":"back","遺失":"pick","損壞":"pick","遺失或損壞":"pick",
+             "個人用品":"pick","工具製作領料":"pick","盤虧調整":"pick"};
+function mvUnitMode(){ return isTracked(mv.sku) ? (UMODE[mv.reason]||"pick") : null; }
+/* 這個原因可以勾的編號 */
+function mvCands(){
+  const it=itemOf(mv.sku); if(!it) return [];
+  const m=mvUnitMode(); if(!m||m==="new") return [];
+  const v=mv.vehicle||VEH()[0];
+  const list = m==="back" ? unitsVeh(it.id,v) : unitsWh(it.id);
+  return list.slice().sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+}
+const mvPicked=()=>Object.keys(mv.units||{}).filter(k=>mv.units[k]);
+function mvToggleUnit(id){ mv.units=mv.units||{}; mv.units[id]=!mv.units[id]; render(); }
+function mvClearUnits(){ mv.units={}; }
+/* 這個品項目前最大的編號，給「系統會接著產號」的提示用 */
+function mvLastNo(){
+  const it=itemOf(mv.sku); if(!it) return "";
+  const us=unitsOf(it.id).slice().sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+  return us.length?us[us.length-1].no:"";
+}
+function mvUnitPanel(){
+  const m=mvUnitMode(); if(!m) return "";
+  const it=itemOf(mv.sku); const v=mv.vehicle||VEH()[0];
+  if(m==="new"){
+    const last=mvLastNo();
+    return `<div class="warnbox" style="margin-bottom:13px">
+      「${esc(mv.sku)}」用編號管理，送出後系統會自動產生 ${Number(mv.qty)||1} 個新編號
+      ${last?`（接在 <b>${esc(last)}</b> 後面）`:""}，直接放進公司庫存。
+      產完可以到「庫存」展開這個品項，補上廠牌型號。</div>`;
+  }
+  const c=mvCands(), sel=mv.units||{};
+  if(!c.length) return `<div class="warnbox" style="margin-bottom:13px">
+    ${m==="back"?`${esc(v)} 車上沒有登記「${esc(mv.sku)}」的編號，不能繳回。`
+      :`公司庫存現在沒有可以出庫的「${esc(mv.sku)}」編號。`}</div>`;
+  return `<div class="f"><span class="lbl">勾選是哪幾台${m==="back"?"要繳回":"要出庫"}（${esc(mv.sku)} 用編號管理）</span>
+    ${c.map(u=>`<label class="upk ${sel[u.id]?"on":""}">
+      <input type="checkbox" ${sel[u.id]?"checked":""} onchange="mvToggleUnit('${u.id}')">
+      <span class="uno">${esc(u.no)}</span>
+      <span class="ulbl">${esc([u.brand,u.spec].filter(Boolean).join(" ")||"—")}　·　${esc(unitLoc(u))}</span>
+    </label>`).join("")}
+    <div class="lbl" style="margin-top:2px">已勾 ${mvPicked().length} 台　·　數量就是勾選的台數，不用另外填</div></div>`;
+}
+
 function viewMove(){
-  const d=rdef(), q=Number(mv.qty||0);
+  const d=rdef();
+  const um=mvUnitMode(), umPick=(um==="pick"||um==="back"), nPick=mvPicked().length;
+  // 勾選模式下，數量就是勾了幾台
+  const q=umPick?nPick:Number(mv.qty||0);
   const cur=S.warehouse[mv.sku]||0, after=cur+d.wh*q;
   const v=mv.vehicle||VEH()[0];
-  const cCur=(S.onCar[v]||{})[mv.sku]||0, cAfter=cCur+d.car*q;
-  const bad = after<0 || (d.car && cAfter<0);
+  const cCur=(S.onCar[v]||{})[mv.sku]||0;
+  // 車上在庫：有編號的照編號算，沒編號的永遠是標配（手動出入庫不會動它）
+  const cAfter=um?(um==="toveh"||d.car?cCur+q:cCur):cCur;
+  const bad = after<0 || (umPick && !nPick);
   const r=rangeDates();
   const inR=movesInRange(mv.type);
   const allT=(S.moves||[]).filter(m=>m.type===mv.type);
@@ -2279,7 +2487,8 @@ function viewMove(){
     }
     list+=`<div class="mvr k-${kindOf(m.reason)}"><div class="edge"></div>
       <div class="tag">${esc(shortOf(m.reason))}</div>
-      <div class="bd2"><div class="sku">${esc(m.sku)}</div>
+      <div class="bd2"><div class="sku">${esc(m.sku)}${m.unitNo?`<span class="uno"
+          style="margin-left:7px;color:var(--ink)">${esc(m.unitNo)}</span>`:""}</div>
         <div class="meta">${m.vehicle?`<span>${esc(m.vehicle)} 車</span>`:""}
           <span>${esc(m.person||"—")}</span>
           ${m.loss&&m.reason==="遺失或損壞"?`<span>${esc(m.loss)}</span>`:""}
@@ -2303,9 +2512,12 @@ function viewMove(){
           `<button class="chip" aria-pressed="${v===x}" onclick="setMv('vehicle','${x}')">${x}</button>`).join("")}</div>`:""}
       <label class="f"><span class="lbl">品項</span>
         ${itemSelect("mv", mv.sku, "setMv('sku',this.value)")}</label>
+      ${mvUnitPanel()}
       <div class="g2">
         <label class="f"><span class="lbl">數量</span>
-          <input type="number" min="1" value="${mv.qty}" class="num" onchange="setMv('qty',this.value)"></label>
+          ${umPick?`<input type="number" class="num" value="${nPick}" disabled
+              title="數量由勾選的台數決定">`
+            :`<input type="number" min="1" value="${mv.qty}" class="num" onchange="setMv('qty',this.value)">`}</label>
         <label class="f"><span class="lbl">經手人${me?"（自動帶入，可改）":""}</span>
           <input type="text" value="${mv.person||(me?me.name:"")}" placeholder="誰處理的" onchange="setMv('person',this.value)"></label>
       </div>
@@ -2316,10 +2528,13 @@ function viewMove(){
         <div class="lbl">登錄後</div>
         <div class="prevrow"><span>${mv.sku}　倉庫</span>
           <b class="num">${cur} → ${after}</b></div>
-        ${d.car?`<div class="prevrow"><span>${v} 車在庫</span><b class="num">${cCur} → ${cAfter}</b></div>`:""}
-        ${d.needV&&d.noCarQty?`<div class="lbl" style="margin-top:4px">記錄為 ${v} 車繳回，不變更車上數量</div>`:""}
+        ${d.car?`<div class="prevrow"><span>${v} 車在庫</span><b class="num">${
+            um?`${cCur} → ${cCur+q}`:`${cCur}（不變）`}</b></div>`:""}
+        ${d.car&&!um?`<div class="lbl" style="margin-top:4px">
+            車上在庫固定是標配數量，手動出入庫不會動它；車上多出來的要用盤點繳回</div>`:""}
+        ${d.needV&&d.noCarQty&&!um?`<div class="lbl" style="margin-top:4px">記錄為 ${v} 車繳回，不變更車上數量</div>`:""}
+        ${umPick&&!nPick?`<div class="err">請勾選是哪幾台要調動</div>`:""}
         ${after<0?`<div class="err">倉庫不足，不能出這麼多</div>`:""}
-        ${d.car&&cAfter<0?`<div class="err">${v} 車上沒有這麼多</div>`:""}
         ${after>=0&&after<S.safety[mv.sku]?`<div class="err">倉庫會低於安全庫存 ${S.safety[mv.sku]}</div>`:""}</div>
       <button class="btn block" ${bad?"disabled":""} onclick="submitMove()">確認登錄</button>
     </div></div>
@@ -2437,21 +2652,30 @@ function setMCat(k){mCat=k;mPage=0;render();}
 function setMv(k,v){
   mv[k]=k==="qty"?Math.max(1,parseInt(v)||1):v;
   if(k==="type"){mv.reason=REASONS[v][0].r; mPage=0; mHide=[]; mCat="all";}
+  // 換品項、原因、車輛都要把上一次勾的編號清掉，不然會送錯台
+  if(k==="type"||k==="reason"||k==="sku"||k==="vehicle") mvClearUnits();
   if(!mv.vehicle)mv.vehicle=VEH()[0]||"";
   if(!mv.sku)mv.sku=ALLSKU()[0]||"";
   render();
 }
 async function submitMove(){
-  const d=rdef(), q=Number(mv.qty), v=mv.vehicle||VEH()[0];
+  const d=rdef(), v=mv.vehicle||VEH()[0];
   const it=itemOf(mv.sku); if(!it)return toast("請選擇品項");
-  if((S.warehouse[mv.sku]||0)+d.wh*q<0)return toast("倉庫庫存不足");
+  const um=mvUnitMode(), umPick=(um==="pick"||um==="back");
+  const picked=mvPicked();
+  if(umPick&&!picked.length)return toast("請勾選是哪幾台要調動");
+  const q=umPick?picked.length:Number(mv.qty);
+  if(!um&&(S.warehouse[mv.sku]||0)+d.wh*q<0)return toast("倉庫庫存不足");
   await guard(async()=>{
     await rpc("mgr_move",{p_token:token,p_item:it.id,p_type:mv.type,p_reason:mv.reason,
       p_qty:q,p_vehicle:d.needV?v:null,p_note:mv.note.trim(),
-      p_loss:null});
-    const nm=mv.sku; mv.qty=1; mv.note="";
+      p_loss:null,p_units:umPick?picked:null});
+    const nm=mv.sku, nos=umPick?picked.map(id=>{
+      const u=UNITS().find(x=>x.id===id); return u?u.no:"";}).filter(Boolean).join("、"):"";
+    mv.qty=1; mv.note=""; mvClearUnits(); ISO=null;
     await reload(); render();
-    toast(`${nm} ${mv.reason} ${q}，倉庫剩 ${S.warehouse[nm]}`);
+    toast(nos?`${nm} ${mv.reason}：${nos}，倉庫剩 ${S.warehouse[nm]}`
+             :`${nm} ${mv.reason} ${q}，倉庫剩 ${S.warehouse[nm]}`);
   });
 }
 async function fulfillItem(veh,itemId,name){
@@ -2478,14 +2702,19 @@ const SESNAME={am:"上午場",pm:"下午場"};
 const sesOf=r=>r.session==="am"?"am":"pm";
 
 
-/* ---- 盤點短缺：指認是哪一支量測儀器 ---- */
+/* ---- 盤點短缺：指認是哪一台（量測儀器與有開編號管理的貴重設備都適用） ---- */
 function isMeas(name){ const r=RW().find(x=>x.name===name); return !!(r&&r.kind==="meas"); }
+/* 短缺要指認編號的條件：這個品項有開編號管理 */
+function needPick(name){ return isTracked(name); }
+function lostCands(itemId,veh){
+  return unitsVeh(itemId,veh).slice()
+    .sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+}
 function lostOpen(veh,name){
-  const r=RW().find(x=>x.name===name); if(!r) return toast("找不到這個品項");
-  if(!ISO){ isoKick(); return toast("正在載入儀器資料，請稍後再按一次"); }
-  const c=EQ().filter(e=>e.item_id===r.itemId&&e.loc_code===veh&&e.status==="use");
-  if(!c.length) return toast(veh+" 車沒有登記這個品項的儀器編號");
-  lostPick={veh:veh,itemId:r.itemId,name:name,sel:{}}; window.scrollTo(0,0); render();
+  const it=(S.items||[]).find(x=>x.sku===name); if(!it) return toast("找不到這個品項");
+  const c=lostCands(it.id,veh);
+  if(!c.length) return toast(veh+" 車沒有登記這個品項的編號");
+  lostPick={veh:veh,itemId:it.id,name:name,sel:{}}; window.scrollTo(0,0); render();
 }
 function lostToggle(id){ if(lostPick){ lostPick.sel[id]=!lostPick.sel[id]; render(); } }
 async function lostSave(){
@@ -2494,26 +2723,28 @@ async function lostSave(){
   if(!ids.length) return toast("請勾選是哪一支不見了");
   await guard(async()=>{
     for(const id of ids) await rpc("eq_lost",{p_token:token,p_id:id,p_note:L.veh+" 車盤點短缺"});
-    lostPick=null; await isoLoad();
+    lostPick=null; ISO=null; await reload();
   },"已標記為遺失待查");
   render();
 }
 function lostPanel(){
   const L=lostPick; if(!L) return "";
-  const c=EQ().filter(e=>e.item_id===L.itemId&&e.loc_code===L.veh&&e.status==="use");
+  const c=lostCands(L.itemId,L.veh);
+  const meas=isMeas(L.name);
   return `<div class="card" style="border-color:var(--alert)">
     <div class="hd"><h2>指認：${esc(L.name)}</h2>
       <button class="btn tiny ghost" style="margin-left:auto" onclick="lostPick=null;render()">取消</button></div>
     <div class="bd">
-      <div class="warnbox">這是量測儀器，請勾選 ${esc(L.veh)} 車不見的是哪一支。
-        確認後會標成「遺失待查」、從該車移除，並自動寫進設備履歷。</div>
-      ${c.map(e=>`<label style="display:flex;align-items:center;gap:9px;background:#fff;
-          border:1px solid ${L.sel[e.id]?"var(--alert)":"var(--line)"};border-radius:3px;
+      <div class="warnbox">這個品項用編號管理，請勾選 ${esc(L.veh)} 車不見的是哪一台。
+        確認後會標成「遺失待查」、從該車移除${meas?"，並自動寫進設備履歷":""}。</div>
+      ${c.map(u=>`<label style="display:flex;align-items:center;gap:9px;background:#fff;
+          border:1px solid ${L.sel[u.id]?"var(--alert)":"var(--line)"};border-radius:3px;
           padding:10px 12px;margin-bottom:7px;cursor:pointer">
-        <input type="checkbox" ${L.sel[e.id]?"checked":""} style="width:17px;height:17px"
-          onchange="lostToggle('${e.id}')">
-        <span class="num" style="font-weight:600">${esc(e.no)}</span>
-        <span style="color:var(--muted);font-size:13px">登記在 ${esc(e.loc_code)} 車</span></label>`).join("")}
+        <input type="checkbox" ${L.sel[u.id]?"checked":""} style="width:17px;height:17px"
+          onchange="lostToggle('${u.id}')">
+        <span class="num" style="font-weight:600">${esc(u.no)}</span>
+        <span style="color:var(--muted);font-size:13px">${esc([u.brand,u.spec].filter(Boolean).join(" ")
+          ||"登記在 "+u.loc+" 車")}</span></label>`).join("")}
       <button class="btn block" style="background:var(--alert);border-color:var(--alert)"
         onclick="lostSave()">確認遺失</button>
     </div></div>`;
@@ -2534,7 +2765,7 @@ function sheetCard(r){
       <colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
       <tr><th>品項</th><th>包別</th><th class="n">標配</th><th class="n">實際</th><th class="n">狀況</th></tr>
       ${ab.map(l=>`<tr class="warn"><td>${esc(l.name)}${l.note?`<div class="lbl">${esc(l.note)}</div>`:""}
-        ${isMeas(l.name)&&l.type!=="損壞"&&l.type!=="多出"?`<div style="margin-top:4px">
+        ${needPick(l.name)&&l.type!=="損壞"&&l.type!=="多出"?`<div style="margin-top:4px">
           <button class="btn ghost tiny" onclick="event.stopPropagation();lostOpen('${r.vehicle}','${esc(l.name)}')">指認編號</button></div>`:""}</td>
         <td style="color:var(--muted)">${esc(l.pkg)}</td><td class="n">${l.std}</td><td class="n">${l.actual}</td>
         <td class="n" style="color:var(--alert);font-weight:700">${esc(l.type)}</td></tr>`).join("")}</table></div>`
@@ -4418,7 +4649,13 @@ function render(){
   restoreSearch();
   saveDraftSoon();
 }
-function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;
+/* 從庫存頁的編號子列直接跳到 ISO 的設備履歷 */
+function goEq(id){
+  tab="iso"; isoTab="eq"; eqOpen=id; openSku=null; unitEdit=null;
+  window.scrollTo(0,0); render();
+  if(!ISO) isoKick();
+}
+function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;openSku=null;unitEdit=null;
   if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;}
   window.scrollTo(0,0);render();
   if(k==="iso"&&!ISO) isoKick();
