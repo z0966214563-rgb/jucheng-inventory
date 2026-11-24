@@ -525,6 +525,37 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
   border-radius:3px;padding:9px 12px;margin-bottom:10px}
 .isoreg b{color:var(--ink);font-size:14px}
 .isoreg span{display:block;font-size:12px;margin-top:3px}
+.tag.i{border-color:#5B4B8A;color:#5B4B8A;background:#EFEBF7}
+.krule{font-size:12px;color:var(--muted);background:#F5F7FA;border:1px solid var(--line2);
+  border-radius:3px;padding:8px 11px;margin:-6px 0 13px;letter-spacing:.02em}
+
+/* ---- 倉庫盤點 ---- */
+.pgtop2{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.pgtop2 .pgback{background:none;border:1px solid var(--line);border-radius:3px;width:36px;height:36px;
+  font-size:17px;color:var(--ink);cursor:pointer;flex:none}
+.pgtop2 b{font-size:16.5px;font-weight:800;display:block}
+.pgtop2 .pgsub{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.whprog{flex:none;font-size:11.5px;color:var(--muted);text-align:right}
+.whprog b{display:block;font-family:var(--mono);font-size:15px;color:var(--ink)}
+.whgrp{background:#F2F4F7;padding:7px 13px;font-size:12px;font-weight:700;color:var(--muted);
+  border-bottom:1px solid var(--line2);letter-spacing:.04em}
+.whrow{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--line2)}
+.whrow:last-child{border-bottom:0}
+.whrow.diff{background:#FFFBF0}
+.whrow .whloc{flex:none;width:40px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center}
+.whrow .whnm{flex:1;min-width:0;font-size:14px;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.whrow .whin{flex:none;width:62px;height:38px;text-align:center;font-family:var(--mono);
+  font-size:16px;font-weight:700;border:1px solid var(--line);border-radius:3px;background:#fff}
+.whrow .whin:focus{border-color:var(--ink);outline:0}
+.whrow .whd{flex:none;width:58px;text-align:right;font-size:11.5px}
+.whrow .whd i{font-style:normal;color:var(--muted);font-family:var(--mono)}
+.whrow .whd em{font-style:normal;font-family:var(--mono);font-size:14px;font-weight:700}
+.whrow .whd em.ok{color:var(--ok);font-size:11.5px;font-weight:600}
+.whrow .whd em.up{color:var(--ok)}
+.whrow .whd em.dn{color:var(--alert)}
+.whb{flex:none;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -574,7 +605,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=14;
+const APP_VER=15;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -1059,6 +1090,7 @@ async function hdrRegion(k){
   // ISO 的資料是一次抓一區的，換區一定要丟掉重抓，不然畫面會留著上一區的儀器與履歷
   ISO=null; isoUrls={}; eqOpen=null; eqEdit=null; cardOpen=null; cardEdit=null;
   printWhat=null; lostPick=null; openSku=null; unitEdit=null; mvClearUnits();
+  WH=null; whForm=null; whOpenId=null;
   saveReg(k); S=blankState(); render();
   await loadRegion();
   if(role==="admin"&&token){ await guard(async()=>{ await reload(); render(); }); }
@@ -2176,10 +2208,11 @@ function itemTags(name){
   const i=(S.items||[]).find(x=>x.sku===name); if(!i) return "";
   const kd=i.kind||"tool";
   return (kd==="meas"?`<span class="tag m">量測</span>`:"")
+       + (kd==="inst"?`<span class="tag i">儀器</span>`:"")
        + (i.valuable?`<span class="tag v">貴重</span>`:"")
        + (kd==="consum"?`<span class="tag c">耗材</span>`:"");
 }
-const KINDWORD={meas:"量測儀器 量測",tool:"一般工具",consum:"耗材"};
+const KINDWORD={meas:"量測儀器 量測",inst:"儀器",tool:"工具 一般工具",consum:"耗材"};
 
 /* ---- 編號管理：有編號的品項，每一台都查得到在哪 ---- */
 const UNITS=()=>(S&&S.units)?S.units:[];
@@ -2227,26 +2260,21 @@ function viewStock(){
             `<button type="button" aria-pressed="${edKind===kk}" onclick="edKind='${kk}';render()">${t}</button>`).join("")}</div></label>
         <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:11px">
           <input type="checkbox" id="e_val" ${edVal?"checked":""} style="width:17px;height:17px">貴重設備（額外標記）</label>
-        ${edKind==="consum"?"":`
-        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;margin-bottom:9px;
-            cursor:${edKind==="meas"?"not-allowed":"pointer"};opacity:${edKind==="meas"?".65":"1"}">
-          <input type="checkbox" id="e_track" ${edKind==="meas"||edTrack?"checked":""}
-            ${edKind==="meas"?"disabled":""} style="width:17px;height:17px"
-            onchange="edTrack=this.checked;render()">用編號管理（每一台給一個編號，出入庫要指定哪一台）</label>
-        ${edKind==="meas"?`<div class="lbl" style="margin:-4px 0 12px">量測儀器一定要編號管理，ISO 要求每一台都有履歷，所以這個不能關。</div>`
-          +(it.kind!=="meas"?`<div class="warnbox" style="margin-bottom:12px">
-              改成量測儀器之後，這個品項的倉庫數量＝<b>你已經在「ISO」分頁登記、而且放在公司的台數</b>。
-              系統不會幫量測儀器自動產生空白編號（那會混進 ISO 的儀器一覽），
-              所以存檔後數量會先變少，等你把每一台的廠牌、型號、容許誤差值建進去就會對。</div>`:"")
-          :(edTrack&&!it.track?`<div class="warnbox" style="margin-bottom:12px">
-              打開之後，系統會照現在的數量自動產生編號（車上的照各車在庫、剩下的放公司庫存），
-              產完你可以在庫存頁展開改。之後這個品項的倉庫數量就改成由編號自動算，不能手改。</div>`
-            :(!edTrack&&it.track?`<div class="warnbox" style="margin-bottom:12px">
-              要關掉編號管理，得先把這個品項的編號全部報廢或出庫，不然會擋住。</div>`:""))}
-        ${(edKind==="meas"||edTrack)?`<label class="f"><span class="lbl">編號代號（例如「熱像」，會變成 熱像-01）</span>
+        <div class="krule">${KINDRULE[edKind]||""}</div>
+        ${needsNo(edKind)&&!needsNo(it.kind)?`<div class="warnbox" style="margin-bottom:12px">
+            ${edKind==="meas"
+              ?`改成量測儀器之後，倉庫數量＝<b>你已經在「ISO」分頁登記、而且放在公司的台數</b>。
+                 系統不會幫量測儀器自動產生空白編號（那會混進 ISO 的儀器一覽），
+                 所以存檔後數量會先變少，等你把每一台建進去才會對。`
+              :`改成儀器之後，系統會照現在的數量自動產生編號（車上的照各車在庫、剩下的放公司庫存），
+                 產完可以在庫存頁展開這個品項修改。之後倉庫數量改成由編號自動算，不能手改。`}</div>`:""}
+        ${!needsNo(edKind)&&needsNo(it.kind)&&unitsLive(it.id).length?`<div class="warnbox" style="margin-bottom:12px">
+            這個品項還有 ${unitsLive(it.id).length} 個編號在管理中，改成${kindName(edKind)}會被擋下來。
+            要嘛先把編號報廢或出庫，要嘛改歸「儀器」。</div>`:""}
+        ${needsNo(edKind)?`<label class="f"><span class="lbl">編號代號（例如「熱像」，會變成 熱像-01）</span>
             <input type="text" id="e_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
           <div class="lbl" style="margin:-8px 0 14px">目前 ${unitsLive(it.id).length} 台有編號${
-            it.kind==="meas"?"，履歷在「ISO」分頁":"，在庫存頁展開這個品項就能看每一台在哪"}</div>`:""}`}
+            edKind==="meas"?"，校驗與履歷在「ISO」分頁":"，在庫存頁展開這個品項就能看每一台在哪"}</div>`:""}
         <div class="lbl" style="margin-bottom:12px">分類改這裡就好，所有包別的盤點項目會自動跟著變。</div>
         <div class="g2"><button class="btn" onclick="saveEdit('${k}')">儲存</button>
           <button class="btn ghost" onclick="editSku=null;render()">取消</button></div>
@@ -2317,8 +2345,9 @@ function viewStock(){
       <label class="f"><span class="lbl">分類（必選一個）</span>
         <div class="iseg am" id="ni_kind" style="margin:0">${KINDS.map(([kk,t])=>
           `<button type="button" aria-pressed="${(ni.kind||"tool")===kk}" onclick="setNiK('${kk}')">${t}</button>`).join("")}</div></label>
-      ${ni.kind==="meas"?`<label class="f"><span class="lbl">編號縮寫（給量具編號用）</span>
-        <input type="text" value="${esc(ni.abbr||"")}" placeholder="例：含水" onchange="setNi('abbr',this.value)"></label>`:""}
+      <div class="krule">${KINDRULE[ni.kind||"tool"]||""}</div>
+      ${needsNo(ni.kind)?`<label class="f"><span class="lbl">編號代號（例如「熱像」會變成 熱像-01）</span>
+        <input type="text" value="${esc(ni.abbr||"")}" placeholder="留白就用名稱前兩個字" onchange="setNi('abbr',this.value)"></label>`:""}
       <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:14px">
         <input type="checkbox" ${ni.valuable?"checked":""} onchange="setNiV(this.checked)"
           style="width:17px;height:17px">貴重設備（額外標記）</label>
@@ -2366,13 +2395,10 @@ async function saveEdit(k){
       p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
     await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:edKind,
       p_valuable:g("e_val").checked,p_abbr:(g("e_abbr")?g("e_abbr").value:null)});
-    // 編號管理開關：量測儀器由伺服器強制開，不用送
-    const wantTrack = (edKind==="meas") ? true : !!(g("e_track")&&g("e_track").checked);
-    if(edKind!=="consum" && wantTrack!==!!it.track){
-      const made=await rpc("mgr_item_track",{p_token:token,p_id:it.id,p_on:wantTrack});
-      if(wantTrack && made) toast(`已自動產生 ${made} 個編號，展開品項可以修改`);
-    }
+    // 編號管理由分類決定，資料庫的 trigger 會自己處理，不用再送開關
     editSku=null; ISO=null; await reload(); render();
+    const after=(S.items||[]).find(x=>x.id===it.id);
+    if(after&&after.track&&!it.track) toast(`已改成${kindName(edKind)}，編號 ${unitsLive(it.id).length} 台`);
   },nn!==k?`已改名為「${nn}」，盤點項目已同步`:"已更新");
 }
 async function delSku(k){
@@ -2955,7 +2981,7 @@ function viewItems(){
         <div class="g2"><button class="btn" onclick="saveRow('${r.rid}')">儲存</button>
           <button class="btn ghost" onclick="editRow=null;render()">取消</button></div></td></tr>`;
       return `<tr><td class="c-name">${r.name}
-          ${r.kind==="meas"?`<span class="tag m">量測</span>`:""}${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
+          ${r.kind==="meas"?`<span class="tag m">量測</span>`:""}${r.kind==="inst"?`<span class="tag i">儀器</span>`:""}${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
         <td class="n c-num">${r.std}</td>
         <td class="c-act">
           <button class="btn ghost tiny" onclick="editRow='${r.rid}';render()">編輯</button>
@@ -3061,6 +3087,216 @@ async function delRow(rid){
     editRow=null; await reload(); render(); },`已移除：${r.name}`);
 }
 
+
+/* ===================================================================
+   每週倉庫盤點
+   不拍照。沒編號的品項填數量（留白＝這次沒盤，不會被當成 0），
+   有編號的品項列出該在公司的每一個編號打勾，沒勾的標成遺失待查。
+   =================================================================== */
+let WH=null;            /* 歷史紀錄 */
+let whForm=null;        /* 正在盤的那一張：{person,items,units,val,chk,note,q} */
+let whBusy=false, whOpenId=null;
+
+async function whLoad(){
+  if(!token) return;
+  try{ WH=await rpc("wh_state",{p_token:token,p_region:REG,p_limit:20}); }
+  catch(e){ WH={sheets:[]}; }
+}
+function whKick(){ whLoad().then(render); }
+
+async function whStart(){
+  if(whBusy) return; whBusy=true; render();
+  try{
+    const d=await rpc("wh_open",{p_token:token,p_region:REG});
+    whForm={person:d.person,today:d.today,items:d.items||[],units:d.units||[],
+            last:d.last||null,val:{},chk:{},note:"",q:""};
+    (whForm.units||[]).forEach(u=>whForm.chk[u.id]=true);   // 預設都在，沒看到的才取消勾
+  }catch(e){ toast(e.message||"打不開盤點表"); }
+  whBusy=false; window.scrollTo(0,0); render();
+}
+function whSet(id,v){ const n=v.trim(); if(n==="") delete whForm.val[id]; else whForm.val[id]=n; whCount(); }
+function whToggle(id){ whForm.chk[id]=!whForm.chk[id]; render(); }
+function whSetQ(v){ whForm.q=v; render(); }
+function whCount(){
+  const el=document.getElementById("whprog"); if(!el) return;
+  el.textContent=whDone()+" / "+(whForm.items.length+whForm.units.length);
+}
+function whDone(){
+  return Object.keys(whForm.val).length + whForm.units.length;
+}
+function whDiffs(){
+  const out=[];
+  whForm.items.forEach(it=>{
+    const v=whForm.val[it.id];
+    if(v===undefined) return;
+    const d=(parseInt(v)||0)-it.book;
+    if(d!==0) out.push({name:it.name,book:it.book,actual:parseInt(v)||0,diff:d});
+  });
+  return out;
+}
+function whMiss(){ return whForm.units.filter(u=>!whForm.chk[u.id]); }
+
+function viewWH(){
+  if(whForm) return viewWHForm();
+  const sheets=(WH&&WH.sheets)||[];
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>倉庫盤點</h2>
+      <span class="lbl" style="margin-left:auto">${sheets.length?`最近 ${sheets.length} 次`:"還沒有紀錄"}</span></div>
+      <div class="bd">
+        <div class="lbl" style="margin-bottom:11px">
+          清點公司倉庫的實際數量，不用拍照。數量對不上的，系統會自動產生盤盈／盤虧紀錄並留下你的名字。</div>
+        <button class="btn block" ${whBusy?"disabled":""} onclick="whStart()">
+          ${whBusy?"載入中…":"開始盤點"}</button>
+      </div></div>
+
+    ${sheets.map(sh=>{
+      const open=whOpenId===sh.id;
+      return `<div class="card">
+        <div class="hd" style="cursor:pointer" onclick="whOpenId='${open?"":sh.id}';render()">
+          <h2>${esc(sh.date)}</h2>
+          <span class="lbl" style="margin-left:auto">${esc(sh.person)}　·　盤 ${sh.n} 項</span>
+          <span class="ipill ${sh.diff?"bad":"ok"}">${sh.diff?sh.diff+" 項對不上":"全對"}</span>
+          <span class="uexp">${open?"▾":"▸"}</span></div>
+        ${open?`<div class="bd nopad">
+          ${sh.note?`<div class="bd"><span class="lbl">備註：${esc(sh.note)}</span></div>`:""}
+          ${(sh.lines||[]).map(l=>`<div class="pkrow">
+            <span class="pknm">${esc(l.name)}</span>
+            <span class="whb">系統 ${l.book} → 實際 ${l.actual}</span>
+            <b class="${l.diff>0?"up":"dn"}">${l.diff>0?"＋":""}${l.diff}</b></div>`).join("")}
+          ${(sh.miss||[]).map(m=>`<div class="pkrow short">
+            <span class="uno">${esc(m.no)}</span>
+            <span class="pknm">${esc(m.name)}</span>
+            <span class="ipill bad">沒盤到</span></div>`).join("")}
+          ${!(sh.lines||[]).length&&!(sh.miss||[]).length
+            ?`<div class="bd"><span class="lbl">這次全部都對得上。</span></div>`:""}
+          <div class="bd" style="border-top:1px solid var(--line2)">
+            <button class="btn ghost sm" onclick="whDel('${sh.id}')">刪除這筆紀錄</button>
+            <div class="lbl" style="margin-top:6px">
+              只會刪掉這張盤點單。已經產生的盤盈／盤虧出入庫要自己到「出入庫」刪，
+              免得庫存數字又被動一次。</div></div>
+        </div>`:""}</div>`;}).join("")}
+    ${sheets.length?"":`<div class="card"><div class="empty">還沒有倉庫盤點紀錄。</div></div>`}
+    <div style="height:18px"></div>
+  </div>`;
+}
+
+function viewWHForm(){
+  const f=whForm, q=(f.q||"").trim().toLowerCase();
+  const items=q?f.items.filter(i=>(i.name+" "+(i.loc||"")).toLowerCase().indexOf(q)>=0):f.items;
+  const units=q?f.units.filter(u=>(u.no+" "+u.item_name).toLowerCase().indexOf(q)>=0):f.units;
+  const miss=whMiss().length, diffs=whDiffs().length;
+
+  // 編號依品項分組
+  const byItem={};
+  units.forEach(u=>{ (byItem[u.item_name]=byItem[u.item_name]||[]).push(u); });
+
+  return `<div class="wrap wide">
+    <div class="pgtop2">
+      <button class="pgback" onclick="whCancel()">←</button>
+      <div style="flex:1;min-width:0"><b>倉庫盤點</b>
+        <span class="pgsub">${esc(f.today)}　·　${esc(f.person)}${
+          f.last?`　·　上次 ${esc(f.last.date)}`:""}</span></div>
+      <span class="whprog">已填 <b id="whprog">${whDone()} / ${f.items.length+f.units.length}</b></span>
+    </div>
+
+    <div class="warnbox" style="margin-bottom:12px">
+      數量<b>留白＝這次沒盤到</b>，不會被當成 0，也不會產生盤虧。只填你真的數過的。</div>
+
+    <div class="mvf"><input class="mvsearch" value="${esc(f.q)}" placeholder="搜尋品項或編號…"
+      oninput="whSetQ(this.value)"></div>
+
+    ${f.units.length?`<div class="card"><div class="hd"><h2>有編號的（打勾＝有看到）</h2>
+      <span class="lbl" style="margin-left:auto">${f.units.length} 台${miss?`　·　${miss} 台沒勾`:""}</span></div>
+      <div class="bd nopad">
+        ${Object.keys(byItem).sort((a,b)=>a.localeCompare(b,"zh-Hant")).map(nm=>`
+          <div class="whgrp">${esc(nm)}</div>
+          ${byItem[nm].map(u=>`<label class="upk ${f.chk[u.id]?"on":""}" style="margin:0;border-radius:0;border-left:0;border-right:0;border-top:0">
+            <input type="checkbox" ${f.chk[u.id]?"checked":""} onchange="whToggle('${u.id}')">
+            <span class="uno">${esc(u.no)}</span>
+            <span class="ulbl">${esc([u.brand,u.spec].filter(Boolean).join(" ")||"—")}</span>
+          </label>`).join("")}`).join("")}
+      </div>
+      ${miss?`<div class="bd" style="border-top:1px solid var(--line2)">
+        <div class="err" style="margin:0">沒勾到的 ${miss} 台送出後會標成「遺失待查」，之後找到可以在庫存頁復原。</div>
+      </div>`:""}</div>`:""}
+
+    <div class="card"><div class="hd"><h2>填數量</h2>
+      <span class="lbl" style="margin-left:auto">${Object.keys(f.val).length} / ${f.items.length} 已填${
+        diffs?`　·　${diffs} 項不符`:""}</span></div>
+      <div class="bd nopad">
+        ${items.map(it=>{
+          const v=f.val[it.id];
+          const d=v===undefined?null:(parseInt(v)||0)-it.book;
+          return `<div class="whrow ${d!==null&&d!==0?"diff":""}">
+            <span class="whloc">${esc(it.loc==="未設定"?"—":it.loc)}</span>
+            <span class="whnm">${esc(it.name)}${itemTags(it.name)}</span>
+            <input type="number" min="0" inputmode="numeric" class="whin" value="${v===undefined?"":esc(v)}"
+              placeholder="—" onchange="whSet('${it.id}',this.value)">
+            <span class="whd">${d===null?`<i>系統 ${it.book}</i>`
+              :d===0?`<em class="ok">相符</em>`
+              :`<em class="${d>0?"up":"dn"}">${d>0?"＋":""}${d}</em>`}</span>
+          </div>`;}).join("")||`<div class="bd"><span class="lbl">找不到符合的品項</span></div>`}
+      </div></div>
+
+    <div class="card"><div class="bd">
+      <label class="f"><span class="lbl">備註（選填）</span>
+        <input type="text" value="${esc(f.note)}" placeholder="例：月底大盤" onchange="whForm.note=this.value"></label>
+      <button class="btn block" onclick="whSubmit()">送出盤點</button>
+      <button class="btn ghost block" style="margin-top:9px" onclick="whCancel()">取消</button>
+    </div></div>
+    <div style="height:18px"></div>
+  </div>`;
+}
+
+async function whCancel(){
+  if(Object.keys(whForm.val).length||whMiss().length){
+    if(!confirm("要放棄這次盤點嗎？已經填的數字不會存起來。")) return;
+  }
+  whForm=null; render();
+}
+async function whSubmit(){
+  const f=whForm;
+  const diffs=whDiffs(), miss=whMiss();
+  const filled=Object.keys(f.val).length;
+  if(!filled && !miss.length){
+    return toast("還沒填任何數量，也沒有取消勾選任何編號");
+  }
+  let msg=`這次盤了 ${filled} 項數量`;
+  if(f.units.length) msg+=`、${f.units.length} 台編號`;
+  msg+="。\n\n";
+  if(diffs.length){
+    msg+=`數量對不上 ${diffs.length} 項，會自動產生盤盈／盤虧紀錄：\n`;
+    msg+=diffs.slice(0,6).map(d=>`　${d.name}　${d.book} → ${d.actual}（${d.diff>0?"＋":""}${d.diff}）`).join("\n");
+    if(diffs.length>6) msg+=`\n　…等 ${diffs.length} 項`;
+    msg+="\n\n";
+  }
+  if(miss.length){
+    msg+=`沒勾到 ${miss.length} 台，會標成「遺失待查」：\n`;
+    msg+=miss.slice(0,6).map(u=>`　${u.no}　${u.item_name}`).join("\n");
+    if(miss.length>6) msg+=`\n　…等 ${miss.length} 台`;
+    msg+="\n\n";
+  }
+  if(!diffs.length&&!miss.length) msg+="全部都對得上。\n\n";
+  msg+=`操作者會記成「${f.person}」。確定送出嗎？`;
+  if(!confirm(msg)) return;
+
+  await guard(async()=>{
+    await rpc("wh_submit",{p_token:token,p:{
+      region:REG, note:(f.note||"").trim(),
+      lines:f.items.map(it=>({id:it.id,actual:f.val[it.id]===undefined?null:String(f.val[it.id])})),
+      units:f.units.map(u=>({id:u.id,found:!!f.chk[u.id]}))
+    }});
+    whForm=null; WH=null; ISO=null;
+    await reload(); await whLoad(); render();
+  },diffs.length||miss.length?`已送出，${diffs.length+miss.length} 項有差異`:"已送出，全部相符");
+}
+async function whDel(id){
+  if(!confirm("刪除這筆倉庫盤點紀錄？\n已經產生的盤盈／盤虧出入庫不會跟著刪。")) return;
+  await guard(async()=>{
+    await rpc("wh_delete",{p_token:token,p_id:id});
+    whOpenId=null; WH=null; await whLoad(); render();
+  },"已刪除");
+}
 
 /* ---- 月報頁 ---- */
 /* ===== 月報表 v2 ===== */
@@ -3605,11 +3841,21 @@ const EQST={use:["使用中","ok"],fix:["送修","warn"],stop:["停止使用","b
             scrap:["報廢","grey"],lost:["遺失待查","bad"]};
 const CALW={in:"內校",out:"外校",none:"免校"};
 const CALR={ok:"合格",adjust:"校準",fix:"維修",scrap:"報廢"};
-const KINDS=[["meas","量測儀器"],["tool","一般工具"],["consum","耗材"]];
-const kindName=k=>(KINDS.find(x=>x[0]===k)||["","一般工具"])[1];
+/* 四種分類：分類本身就決定要不要編號、要不要校正 */
+const KINDS=[["meas","量測儀器"],["inst","儀器"],["tool","工具"],["consum","耗材"]];
+const kindName=k=>(KINDS.find(x=>x[0]===k)||["","工具"])[1];
+const KINDRULE={
+  meas:  "要編號　·　要校正（ISO 列管）",
+  inst:  "要編號　·　免校正",
+  tool:  "免編號　·　免校正",
+  consum:"免編號　·　免校正　·　月報不計入遺失損壞"
+};
+const needsNo=k=>k==="meas"||k==="inst";
 
 const EQ=()=>((ISO&&ISO.equipment)||[]);
 const eqById=id=>EQ().find(e=>e.id===id);
+/* ISO 只列管量測儀器。「儀器」要編號但免校，不進校驗計畫與儀器一覽。 */
+const EQM=()=>EQ().filter(e=>(e.kind||"meas")==="meas");
 const calsOf=id=>((ISO&&ISO.cals)||[]).filter(c=>c.equip_id===id);
 const fixesOf=id=>((ISO&&ISO.fixes)||[]).filter(f=>f.equip_id===id);
 const stopsOf=id=>((ISO&&ISO.stops)||[]).filter(s=>s.equip_id===id);
@@ -3695,7 +3941,7 @@ function viewISO(){
 
 /* ---------- 儀器清單 ---------- */
 function viewEqList(){
-  const all=EQ(), q=isoQ.trim();
+  const all=EQM(), q=isoQ.trim();
   const nWarn=all.filter(e=>calState(e)[0]==="warn").length;
   const nBad =all.filter(e=>calState(e)[0]==="bad").length;
   const nOff =all.filter(e=>["stop","scrap","lost"].includes(e.status)).length;
@@ -4472,7 +4718,7 @@ function viewPrint(){
     </div>${body}</div>`;
 }
 function pf1601(){
-  const list=EQ().filter(e=>e.status!=="scrap");
+  const list=EQM().filter(e=>e.status!=="scrap");
   return `<div class="iso-form">${pfHead("QP-16-01")}
     <div class="ft">量 測 儀 器 一 覽 表</div>
     <table class="pf">
@@ -4542,7 +4788,7 @@ function planMonths(e,Y){
   return out;
 }
 function pf1603(Y){
-  const list=EQ().filter(e=>e.status!=="scrap"&&e.cal_type!=="none");
+  const list=EQM().filter(e=>e.status!=="scrap"&&e.cal_type!=="none");
   return `<div class="iso-form">${pfHead("QP-16-03")}
     <div class="ft">${Y} 年 度 量 測 儀 器 校 驗 計 畫 表</div>
     <table class="pf">
@@ -4585,16 +4831,16 @@ function pf0501(cardId){
     </table></div>`;
 }
 function pf0502(cat){
-  const title={meas:"量測儀器",veh:"車輛",tool:"一般工具"}[cat]||"";
+  const title={meas:"量測儀器",veh:"車輛",tool:"一般設備（儀器與工具）"}[cat]||"";
 
   // ---- 一般工具：每一項都不同批、不同廠家，所以不列廠牌與購買日期 ----
   if(cat==="tool"){
     const seen={};
-    RW().filter(r=>r.kind==="tool").forEach(r=>{
+    RW().filter(r=>r.kind==="tool"||r.kind==="inst").forEach(r=>{
       if(!seen[r.name]) seen[r.name]={std:0,id:r.itemId};
       seen[r.name].std+=r.std; });
     // 只放在倉庫、沒排進盤點表的一般工具也要列進來
-    ITEMS().filter(i=>i.kind==="tool").forEach(i=>{
+    ITEMS().filter(i=>i.kind==="tool"||i.kind==="inst").forEach(i=>{
       if(!seen[i.sku]) seen[i.sku]={std:0,id:i.id}; });
     const names=Object.keys(seen).sort((a,b)=>a.localeCompare(b,"zh-Hant"));
     const rows=names.map((n,i)=>{
@@ -4621,14 +4867,15 @@ function pf0502(cat){
         ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
       </table>
       <div style="font-size:11px;color:#555;margin-top:6px">
-        一般工具每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行。
-        貴重設備有編號的，編號列在備註欄。耗材不列入本表。</div>
+        一般設備每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行。
+        有編號的「儀器」，編號列在備註欄；儀器免校驗，所以不列入量測儀器一覽與年度校驗計畫。
+        耗材不列入本表。</div>
       ${pfSig}</div>`;
   }
 
   let rows=[];
   if(cat==="meas"){
-    rows=EQ().filter(e=>e.status!=="scrap").map(e=>[e.no,
+    rows=EQM().filter(e=>e.status!=="scrap").map(e=>[e.no,
       esc(e.item_name)+(e.spec?"／"+esc(e.spec):""),esc(e.brand)||"—",esc(e.owner_name)||"—",
       dOnly(e.buy_date)||"—",locName(e.loc_code)+(e.status==="use"?"":"・"+(EQST[e.status]||["",""])[0])]);
   }else{
@@ -4679,9 +4926,9 @@ function pfScrap(id){
 
 /* ===================== 導覽 ===================== */
 const TABS={field:[["count","☑","盤點"]],
-  admin:[["restock","⚑","待補料"],["stock","▤","庫存"],["items","☑","項目"],
-         ["move","⇅","出入庫"],["result","▦","結果"],["month","◷","月報"],
-         ["iso","◎","ISO"],["veh","⚙","設定"]]};
+  admin:[["restock","⚑","待補料"],["stock","▤","庫存"],["wh","▣","倉庫盤點"],
+         ["items","☑","項目"],["move","⇅","出入庫"],["result","▦","結果"],
+         ["month","◷","月報"],["iso","◎","ISO"],["veh","⚙","設定"]]};
 function render(){
   if(UPGRADING) return;
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
@@ -4704,7 +4951,7 @@ function render(){
   app.innerHTML = role==="field" ? viewField()
     : tab==="move" ? viewMove() : tab==="result" ? viewResult()
     : tab==="veh" ? viewVehicles() : tab==="iso" ? viewISO() : tab==="items" ? viewItems()
-    : tab==="month" ? viewMonthly()
+    : tab==="month" ? viewMonthly() : tab==="wh" ? viewWH()
     : tab==="stock" ? viewStock() : viewRestock();
   restoreSearch();
   saveDraftSoon();
@@ -4717,8 +4964,10 @@ function goEq(id){
 }
 function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;openSku=null;unitEdit=null;
   if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;}
+  if(k!=="wh") whForm=null;
   window.scrollTo(0,0);render();
   if(k==="iso"&&!ISO) isoKick();
+  if(k==="wh"&&!WH) whKick();
 }
 boot();
 </script>
