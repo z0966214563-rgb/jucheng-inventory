@@ -556,6 +556,28 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
 .whrow .whd em.up{color:var(--ok)}
 .whrow .whd em.dn{color:var(--alert)}
 .whb{flex:none;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+/* ---- 產號分配表 ---- */
+.planrow{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid var(--line2)}
+.planrow.head{font-size:11.5px;color:var(--muted);font-family:var(--mono);letter-spacing:.06em;
+  border-bottom:1px solid var(--line);padding-bottom:6px}
+.planrow.head span:first-child{flex:1}
+.planrow.head .n{width:62px;text-align:center}
+.planrow.head .n:last-child{width:118px}
+.planrow.zero{opacity:.55}
+.planrow.wh{background:#F7F8FA;border-bottom:0;margin-top:2px}
+.planrow .pl{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink)}
+.planrow .pl i{display:block;font-style:normal;font-size:11px;color:var(--muted);font-weight:400;margin-top:1px}
+.planrow .sg{width:62px;text-align:center;font-family:var(--mono);font-size:14px;color:var(--muted)}
+.planrow .pq{width:118px;display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.planrow .pin{width:46px;height:32px;text-align:center;font-family:var(--mono);font-size:15px;
+  font-weight:700;border:1px solid var(--line);border-radius:3px;background:#fff}
+.planrow .pin:focus{border-color:var(--ink);outline:0}
+.stp{width:30px;height:32px;border:1px solid var(--line);background:#fff;border-radius:3px;
+  font-size:15px;line-height:1;color:var(--ink);cursor:pointer;flex:none}
+.stp:active{background:#EEF1F5}
+.plantot{text-align:right;font-size:13px;color:var(--muted);padding:11px 2px 0}
+.plantot b{font-family:var(--mono);font-size:19px;color:var(--ink)}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -605,7 +627,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=15;
+const APP_VER=16;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -2117,6 +2139,114 @@ async function delManual(id){
 
 function locRank(l){const i=LOCS().indexOf(l);return i<=0?9999:i;}
 
+/* ===================================================================
+   產號分配：改成要編號的分類之前，先讓你決定各車編幾個
+   （標配說每台車帶 1 個，但實際上空著的車不該被編出假編號）
+   =================================================================== */
+let plan=null;   /* {d, kind, veh:{}, wh, abbr, busy} */
+
+async function planOpen(itemId, kind, abbr){
+  await guard(async()=>{
+    const d=await rpc("mgr_unit_plan",{p_token:token,p_item:itemId,p_kind:kind||null});
+    const veh={};
+    (d.vehicles||[]).forEach(v=>{
+      // 已經有編號的沿用現況，沒有的用建議值
+      veh[v.code] = Number(v.now)>0 ? Number(v.now) : Number(v.suggest)||0;
+    });
+    plan={d:d, kind:kind||d.kind, veh:veh,
+          wh:Number(d.wh_now)>0?Number(d.wh_now):Number(d.warehouse)||0,
+          abbr:(abbr!==undefined&&abbr!==null)?abbr:(d.abbr||""), busy:false};
+    editSku=null; window.scrollTo(0,0); render();
+  });
+}
+function planSet(code,v){ plan.veh[code]=Math.max(0,parseInt(v)||0); render(); }
+function planStep(code,d){ plan.veh[code]=Math.max(0,(plan.veh[code]||0)+d); render(); }
+function planWh(v){ plan.wh=Math.max(0,parseInt(v)||0); render(); }
+function planWhStep(d){ plan.wh=Math.max(0,(plan.wh||0)+d); render(); }
+function planTotal(){ return Object.values(plan.veh).reduce((a,b)=>a+b,0)+(plan.wh||0); }
+function planSuggest(){
+  (plan.d.vehicles||[]).forEach(v=>plan.veh[v.code]=Number(v.suggest)||0);
+  plan.wh=Number(plan.d.warehouse)||0; render();
+}
+function planZero(){ Object.keys(plan.veh).forEach(k=>plan.veh[k]=0); render(); }
+
+function viewPlan(){
+  const P=plan, d=P.d, isNew=(d.kind!==P.kind);
+  const locked=d.locked||[], free=d.free||[];
+  const total=planTotal();
+  return `<div class="wrap wide">
+    <div class="card"><div class="hd"><h2>${isNew?`改成「${kindName(P.kind)}」`:"重新分配編號"}</h2>
+      <span class="lbl" style="margin-left:auto">${esc(d.name)}</span></div>
+      <div class="bd">
+        ${P.kind==="meas"?`<div class="warnbox" style="margin-bottom:0">
+          量測儀器要在「ISO」分頁一台一台建，才能填廠牌、容許誤差值與校驗週期，
+          所以這裡不會自動產號。確認改成量測儀器後，請到 ISO 分頁登記每一台。</div>
+          <button class="btn block" style="margin-top:13px" onclick="planSave()">確認改成量測儀器</button>
+          <button class="btn ghost block" style="margin-top:9px" onclick="plan=null;render()">取消</button>`
+        :`
+        <div class="lbl" style="margin-bottom:11px">
+          下面是照<b>標配</b>算出來的建議值。實際上沒放東西的車請改成 0，
+          不然會編出對不到實物的假編號。</div>
+
+        <div class="planrow head"><span>位置</span><span class="n">標配建議</span><span class="n">要編幾個</span></div>
+        ${(d.vehicles||[]).map(v=>{
+          const n=P.veh[v.code]||0, sg=Number(v.suggest)||0, now=Number(v.now)||0;
+          return `<div class="planrow ${n===0?"zero":""}">
+            <span class="pl">${esc(v.code)} 車${now?`<i>目前 ${now} 個</i>`:""}</span>
+            <span class="n sg">${sg}</span>
+            <span class="pq"><button class="stp" onclick="planStep('${v.code}',-1)">−</button>
+              <input type="number" min="0" class="pin" value="${n}"
+                onchange="planSet('${v.code}',this.value)">
+              <button class="stp" onclick="planStep('${v.code}',1)">＋</button></span>
+          </div>`;}).join("")}
+        <div class="planrow wh">
+          <span class="pl">公司庫存${Number(d.wh_now)?`<i>目前 ${d.wh_now} 個</i>`:""}</span>
+          <span class="n sg">${d.warehouse}</span>
+          <span class="pq"><button class="stp" onclick="planWhStep(-1)">−</button>
+            <input type="number" min="0" class="pin" value="${P.wh}" onchange="planWh(this.value)">
+            <button class="stp" onclick="planWhStep(1)">＋</button></span>
+        </div>
+        <div class="plantot">合計要編 <b>${total}</b> 個編號</div>
+
+        <div class="g2" style="margin:11px 0 14px">
+          <button class="btn ghost sm" onclick="planSuggest()">全部照建議值</button>
+          <button class="btn ghost sm" onclick="planZero()">各車全部歸 0</button>
+        </div>
+
+        <label class="f"><span class="lbl">編號代號（例如「測距」會變成 測距-01）</span>
+          <input type="text" value="${esc(P.abbr)}" placeholder="留白就用名稱前兩個字"
+            onchange="plan.abbr=this.value"></label>
+
+        ${locked.length?`<div class="warnbox" style="margin-bottom:12px">
+          <b>這 ${locked.length} 個編號不會被動到</b>（已經有紀錄）：<br>
+          ${locked.map(l=>`${esc(l.no)}${l.loc?`（${esc(l.loc)} 車）`:"（公司庫存）"} — ${esc(l.why)}`).join("<br>")}
+          <br><br>上面填的數量是「<b>除了這些以外</b>」還要編幾個。</div>`:""}
+        ${free.length?`<div class="err" style="margin-bottom:12px">
+          目前有 ${free.length} 個還沒有任何紀錄的編號（${free.slice(0,6).map(f=>esc(f.no)).join("、")}${
+            free.length>6?" 等":""}），<b>確認後會先刪掉再照新的分配重編</b>。
+          如果這些編號已經貼在實物上，請先取消，改用庫存頁逐一編輯位置。</div>`:""}
+
+        <button class="btn block" ${total===0&&!locked.length?"disabled":""} onclick="planSave()">
+          ${isNew?`確認，產生 ${total} 個編號`:`重新分配，產生 ${total} 個編號`}</button>
+        <button class="btn ghost block" style="margin-top:9px" onclick="plan=null;render()">取消</button>`}
+      </div></div></div>`;
+}
+
+async function planSave(){
+  const P=plan;
+  if(P.kind!=="meas"){
+    const free=(P.d.free||[]).length;
+    if(free && !confirm(`會先刪掉 ${free} 個還沒有紀錄的編號，再照新的分配重編。\n確定嗎？`)) return;
+  }
+  await guard(async()=>{
+    const made=await rpc("mgr_unit_apply",{p_token:token,p_item:P.d.item_id,
+      p_kind:P.kind, p_plan:{wh:P.wh, veh:P.veh}, p_abbr:(P.abbr||"").trim()||null});
+    plan=null; ISO=null; await reload(); render();
+    toast(P.kind==="meas"?"已改成量測儀器，請到 ISO 分頁登記每一台"
+         :`已產生 ${made} 個編號`);
+  });
+}
+
 /* ---- 庫存頁：編號子列 ---- */
 function toggleSku(k){ openSku=(openSku===k?null:k); unitEdit=null; render(); }
 function unitRows(it){
@@ -2142,7 +2272,9 @@ function unitRows(it){
   if(unitEdit&&unitEdit.id===null&&unitEdit.itemId===it.id) out+=unitEditRow(it,null);
   else out+=`<tr class="unitrow"><td></td><td colspan="4">
     <button class="btn ghost tiny" onclick="unitNew('${it.id}')">＋ 手動補一個編號</button>
-    <span class="ulbl">正常情況不用手動補，採購入庫時系統就會產號</span></td></tr>`;
+    <button class="btn ghost tiny" onclick="planOpen('${it.id}')">重新分配各車數量</button>
+    <div class="ulbl" style="margin-top:5px">
+      「重新分配」會把還沒有任何紀錄的編號清掉重編，有紀錄的不會動到。</div></td></tr>`;
   return out;
 }
 function unitEditRow(it,u){
@@ -2235,6 +2367,7 @@ function goStockItem(name){
   window.scrollTo(0,0); render();
 }
 function viewStock(){
+  if(plan) return viewPlan();
   const ni=nItem;
   const sorted=ITEMS().slice().sort((a,b)=>{
     const d=locRank(a.loc)-locRank(b.loc); return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
@@ -2390,6 +2523,19 @@ async function saveEdit(k){
   if(!nn)return toast("品項名稱不能空白");
   if(nn!==k && ALLSKU().includes(nn))return toast(`「${nn}」已經存在`);
   const it=itemOf(k);
+  // 從不編號變成要編號：先讓他決定各車編幾個，不要照標配編出對不到實物的假編號
+  if(needsNo(edKind) && !needsNo(it.kind)){
+    const ab=g("e_abbr")?g("e_abbr").value:"";
+    await guard(async()=>{
+      await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:nn,
+        p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
+      await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:null,
+        p_valuable:g("e_val").checked,p_abbr:ab||null});
+      await reload();
+      await planOpen(it.id, edKind, ab);
+    });
+    return;
+  }
   await guard(async()=>{
     await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:nn,
       p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
@@ -2397,8 +2543,6 @@ async function saveEdit(k){
       p_valuable:g("e_val").checked,p_abbr:(g("e_abbr")?g("e_abbr").value:null)});
     // 編號管理由分類決定，資料庫的 trigger 會自己處理，不用再送開關
     editSku=null; ISO=null; await reload(); render();
-    const after=(S.items||[]).find(x=>x.id===it.id);
-    if(after&&after.track&&!it.track) toast(`已改成${kindName(edKind)}，編號 ${unitsLive(it.id).length} 台`);
   },nn!==k?`已改名為「${nn}」，盤點項目已同步`:"已更新");
 }
 async function delSku(k){
