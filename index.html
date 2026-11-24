@@ -578,6 +578,12 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
 .stp:active{background:#EEF1F5}
 .plantot{text-align:right;font-size:13px;color:var(--muted);padding:11px 2px 0}
 .plantot b{font-family:var(--mono);font-size:19px;color:var(--ink)}
+
+/* ---- 車輛納入開關 ---- */
+tr.voff td{background:#FAFAF8;color:var(--muted)}
+tr.voff td:first-child{opacity:.6}
+.vsw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+.vsw input{width:16px;height:16px;flex:none}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -595,7 +601,12 @@ const RW=()=>{ const all=ALLRW(); if(!amMode())return all;
 const PKGS=()=>{ const all=(S&&S.pkgs)?S.pkgs:[];
   if(!amMode())return all;
   const ids=new Set(RW().map(r=>r.pkg)); return all.filter(p=>ids.has(p.id)); };
+/* VEH() 只給「納入驗屋盤點」的車；關掉的車（例如固定放甲醛工具的）不列入標配與車上數量。
+   歷史紀錄要顯示車號時用 VEHALL()，不然舊資料會看不到。 */
 const VEH=()=>(S&&S.vehicles)?S.vehicles:[];
+const VEHALL=()=>(S&&S.vehiclesAll)?S.vehiclesAll:VEH();
+const vehOff=c=>VEHALL().indexOf(c)>=0 && VEH().indexOf(c)<0;
+const vehNote=c=>((S&&S.vehicleNote)||{})[c]||"";
 const ITEMS=()=>(S&&S.items)?S.items:[];
 const ALLSKU=()=>ITEMS().map(i=>i.sku);
 const itemOf=k=>ITEMS().find(i=>i.sku===k);
@@ -627,7 +638,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=16;
+const APP_VER=17;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -785,7 +796,8 @@ function prune(){}               // 照片保留由資料庫處理
 
 /* ---- 伺服器資料 → 畫面用的資料結構 ---- */
 function blankState(){
-  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],units:[],toolOwner:"",
+  return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],units:[],
+          vehiclesAll:[],vehicleOn:{},vehicleNote:{},vehicleUnits:{},toolOwner:"",
           items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",photoPx:1280,
           amItems:[],amIds:[],amRows:[],needs:[],locs:[]};
 }
@@ -818,9 +830,14 @@ async function applyState(st,urls){
   N.rows=(st.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
     name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
     valuable:!!r.valuable,consum:!!r.consumable,kind:r.kind||(r.consumable?"consum":"tool")}));
-  N.vehicles=(st.vehicles||[]).map(v=>v.code);
+  // 關掉的車不進 VEH()，但 vehiclesAll 留著給歷史紀錄與設定頁用
+  N.vehiclesAll=(st.vehicles||[]).map(v=>v.code);
+  N.vehicles=(st.vehicles||[]).filter(v=>v.active!==false).map(v=>v.code);
   N.vehicleIds={}; (st.vehicles||[]).forEach(v=>N.vehicleIds[v.code]=v.id);
   N.vehicleUsed={}; (st.vehicles||[]).forEach(v=>N.vehicleUsed[v.code]=v.used);
+  N.vehicleOn={};   (st.vehicles||[]).forEach(v=>N.vehicleOn[v.code]=v.active!==false);
+  N.vehicleNote={}; (st.vehicles||[]).forEach(v=>N.vehicleNote[v.code]=v.note||"");
+  N.vehicleUnits={};(st.vehicles||[]).forEach(v=>N.vehicleUnits[v.code]=v.units||0);
   N.onCar=st.vehicle_stock||{};
   N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[],
@@ -2029,7 +2046,8 @@ function needList(){
     auto:true}));
   (S.manual||[]).forEach(m=>out.push({key:m.id,vehicle:m.vehicle,sku:m.sku,itemId:m.itemId,qty:m.qty,
     src:m.note?`手動 · ${m.note}`:"手動新增",auto:false,id:m.id}));
-  return out;
+  // 已經關掉的車不用再補料（例如固定放甲醛工具的 B 車）
+  return out.filter(n=>VEH().indexOf(n.vehicle)>=0);
 }
 
 function needByVehicle(){const g={};
@@ -2567,6 +2585,24 @@ async function addVehicle(){
     await rpc("mgr_vehicle_add",{p_token:token,p_region:REG,p_code:c,p_preload:!!nVeh.preload});
     nVeh={code:"",preload:false}; await reload(); render();
   },`已新增 ${c} 車`);
+}
+async function vehActive(v,on){
+  const id=(S.vehicleIds||{})[v]; if(!id) return;
+  const n=(S.vehicleUnits||{})[v]||0;
+  if(!on){
+    let msg=`把 ${v} 車改成「不納入驗屋盤點」？\n\n`
+      +`· 不列入標配，也不會算車上數量\n· 外勤盤點選不到這台車\n· 不會出現在待補料\n`
+      +`· 歷史紀錄照樣查得到，車輛管理系統不受影響\n`;
+    if(n) msg+=`\n這台車上目前掛著 ${n} 個編號，會用「車輛多出繳回」收回公司庫存並留下紀錄。`;
+    if(!confirm(msg)) return render();
+  }
+  const note=on?null:(prompt(`${v} 車不納入的原因（選填，會顯示在設定頁）`,vehNote(v)||"固定放甲醛部門工具")||"");
+  await guard(async()=>{
+    const back=await rpc("mgr_vehicle_active",{p_token:token,p_id:id,p_on:on,p_note:note});
+    ISO=null; await reload(); render();
+    toast(on?`${v} 車已納入驗屋盤點`
+           :(back?`${v} 車已排除，${back} 個編號收回公司庫存`:`${v} 車已排除`));
+  });
 }
 async function delVehicle(v){
   if(!confirm(`刪除 ${v} 車？`))return;
@@ -3811,15 +3847,27 @@ async function amAddByName(){
   await amAdd(el.value);
 }
 function viewVehicles(){
-  const vlist=VEH().map(v=>{
+  const vlist=VEHALL().map(v=>{
     const used=S.records.some(r=>r.vehicle===v);
     const last=S.records.find(r=>r.vehicle===v);
     const cnt=S.records.filter(r=>r.vehicle===v).length;
-    return `<tr><td class="num" style="font-size:17px;font-weight:600">${v}</td>
-      <td style="color:var(--muted);font-size:13px">${used?`${cnt} 張盤點單　最近 ${last.date}`:"尚未使用"}</td>
+    const on=(S.vehicleOn||{})[v]!==false, nt=vehNote(v);
+    return `<tr class="${on?"":"voff"}">
+      <td class="num" style="font-size:17px;font-weight:600">${v}${on?"":`<div class="lbl">不納入</div>`}</td>
+      <td style="color:var(--muted);font-size:13px">
+        ${on?(used?`${cnt} 張盤點單　最近 ${last.date}`:"尚未使用")
+           :`不列入標配與車上數量${nt?`　·　${esc(nt)}`:""}`}
+        <div style="margin-top:5px">
+          <label class="vsw"><input type="checkbox" ${on?"checked":""}
+            onchange="vehActive('${esc(v)}',this.checked)"><span>納入驗屋盤點</span></label></div></td>
       <td class="n">${used?`<span class="lbl">不可刪除</span>`:`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪除</button>`}</td></tr>`;}).join("");
   return `<div class="wrap wide">
-    ${sect("veh","車輛",`${VEH().length} 台　${VEH().join(" ")}`,`
+    ${sect("veh","車輛",`${VEH().length} 台納入　${VEH().join(" ")}${
+        VEHALL().length>VEH().length?`　·　${VEHALL().length-VEH().length} 台不納入`:""}`,`
+      <div class="bd" style="padding-bottom:4px"><div class="lbl">
+        跟別的部門共用、沒放驗屋工具的車（例如固定放甲醛工具的），
+        把「納入驗屋盤點」關掉就不會列入標配、車上數量、盤點與待補料。
+        車輛管理系統那邊不受影響。</div></div>
       <div class="tw"><table><colgroup><col style="width:70px"><col><col style="width:80px"></colgroup>
         <tr><th>車別</th><th>使用狀況</th><th></th></tr>${vlist}</table></div>
       <div class="bd" style="border-top:1px solid var(--line2)">
@@ -3832,7 +3880,7 @@ function viewVehicles(){
           <span>直接帶入整套標配數量（新車已配齊時勾選）</span></label>
         <button class="btn block" onclick="addVehicle()">新增車輛</button>
       </div>`,
-      "已有盤點紀錄的車不能刪除，避免歷史資料失去對應")}
+      "已有盤點紀錄的車不能刪除，避免歷史資料失去對應。關掉「納入」的車，歷史紀錄照樣查得到")}
 
     ${sect("loc","擺放位置",`${(S.locs||[]).length} 個`,`
       ${(S.locs||[]).length?`<div class="bd" style="padding-bottom:10px">
