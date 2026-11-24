@@ -847,6 +847,7 @@ function applyConfig(cfg){
   S.funits=(cfg.units||[]).map(u=>({id:u.id,no:u.no,itemId:u.item_id,
     brand:u.brand||"",spec:u.spec||""}));
   S.instCount=cfg.inst_count||"weekly";
+  S.measCount=cfg.meas_count||"off";
 }
 
 /* ---- 外勤：哪些項目要選編號 ---- */
@@ -854,13 +855,13 @@ const FUNITS=()=>(S&&S.funits)?S.funits:[];
 const funitsOf=id=>FUNITS().filter(u=>u.itemId===id);
 function needUnit(r){
   if(!r) return false;
-  if(r.kind==="meas") return funitsOf(r.itemId).length>0;      // 量測儀器一律要
-  if(r.kind!=="inst") return false;
-  const m=S.instCount||"weekly";
+  if(r.kind!=="meas" && r.kind!=="inst") return false;
+  const m=(r.kind==="meas")?(S.measCount||"off"):(S.instCount||"weekly");
   if(m==="off") return false;
-  if(m==="every") return funitsOf(r.itemId).length>0;
+  if(!funitsOf(r.itemId).length) return false;
+  if(m==="every") return true;
   // 每週一次：這台車七天內有沒有核對過
-  return !unitCheckedRecently() && funitsOf(r.itemId).length>0;
+  return !unitCheckedRecently();
 }
 function unitCheckedRecently(){
   try{ const k="jc_unitchk:"+REG+":"+(draft?draft.vehicle:"");
@@ -921,6 +922,7 @@ async function applyState(st,urls){
   KEEP=(st.settings&&st.settings.keep_sets)||10;
   N.toolOwner=(st.settings&&st.settings.tool_owner)||"";
   N.instCount=(st.settings&&st.settings.inst_count)||"weekly";
+  N.measCount=(st.settings&&st.settings.meas_count)||"off";
   N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
     abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable,track:!!i.track}));
   // 有編號管理的品項，每一台的編號與目前位置
@@ -1348,11 +1350,12 @@ async function saveKeepSets(){
   await guard(async()=>{ await rpc("mgr_photo_cfg",{p_token:token,p_region:REG,p_sets:v,p_px:null});
     await reload(); render(); },`照片改成每車保留最新 ${v} 組`);
 }
-async function setInstCount(m){
+async function setCountCfg(kind,m){
+  const kn=kind==="meas"?"量測儀器":"儀器";
   await guard(async()=>{
-    await rpc("mgr_inst_cfg",{p_token:token,p_region:REG,p_mode:m});
+    await rpc("mgr_count_cfg",{p_token:token,p_region:REG,p_kind:kind,p_mode:m});
     await reload(); render();
-  },`儀器改成${{every:"每次都選編號",weekly:"每週選一次編號",off:"不用選編號"}[m]}`);
+  },`${kn}改成${{every:"每次都選編號",weekly:"每週選一次編號",off:"不用選編號"}[m]}`);
 }
 async function setPhotoMode(m){
   if(S.photoMode===m)return;
@@ -4097,26 +4100,33 @@ function viewVehicles(){
       </div>`,
       "改名時放在那個位置的品項會一起更新；刪除時那些品項會變成「未設定」，品項本身不會消失。每一區的位置各自獨立。")}
 
-    ${sect("unit","編號盤點",`量測儀器每次　·　儀器${
-        {every:"每次",weekly:"每週一次",off:"不用"}[S.instCount||"weekly"]}`,`
+    ${(()=>{const MM={every:"每次",weekly:"每週一次",off:"不用"};
+      const mc=S.measCount||"off", ic=S.instCount||"weekly";
+      const seg=(kind,cur)=>`<div class="iseg" style="margin-bottom:8px">
+        ${[["every","每次"],["weekly","每週一次"],["off","不用"]].map(([k,t])=>
+          `<button type="button" aria-pressed="${cur===k}"
+            onclick="setCountCfg('${kind}','${k}')">${t}</button>`).join("")}</div>`;
+      return sect("unit","編號盤點",`量測儀器${MM[mc]}　·　儀器${MM[ic]}`,`
       <div class="bd">
-        <div class="lbl" style="margin-bottom:11px;line-height:1.75">
+        <div class="lbl" style="margin-bottom:13px;line-height:1.75">
           打開的話，外勤盤點時會跳出下拉要他選「這台車上的是哪一台」。
           下拉列的是這個品項的<b>全部編號</b>，<b>不會告訴他系統認為哪一台在這台車</b> ——
           猜不到，只能低頭看儀器上的標籤。<br>
           選到別台車的編號、或同一天兩組人選到同一台，都會在「結果」頁跳警示給你。</div>
-        <div class="krule" style="margin:0 0 13px">
-          量測儀器：<b>固定每次都要選</b>（ISO 要求每一台都有履歷）</div>
-        <span class="lbl" style="display:block;margin-bottom:6px">儀器（免校那一類）要多久選一次</span>
-        <div class="iseg" style="margin-bottom:10px">
-          ${[["every","每次"],["weekly","每週一次"],["off","不用"]].map(([k,t])=>
-            `<button type="button" aria-pressed="${(S.instCount||"weekly")===k}"
-              onclick="setInstCount('${k}')">${t}</button>`).join("")}
-        </div>
+
+        <span class="lbl" style="display:block;margin-bottom:6px">量測儀器</span>
+        ${seg("meas",mc)}
+        ${mc==="off"?`<div class="warnbox" style="margin-bottom:14px">
+            目前<b>不要求</b>外勤選量測儀器的編號。ISO 要的是每一台都有盤點與履歷紀錄，
+            <b>編號標籤貼好之後記得回來打開</b>。</div>`
+          :`<div class="lbl" style="margin:-2px 0 14px">ISO 要求每一台量測儀器都有紀錄，建議設成「每次」。</div>`}
+
+        <span class="lbl" style="display:block;margin-bottom:6px">儀器（免校那一類）</span>
+        ${seg("inst",ic)}
         <div class="lbl" style="line-height:1.7">
-          儀器數量多的話，每次都選會拖慢早上出班。每週一次已經足夠抓到對調與遺失。</div>
+          數量多的話每次都選會拖慢早上出班，每週一次已經足夠抓到對調與遺失。</div>
       </div>`,
-      "外勤那邊沒有「全部正常」可以一鍵帶過要選編號的項目")}
+      "外勤那邊沒有「全部正常」可以一鍵帶過要選編號的項目");})()}
 
     ${sect("photo","盤點拍照",`${byItem()?"每項一張":"每包一張"}　·　${PXNAME[S.photoPx]||"標準"}　·　留 ${KEEP} 組`,`
       <div class="bd">
@@ -5071,9 +5081,10 @@ function viewPrintMenu(){
       系統裡已經按過確認的，會印出姓名與時間。</div>
     ${[["1601","QP-16-01 量測儀器一覽表","所有量測儀器，一台一列"],
        ["1603:"+Y,"QP-16-03 量測儀器年度校驗計畫表",Y+" 年度，○ 計劃 ⊕ 實施，自動排"],
-       ["0502:meas","QP-05-02 設備一覽表 · 量測儀器",""],
-       ["0502:veh","QP-05-02 設備一覽表 · 車輛",""],
-       ["0502:tool","QP-05-02 設備一覽表 · 一般工具",""]].map(([k,t,d])=>
+       ["0502:meas","QP-05-02 設備一覽表 · 量測儀器","一個編號一列，含校驗資訊"],
+       ["0502:inst","QP-05-02 設備一覽表 · 儀器","一個編號一列，免校驗"],
+       ["0502:tool","QP-05-02 設備一覽表 · 工具","一個品項一列，不編號；耗材不列入"],
+       ["0502:veh","QP-05-02 設備一覽表 · 車輛",""]].map(([k,t,d])=>
       `<div class="row"><div class="info"><div class="nm">${t}</div>
         ${d?`<div class="meta">${d}</div>`:""}</div>
         <button class="btn tiny ghost" onclick="printWhat='${k}';window.scrollTo(0,0);render()">列印</button></div>`).join("")}
@@ -5225,45 +5236,65 @@ function pf0501(cardId){
     </table></div>`;
 }
 function pf0502(cat){
-  const title={meas:"量測儀器",veh:"車輛",tool:"一般設備（儀器與工具）"}[cat]||"";
+  const title={meas:"量測儀器",inst:"儀器",veh:"車輛",tool:"工具"}[cat]||"";
 
-  // ---- 一般工具：每一項都不同批、不同廠家，所以不列廠牌與購買日期 ----
+  // ---- 工具：每一項都不同批、不同廠家，所以不列廠牌與購買日期；工具不編號 ----
   if(cat==="tool"){
     const seen={};
-    RW().filter(r=>r.kind==="tool"||r.kind==="inst").forEach(r=>{
+    RW().filter(r=>r.kind==="tool").forEach(r=>{
       if(!seen[r.name]) seen[r.name]={std:0,id:r.itemId};
       seen[r.name].std+=r.std; });
-    // 只放在倉庫、沒排進盤點表的一般工具也要列進來
-    ITEMS().filter(i=>i.kind==="tool"||i.kind==="inst").forEach(i=>{
+    // 只放在倉庫、沒排進盤點表的工具也要列進來
+    ITEMS().filter(i=>i.kind==="tool").forEach(i=>{
       if(!seen[i.sku]) seen[i.sku]={std:0,id:i.id}; });
     const names=Object.keys(seen).sort((a,b)=>a.localeCompare(b,"zh-Hant"));
     const rows=names.map((n,i)=>{
       const o=seen[n], it=(S.items||[]).find(x=>x.sku===n)||{};
       const onCar=o.std*VEH().length, wh=(S.warehouse&&S.warehouse[n])||0;
-      const us=it.track?unitsLive(it.id):[];
-      // 編號不另外開一欄：只有貴重、有開編號管理的品項才在備註列出來
       return [String(i+1), esc(n), esc(it.loc||"—"),
               String(onCar), String(wh), String(onCar+wh),
-              esc(S.toolOwner||""),
-              us.length?"編號："+us.map(u=>esc(u.no)).join("、"):""];});
+              esc(S.toolOwner||"")];});
     return `<div class="iso-form">${pfHead("QP-05-02")}${CO}
       <div class="ft">設 備 一 覽 表</div>
-      <div style="font-size:11.5px;margin:0 0 5px 2px"><b>類別：</b>${title}</div>
+      <div style="font-size:11.5px;margin:0 0 5px 2px"><b>類別：</b>工具</div>
       <table class="pf" style="table-layout:fixed">
-        <tr><th style="width:6%" rowspan="2">NO.</th><th style="width:34%" rowspan="2">設備名稱</th>
-          <th style="width:12%" rowspan="2">擺放位置</th>
+        <tr><th style="width:7%" rowspan="2">NO.</th><th style="width:38%" rowspan="2">設備名稱</th>
+          <th style="width:14%" rowspan="2">擺放位置</th>
           <th colspan="3">數量</th>
-          <th style="width:13%" rowspan="2">負責人員</th><th style="width:17%" rowspan="2">備註</th></tr>
-        <tr><th style="width:6%">車上</th><th style="width:6%">庫存</th><th style="width:6%">合計</th></tr>
+          <th style="width:14%" rowspan="2">負責人員</th></tr>
+        <tr><th style="width:9%">車上</th><th style="width:9%">庫存</th><th style="width:9%">合計</th></tr>
         ${rows.map(r=>`<tr><td class="mo">${r[0]}</td><td class="l">${r[1]}</td><td>${r[2]}</td>
           <td class="mo">${r[3]}</td><td class="mo">${r[4]}</td><td class="mo">${r[5]}</td>
-          <td>${r[6]||"—"}</td><td class="l mo">${r[7]}</td></tr>`).join("")}
-        ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
+          <td>${r[6]||"—"}</td></tr>`).join("")}
+        ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
       </table>
       <div style="font-size:11px;color:#555;margin-top:6px">
-        一般設備每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行。
-        有編號的「儀器」，編號列在備註欄；儀器免校驗，所以不列入量測儀器一覽與年度校驗計畫。
-        耗材不列入本表。</div>
+        工具每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行；工具不編號。
+        要編號的設備列在「儀器一覽表」，要校驗的列在「量測儀器一覽表」。耗材不列入本表。</div>
+      ${pfSig}</div>`;
+  }
+
+  // ---- 儀器：有編號但免校，一個編號一列 ----
+  if(cat==="inst"){
+    const rows=EQ().filter(e=>(e.kind||"")==="inst"&&e.status!=="scrap")
+      .slice().sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}))
+      .map(e=>[e.no, esc(e.item_name), esc([e.brand,e.spec].filter(Boolean).join(" "))||"—",
+               esc(e.owner_name||S.toolOwner||"")||"—", dOnly(e.buy_date)||"—",
+               locName(e.loc_code)+(e.status==="use"?"":"・"+(EQST[e.status]||["",""])[0])]);
+    return `<div class="iso-form">${pfHead("QP-05-02")}${CO}
+      <div class="ft">設 備 一 覽 表</div>
+      <div style="font-size:11.5px;margin:0 0 5px 2px"><b>類別：</b>儀器</div>
+      <table class="pf" style="table-layout:fixed">
+        <tr><th style="width:13%">編號</th><th style="width:26%">設備名稱</th>
+          <th style="width:19%">廠牌型號</th><th style="width:13%">負責人員</th>
+          <th style="width:14%">購買日期</th><th style="width:15%">目前位置</th></tr>
+        ${rows.map(r=>`<tr><td class="mo">${r[0]}</td><td class="l">${r[1]}</td><td class="l">${r[2]}</td>
+          <td>${r[3]}</td><td class="mo">${r[4]}</td><td>${r[5]}</td></tr>`).join("")}
+        ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
+      </table>
+      <div style="font-size:11px;color:#555;margin-top:6px">
+        儀器每一台都有編號，一個編號一列。儀器免校驗，所以不列入年度量測儀器校驗計畫。
+        ${rows.length?"":"<br>目前這一區還沒有登記任何儀器。"}</div>
       ${pfSig}</div>`;
   }
 
