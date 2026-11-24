@@ -584,6 +584,38 @@ tr.voff td{background:#FAFAF8;color:var(--muted)}
 tr.voff td:first-child{opacity:.6}
 .vsw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--ink)}
 .vsw input{width:16px;height:16px;flex:none}
+
+/* ---- 外勤：選編號 ---- */
+.uslot{background:#F7F8FA;border-bottom:1px solid var(--line2);padding:10px 12px 11px}
+.uslot .ulead{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;line-height:1.5}
+.uslot .ulead i{display:block;font-style:normal;font-size:11.5px;font-weight:400;
+  color:var(--muted);margin-top:2px}
+.urow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.urow:last-child{margin-bottom:0}
+.urow .un{flex:none;width:20px;font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center}
+.urow select{flex:1;min-width:0;height:42px;font-size:15px;border:1px solid var(--line);
+  border-radius:3px;background:#fff;padding:0 9px}
+.urow.got select{border-color:var(--ok);background:var(--ok-bg)}
+.urow.none select{border-color:var(--alert);background:#FFF4F3;color:var(--alert);font-weight:700}
+
+/* ---- 編號對不上的警示 ---- */
+.alertcard{border-color:var(--alert)}
+.alertcard>.hd h2{color:var(--alert)}
+.arow{padding:11px 13px;border-bottom:1px solid var(--line2)}
+.arow:last-child{border-bottom:0}
+.arow.dup{background:#FFF4F3}
+.atop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.apill{font-size:11px;font-weight:700;padding:3px 7px;border-radius:3px;border:1px solid}
+.apill.dup{border-color:var(--alert);color:#fff;background:var(--alert)}
+.apill.moved{border-color:var(--amber-d);color:var(--amber-d);background:#FFF6E3}
+.atop .aitem{font-size:13px;color:var(--muted)}
+.atop .adate{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.adet{font-size:13px;color:#3C444E;line-height:1.6;margin-bottom:8px}
+.aact{display:flex;gap:7px;flex-wrap:wrap}
+nav.tabs .ic{position:relative;display:inline-block}
+.nbadge{position:absolute;top:-6px;right:-11px;background:var(--alert);color:#fff;font-style:normal;
+  font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;
+  display:flex;align-items:center;justify-content:center;line-height:1}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -638,7 +670,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=17;
+const APP_VER=18;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -808,9 +840,78 @@ function applyConfig(cfg){
   S.pkgs=(cfg.packages||[]).map(p=>({id:p.id,name:p.name}));
   S.vehicles=cfg.vehicles||[];
   S.rows=(cfg.rows||[]).map(r=>({rid:r.id,pkg:r.package_id,pkgName:r.package_name,
-    name:r.name,sku:r.name,itemId:r.item_id,std:r.std,
+    name:r.name,sku:r.name,itemId:r.item_id,std:r.std,kind:r.kind||"tool",
     valuable:!!r.valuable,consum:!!r.consumable}));
   S.amRows=cfg.am_rows||[];
+  // 外勤選編號用：這一區所有有編號的設備。故意不含「在哪台車」，外勤猜不到，只能看標籤
+  S.funits=(cfg.units||[]).map(u=>({id:u.id,no:u.no,itemId:u.item_id,
+    brand:u.brand||"",spec:u.spec||""}));
+  S.instCount=cfg.inst_count||"weekly";
+}
+
+/* ---- 外勤：哪些項目要選編號 ---- */
+const FUNITS=()=>(S&&S.funits)?S.funits:[];
+const funitsOf=id=>FUNITS().filter(u=>u.itemId===id);
+function needUnit(r){
+  if(!r) return false;
+  if(r.kind==="meas") return funitsOf(r.itemId).length>0;      // 量測儀器一律要
+  if(r.kind!=="inst") return false;
+  const m=S.instCount||"weekly";
+  if(m==="off") return false;
+  if(m==="every") return funitsOf(r.itemId).length>0;
+  // 每週一次：這台車七天內有沒有核對過
+  return !unitCheckedRecently() && funitsOf(r.itemId).length>0;
+}
+function unitCheckedRecently(){
+  try{ const k="jc_unitchk:"+REG+":"+(draft?draft.vehicle:"");
+    const t=Number(localStorage.getItem(k)||0);
+    return t && (Date.now()-t) < 6*24*3600*1000;
+  }catch(e){ return false; }
+}
+function markUnitChecked(){
+  try{ localStorage.setItem("jc_unitchk:"+REG+":"+draft.vehicle, String(Date.now())); }catch(e){}
+}
+/* 這一列的編號格子 */
+function uslots(rid){
+  const r=RW().find(x=>x.rid===rid); if(!r) return [];
+  if(!draft.units) draft.units={};
+  if(!draft.units[rid] || draft.units[rid].length!==r.std){
+    draft.units[rid]=new Array(Math.max(1,r.std)).fill("");
+  }
+  return draft.units[rid];
+}
+function setUslot(rid,i,v){
+  const a=uslots(rid); a[i]=v;
+  syncUnitRow(rid); saveDraftSoon(); render();
+}
+/* 選完編號自動判定正常／遺失，外勤不用再按一次 */
+function syncUnitRow(rid){
+  const r=RW().find(x=>x.rid===rid); if(!r) return;
+  const a=uslots(rid), s=st(rid);
+  if(a.some(v=>v==="")) return;                 // 還沒選完，先不判定
+  const found=a.filter(v=>v && v!=="__none").length;
+  if(found>=r.std){ s.status="ok"; s.type=""; s.actual=null; s.open=false; }
+  else{ s.status="abnormal"; s.type="遺失"; s.actual=found; s.open=true; }
+}
+function uslotHTML(r){
+  const list=funitsOf(r.itemId).slice()
+    .sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+  const a=uslots(r.rid);
+  const used=a.filter(v=>v&&v!=="__none");
+  return `<div class="uslot">
+    <div class="ulead">這台車上的${r.kind==="meas"?"量測儀器":"儀器"}是哪一台？
+      <i>看儀器上的標籤選，系統不會先告訴你答案</i></div>
+    ${a.map((v,i)=>`<label class="urow ${v==="__none"?"none":v?"got":""}">
+      ${r.std>1?`<span class="un">${i+1}</span>`:""}
+      <select onchange="setUslot('${r.rid}',${i},this.value)">
+        <option value="" ${v?"":"selected"}>請選編號…</option>
+        ${list.map(u=>`<option value="${u.id}" ${v===u.id?"selected":""}
+          ${used.indexOf(u.id)>=0&&v!==u.id?"disabled":""}>${esc(u.no)}${
+          u.brand||u.spec?`　${esc([u.brand,u.spec].filter(Boolean).join(" "))}`:""}</option>`).join("")}
+        <option value="__none" ${v==="__none"?"selected":""}>⚠ 車上找不到</option>
+      </select>
+    </label>`).join("")}
+  </div>`;
 }
 async function applyState(st,urls){
   // 先組好一份完整資料，最後才整個換掉；中途失敗不會把畫面清空
@@ -819,6 +920,7 @@ async function applyState(st,urls){
   N.photoPx=(st.settings&&st.settings.photo_px)||1280;
   KEEP=(st.settings&&st.settings.keep_sets)||10;
   N.toolOwner=(st.settings&&st.settings.tool_owner)||"";
+  N.instCount=(st.settings&&st.settings.inst_count)||"weekly";
   N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
     abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable,track:!!i.track}));
   // 有編號管理的品項，每一台的編號與目前位置
@@ -1129,7 +1231,7 @@ async function hdrRegion(k){
   // ISO 的資料是一次抓一區的，換區一定要丟掉重抓，不然畫面會留著上一區的儀器與履歷
   ISO=null; isoUrls={}; eqOpen=null; eqEdit=null; cardOpen=null; cardEdit=null;
   printWhat=null; lostPick=null; openSku=null; unitEdit=null; mvClearUnits();
-  WH=null; whForm=null; whOpenId=null;
+  WH=null; whForm=null; whOpenId=null; ALERTS=null;
   saveReg(k); S=blankState(); render();
   await loadRegion();
   if(role==="admin"&&token){ await guard(async()=>{ await reload(); render(); }); }
@@ -1209,6 +1311,7 @@ async function asAdmin(){
     myRegions=Array.isArray(row.regions)?row.regions:[REG];
     await reload();
     role="admin"; tab="restock"; gate="pick"; login={id:"",pin:""}; mv.person=me.name;
+    alertLoad();
     window.scrollTo(0,0);
   }catch(e){ toast(e.message||"登入失敗"); }
   busy=false; render();
@@ -1244,6 +1347,12 @@ async function saveKeepSets(){
   const v=Math.max(1,Math.min(60,parseInt(document.getElementById("kd").value)||10));
   await guard(async()=>{ await rpc("mgr_photo_cfg",{p_token:token,p_region:REG,p_sets:v,p_px:null});
     await reload(); render(); },`照片改成每車保留最新 ${v} 組`);
+}
+async function setInstCount(m){
+  await guard(async()=>{
+    await rpc("mgr_inst_cfg",{p_token:token,p_region:REG,p_mode:m});
+    await reload(); render();
+  },`儀器改成${{every:"每次都選編號",weekly:"每週選一次編號",off:"不用選編號"}[m]}`);
 }
 async function setPhotoMode(m){
   if(S.photoMode===m)return;
@@ -1358,7 +1467,12 @@ function st(rid){ if(!draft.items[rid])draft.items[rid]={status:"pending",type:"
   return draft.items[rid]; }
 const pkgRows=id=>RW().filter(r=>r.pkg===id);
 const byItem=()=>S.photoMode==="item";
-function rowDone(s){
+function rowDone(s,rid){
+  if(rid){
+    const r=RW().find(x=>x.rid===rid);
+    // 要選編號的項目，沒選完就不算盤完
+    if(r && needUnit(r) && uslots(rid).some(v=>v==="")) return false;
+  }
   if(!s || s.status==="pending") return false;
   if(s.status==="abnormal") return !!s.type && s.actual!==null;   // 異常一定要選類型並填數量
   return true;
@@ -1366,7 +1480,7 @@ function rowDone(s){
 function pkgStat(id){const rs=pkgRows(id);let d=0,b=0;
   rs.forEach(r=>{const s=draft.items[r.rid];
     if(!s)return;
-    const done = byItem() ? (!!s.photo && rowDone(s)) : rowDone(s);
+    const done = byItem() ? (!!s.photo && rowDone(s,r.rid)) : rowDone(s,r.rid);
     if(done){d++;if(s.status==="abnormal")b++;}});
   if(!rs.length) return{done:0,bad:0,total:0,photo:true,ok:true};   // 空包別直接視為完成
   const photo=byItem()?true:((draft.pkgPhoto[id]||[]).length>0);
@@ -1525,10 +1639,12 @@ function rowHTML(r){
       <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)">
     </label>` : "";
   const lock = byItem() && !s.photo;
+  const needU = needUnit(r);
   const dv = s.status==="abnormal" ? deltaOf(r,s) : null;
   const meta = dv ? `標配 ${r.std}　·　${s.type==="損壞"?"壞":s.type==="多出"?"多":"少"} ${dv} 個`
                   : `標配 ${r.std}`;
   return `<div>
+    ${needU?uslotHTML(r):""}
     <div class="row">
       ${shotCell}
       <div class="info"><div class="nm">${r.name} ${tags}</div>
@@ -1624,9 +1740,13 @@ function removePkgPhoto(idx){ const a=draft.pkgPhoto[curPkg]; if(!a)return;
   (a||[]).forEach((d,i)=>{ if(d) bgKick(`pkg:${curPkg}:${i}`,`pkg-${curPkg}-${i}`,d); });
   render(); }
 function markPkgOK(){
+  let skip=0;
   pkgRows(curPkg).forEach(r=>{const s=st(r.rid);
+    // 要選編號的項目不能被「全部正常」一鍵帶過，一定要真的去選
+    if(needUnit(r)){ skip++; return; }
     if(s.status!=="abnormal"){s.status="ok";s.type="";s.actual=null;s.photo=null;s.note="";s.open=false;}});
-  render();}
+  render();
+  if(skip) toast(`有 ${skip} 項要選編號，請逐一選擇`);}
 
 function setOK(rid){const s=st(rid);s.status="ok";s.type="";s.actual=null;s.note="";s.photo=byItem()?s.photo:null;s.open=false;render();}
 function markOK(rid){
@@ -1715,8 +1835,21 @@ async function submitCount(){
     }
     setProgress("寫入盤點單…");
     const ses=draft.session||"pm";
+    // 外勤選的編號：有選編號的項目才送
+    const units=[];
+    RW().forEach(r=>{
+      if(!needUnit(r)) return;
+      const a=(draft.units&&draft.units[r.rid])||[];
+      a.forEach((v,i)=>{
+        if(v==="") return;
+        units.push({item_id:r.itemId,item_name:r.name,slot:i,
+                    unit_id:(v==="__none")?null:v});
+      });
+    });
     await rpc("field_submit",{p:{region:REG,vehicle_code:veh,person:draft.person,
-      time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos,session:ses}});
+      time:nowHM(),photo_mode:S.photoMode,slot,lines,pkg_photos:pkgPhotos,session:ses,
+      units}});
+    if(units.length) markUnitChecked();
     const bad=lines.filter(l=>l.status!=="正常");
     lastSubmit={vehicle:veh,session:ses,
       bad:bad.map(l=>({name:l.item_name,std:l.std,actual:l.actual,status:l.status}))};
@@ -2917,6 +3050,53 @@ const SESNAME={am:"上午場",pm:"下午場"};
 const sesOf=r=>r.session==="am"?"am":"pm";
 
 
+/* ===================================================================
+   盤點警示：外勤填的編號對不上
+     dup   －－ 同一天同一個編號被兩組人選到，至少一邊是亂填的
+     moved －－ 選到的編號跟系統認為的位置不符，代表有人對調沒登記
+   =================================================================== */
+let ALERTS=null;
+async function alertLoad(){
+  if(!token) return;
+  try{ ALERTS=await rpc("mgr_alerts",{p_token:token,p_region:REG}); }
+  catch(e){ ALERTS={open:[]}; }
+}
+function alertKick(){ alertLoad().then(render); }
+const alertsOpen=()=>((ALERTS&&ALERTS.open)||[]);
+
+function alertPanel(){
+  const list=alertsOpen(); if(!list.length) return "";
+  const dup=list.filter(a=>a.kind==="dup"), mv=list.filter(a=>a.kind==="moved");
+  return `<div class="card alertcard">
+    <div class="hd"><h2>編號對不上　${list.length} 筆</h2>
+      <span class="lbl" style="margin-left:auto">${dup.length?`${dup.length} 筆疑似亂填`:""}${
+        dup.length&&mv.length?"　·　":""}${mv.length?`${mv.length} 筆位置不符`:""}</span></div>
+    <div class="bd nopad">
+      ${list.map(a=>`<div class="arow ${a.kind}">
+        <div class="atop"><span class="apill ${a.kind}">${a.kind==="dup"?"疑似亂填":"位置不符"}</span>
+          <span class="uno">${esc(a.no)}</span>
+          <span class="aitem">${esc(a.item)}</span>
+          <span class="adate">${esc(a.date||"")}</span></div>
+        <div class="adet">${esc(a.detail)}</div>
+        <div class="aact">
+          ${a.kind==="moved"?`<button class="btn ghost tiny"
+            onclick="alertDo('${a.id}','move')">照外勤回報更新位置</button>`:""}
+          <button class="btn ghost tiny" onclick="alertDo('${a.id}','ok')">知道了</button>
+        </div></div>`).join("")}
+    </div></div>`;
+}
+async function alertDo(id,act){
+  const a=alertsOpen().find(x=>x.id===id);
+  if(act==="move"&&a&&!confirm(
+      `把 ${a.no} 的位置改成 ${a.veh} 車？\n\n`
+      +`系統原本記錄在 ${a.expect||"公司庫存"}。\n`
+      +`會留下一筆出入庫紀錄，備註寫明是照外勤回報更新的。`)) return;
+  await guard(async()=>{
+    await rpc("mgr_alert_resolve",{p_token:token,p_id:id,p_action:act});
+    ALERTS=null; ISO=null; await reload(); await alertLoad(); render();
+  },act==="move"?"已更新位置":"已標記處理");
+}
+
 /* ---- 盤點短缺：指認是哪一台（量測儀器與有開編號管理的貴重設備都適用） ---- */
 function isMeas(name){ const r=RW().find(x=>x.name===name); return !!(r&&r.kind==="meas"); }
 /* 短缺要指認編號的條件：這個品項有開編號管理 */
@@ -3055,6 +3235,7 @@ function viewResult(){
 
   return `<div class="wrap wide">
     ${lostPanel()}
+    ${alertPanel()}
     <div class="card"><div class="hd"><h2>各車狀態</h2>
       <span class="lbl" style="margin-left:auto">${D}</span></div>
       <div class="mvf">
@@ -3915,6 +4096,27 @@ function viewVehicles(){
             onclick="locCopy('${r.code}')">整套從${esc(r.name||r.code)}複製</button>`).join("")}</div>`:""}
       </div>`,
       "改名時放在那個位置的品項會一起更新；刪除時那些品項會變成「未設定」，品項本身不會消失。每一區的位置各自獨立。")}
+
+    ${sect("unit","編號盤點",`量測儀器每次　·　儀器${
+        {every:"每次",weekly:"每週一次",off:"不用"}[S.instCount||"weekly"]}`,`
+      <div class="bd">
+        <div class="lbl" style="margin-bottom:11px;line-height:1.75">
+          打開的話，外勤盤點時會跳出下拉要他選「這台車上的是哪一台」。
+          下拉列的是這個品項的<b>全部編號</b>，<b>不會告訴他系統認為哪一台在這台車</b> ——
+          猜不到，只能低頭看儀器上的標籤。<br>
+          選到別台車的編號、或同一天兩組人選到同一台，都會在「結果」頁跳警示給你。</div>
+        <div class="krule" style="margin:0 0 13px">
+          量測儀器：<b>固定每次都要選</b>（ISO 要求每一台都有履歷）</div>
+        <span class="lbl" style="display:block;margin-bottom:6px">儀器（免校那一類）要多久選一次</span>
+        <div class="iseg" style="margin-bottom:10px">
+          ${[["every","每次"],["weekly","每週一次"],["off","不用"]].map(([k,t])=>
+            `<button type="button" aria-pressed="${(S.instCount||"weekly")===k}"
+              onclick="setInstCount('${k}')">${t}</button>`).join("")}
+        </div>
+        <div class="lbl" style="line-height:1.7">
+          儀器數量多的話，每次都選會拖慢早上出班。每週一次已經足夠抓到對調與遺失。</div>
+      </div>`,
+      "外勤那邊沒有「全部正常」可以一鍵帶過要選編號的項目")}
 
     ${sect("photo","盤點拍照",`${byItem()?"每項一張":"每包一張"}　·　${PXNAME[S.photoPx]||"標準"}　·　留 ${KEEP} 組`,`
       <div class="bd">
@@ -5137,7 +5339,10 @@ function render(){
     <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
   const t=TABS[role];
   if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
-    nv.innerHTML=t.map(([k,i,l])=>`<button aria-selected="${tab===k}" onclick="go('${k}')"><span class="ic">${i}</span>${l}</button>`).join("");
+    nv.innerHTML=t.map(([k,i,l])=>{
+      const n=(k==="result")?alertsOpen().length:0;
+      return `<button aria-selected="${tab===k}" onclick="go('${k}')"
+        ><span class="ic">${i}${n?`<i class="nbadge">${n>9?"9+":n}</i>`:""}</span>${l}</button>`;}).join("");
     document.body.classList.remove("norole");
   } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
   app.innerHTML = role==="field" ? viewField()
@@ -5160,6 +5365,7 @@ function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPk
   window.scrollTo(0,0);render();
   if(k==="iso"&&!ISO) isoKick();
   if(k==="wh"&&!WH) whKick();
+  if(k==="result"&&!ALERTS) alertKick();
 }
 boot();
 </script>
