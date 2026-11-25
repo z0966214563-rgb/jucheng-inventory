@@ -1048,6 +1048,17 @@ header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫
 .eqpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;
   background:var(--sunk);border:1.5px solid var(--line);border-radius:var(--r2);padding:9px 11px;max-height:260px;overflow:auto}
 .eqpick .ck{margin:0}
+
+/* ===================================================================
+   列印：不管直式橫式都只印表單本身
+   （橫式時紙張寬度會吃到電腦版的版面設定，下方頁籤會被叫出來，這裡最後再壓一次）
+   =================================================================== */
+@media print{
+  nav.tabs,nav.tabs.hide,header.top,.subbar,.noprint,.toast,.hmpanel,.hmmask{display:none!important}
+  html,body{background:#fff!important;padding:0!important;margin:0!important}
+  body{padding-bottom:0!important}
+  .wrap,.wrap.wide,.wide{max-width:none!important;padding:0!important;margin:0!important}
+}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -6101,7 +6112,7 @@ function pf1601(){
         <td>${e.cal_type==="none"?"免校":e.cal_months+" 個月"}</td>
         <td class="mo">${dOnly(e.buy_date)||"—"}</td></tr>`).join("")}
       ${list.length<8?Array(8-list.length).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join(""):""}
-    </table>${pfSig}</div>`;
+    </table></div>`;
 }
 function pf1602(id){
   const e=eqById(id); if(!e) return "";
@@ -6235,7 +6246,7 @@ function pf0502(cat){
       <div style="font-size:11px;color:#555;margin-top:6px">
         工具每一項都是分批、分廠家採購，不逐支記廠牌與購買日期，以品項為單位列一行；工具不編號。
         要編號的設備列在「儀器一覽表」，要校驗的列在「量測儀器一覽表」。耗材不列入本表。</div>
-      ${pfSig}</div>`;
+      </div>`;
   }
 
   // ---- 儀器：有編號但免校，一個編號一列 ----
@@ -6259,7 +6270,7 @@ function pf0502(cat){
       <div style="font-size:11px;color:#555;margin-top:6px">
         儀器每一台都有編號，一個編號一列。儀器免校驗，所以不列入年度量測儀器校驗計畫。
         ${rows.length?"":"<br>目前這一區還沒有登記任何儀器。"}</div>
-      ${pfSig}</div>`;
+      </div>`;
   }
 
   let rows=[];
@@ -6285,7 +6296,7 @@ function pf0502(cat){
       ${Array(Math.max(0,6-rows.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
     </table>
     ${cat==="veh"&&!rows.length?'<div style="font-size:11px;color:#555;margin-top:6px">車輛清單來自車輛管理系統。沒有列出來表示你沒有車輛管理的權限，或那一區還沒有登記車輛。</div>':""}
-    ${pfSig}</div>`;
+    </div>`;
 }
 function pfScrap(id){
   const r=(ISO.scraps||[]).find(x=>x.id===id); if(!r) return "";
