@@ -998,6 +998,35 @@ nav.tabs button{color:#5E6676}
   /* 右上角選單貼著 ⋮ 按鈕，不要跑到螢幕最右邊 */
   .hmpanel{right:max(12px,calc((100% - 940px) / 2))}
 }
+
+/* ===================================================================
+   小格子的數字框：新設計的輸入框預設內距比較大，
+   放進 ＋/− 這種窄格子時數字會被吃掉，這裡統一縮小內距、置中、拿掉上下小箭頭
+   =================================================================== */
+.pin,.whin,.stdin,.pq input,.iline input,.qbox input,.cnt input,input.qin{
+  padding:0 4px!important;text-align:center;font-variant-numeric:tabular-nums}
+.pin,.pq input{width:52px!important;height:34px!important;font-size:16px!important;font-weight:700;
+  border:1.5px solid var(--line)!important;border-radius:var(--r3)!important}
+.pin::-webkit-inner-spin-button,.pin::-webkit-outer-spin-button,
+.whin::-webkit-inner-spin-button,.whin::-webkit-outer-spin-button,
+.stdin::-webkit-inner-spin-button,.stdin::-webkit-outer-spin-button,
+.pq input::-webkit-inner-spin-button,.pq input::-webkit-outer-spin-button,
+.iline input::-webkit-inner-spin-button,.iline input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pin,.whin,.stdin,.pq input,.iline input{-moz-appearance:textfield;appearance:textfield}
+.stp{width:34px!important;height:34px!important;border:1.5px solid var(--line)!important;border-radius:var(--r3)!important;
+  background:#fff!important;font-size:17px!important}
+/* 下拉選單：右邊留位置給箭頭，字不要被箭頭蓋住 */
+select{padding-right:30px!important;text-overflow:ellipsis}
+
+/* 分配表：欄寬對齊、公司庫存那一列靠左 */
+.planrow .pq{width:128px}
+.planrow.head .n:last-child{width:128px}
+.planrow.wh{background:var(--sunk);border-radius:var(--r3);padding:9px 6px}
+.planrow.wh .pl{text-align:left}
+/* 月報趨勢期間、ISO 位置篩選：下拉不要擠成一截 */
+.pbar .psel,.mvf .psel{min-width:128px}
+.isof select,select.isoloc{min-width:120px}
+@media (max-width:520px){ .g2.addrow{grid-template-columns:1fr} }
 </style>
 
 <header class="top" id="hdr"></header>
@@ -4127,7 +4156,7 @@ function viewPkgPage(id){
         這一包還是空的。從下面加入品項，外勤才盤得到。</span></div>`}</div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <span class="lbl">加入品項</span>
-        <div class="g2" style="margin-top:7px">
+        <div class="g2 addrow" style="margin-top:7px">
           <select id="d_item">${free.map(i=>
             `<option value="${i.id}">${esc(i.sku)}</option>`).join("")}</select>
           <button class="btn ghost" onclick="pkgAdd('${id}')">＋ 加入</button></div>
@@ -5143,7 +5172,7 @@ function viewEqList(kind){
           oncompositionstart="lsComposing=true" oncompositionend="lsComposing=false;liveSearch(this,'eq_q',v=>isoQ=v)"
           oninput="liveSearch(this,'eq_q',v=>isoQ=v)"
           style="flex:1;min-width:150px">
-        <select onchange="isoLoc=this.value;render()" style="width:auto">
+        <select class="isoloc" onchange="isoLoc=this.value;render()" style="width:auto">
           <option value="">全部位置</option>
           ${VEH().map(v=>`<option value="${v}" ${isoLoc===v?"selected":""}>${v} 車</option>`).join("")}
           <option value="_stock" ${isoLoc==="_stock"?"selected":""}>公司庫存</option>
