@@ -797,6 +797,36 @@ button.vtile{cursor:pointer;font:inherit}
 .sw2{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:2px}
 .sw2.dn{background:var(--bad)} .sw2.up{background:var(--ok)} .sw2.bad{background:var(--amber)}
 .mvsum .sdn b{color:var(--bad)} .mvsum .sup b{color:var(--ok)}
+
+/* ===================================================================
+   小格子的數字框：新設計的輸入框預設內距比較大，
+   放進 ＋/− 這種窄格子時數字會被吃掉，這裡統一縮小內距、置中、拿掉上下小箭頭
+   =================================================================== */
+.pin,.whin,.stdin,.pq input,.iline input,.qbox input,.cnt input,input.qin{
+  padding:0 4px!important;text-align:center;font-variant-numeric:tabular-nums}
+.pin,.pq input{width:52px!important;height:34px!important;font-size:16px!important;font-weight:700;
+  border:1.5px solid var(--line)!important;border-radius:var(--r3)!important}
+.pin::-webkit-inner-spin-button,.pin::-webkit-outer-spin-button,
+.whin::-webkit-inner-spin-button,.whin::-webkit-outer-spin-button,
+.stdin::-webkit-inner-spin-button,.stdin::-webkit-outer-spin-button,
+.pq input::-webkit-inner-spin-button,.pq input::-webkit-outer-spin-button,
+.iline input::-webkit-inner-spin-button,.iline input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pin,.whin,.stdin,.pq input,.iline input{-moz-appearance:textfield;appearance:textfield}
+.stp{width:34px!important;height:34px!important;border:1.5px solid var(--line)!important;border-radius:var(--r3)!important;
+  background:#fff!important;font-size:17px!important}
+/* 下拉選單：右邊留位置給箭頭，字不要被箭頭蓋住 */
+select{padding-right:30px!important;text-overflow:ellipsis}
+
+/* 保養明細：手機上品名獨佔一行，數量、單價、小計放第二行，數字才放得下 */
+.iline input{height:38px;padding:0 8px!important}
+.iline input[type=text]{text-align:left}
+@media (max-width:520px){
+  .ihd,.iline{grid-template-columns:1fr 1fr 1fr 40px!important;gap:6px;row-gap:6px}
+  .ihd>span:first-child{display:none}          /* 品名在每一列第一行，表頭只標數字欄 */
+  .iline>input[type=text],.iline.ro>div:first-child{grid-column:1 / -1}
+}
+/* 車號按鈕不要被擠窄 */
+.vehchips .chip.veh{flex:none}
 </style>
 
 <header class="top" id="hdr"></header>
