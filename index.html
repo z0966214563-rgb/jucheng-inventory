@@ -1059,6 +1059,9 @@ header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫
   body{padding-bottom:0!important}
   .wrap,.wrap.wide,.wide{max-width:none!important;padding:0!important;margin:0!important}
 }
+.roin{background:var(--sunk)!important;color:var(--ink2)!important}
+.seg.vuse{display:inline-flex;flex-wrap:wrap}
+.seg.vuse button{flex:none;min-width:58px;padding:7px 14px;font-size:13.5px;white-space:nowrap}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -1100,6 +1103,11 @@ let REGIONS=[];                        // 由 region_list() 載入
 let REG=null;                          // 目前所在區（例如 "北區"）
 let myRegions=[];                      // 這位管理者可管的區
 const regName=c=>((REGIONS.find(r=>r.code===c)||{}).name)||c||"";
+/* 部門：北中南是「驗屋」，甲醛是「甲醛」；甲醛這類部門區不在車輛管理系統裡 */
+const DEPT=c=>((REGIONS.find(r=>r.code===(c||REG))||{}).dept)||"驗屋";
+const DEPTREGS=()=>REGIONS.filter(r=>r.fleet===false);
+/* 別人剛改過同一筆 → 伺服器擋下來的訊息 */
+const isClash=e=>/剛剛被.*改過了/.test((e&&e.message)||"");
 const slugOf=c=>((REGIONS.find(r=>r.code===c)||{}).slug)||"x";
 function saveReg(c){ REG=c; try{localStorage.setItem("jc_reg",c);}catch(e){} }
 function loadReg(){
@@ -1113,7 +1121,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=20;
+const APP_VER=22;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -1272,7 +1280,7 @@ function prune(){}               // 照片保留由資料庫處理
 /* ---- 伺服器資料 → 畫面用的資料結構 ---- */
 function blankState(){
   return {warehouse:{},safety:{},onCar:{},records:[],moves:[],manual:[],units:[],
-          vehiclesAll:[],vehicleOn:{},vehicleNote:{},vehicleUnits:{},toolOwner:"",
+          vehiclesAll:[],vehicleOn:{},vehicleNote:{},vehicleUnits:{},vehicleLend:{},vehicleSrc:{},toolOwner:"",
           items:[],rows:[],pkgs:[],vehicles:[],admins:[],alias:{},price:{},photoMode:"pkg",photoPx:1280,
           amItems:[],amIds:[],amRows:[],needs:[],locs:[]};
 }
@@ -1367,7 +1375,7 @@ async function applyState(st,urls){
   N.instCount=(st.settings&&st.settings.inst_count)||"weekly";
   N.measCount=(st.settings&&st.settings.meas_count)||"off";
   N.items=(st.items||[]).map(i=>({sku:i.name,id:i.id,loc:i.loc,std:i.std,base:i.base,
-    abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable,track:!!i.track}));
+    abbr:i.abbr||"",kind:i.kind||"tool",valuable:!!i.valuable,track:!!i.track,ever:i.ever}));
   // 有編號管理的品項，每一台的編號與目前位置
   N.units=(st.units||[]).map(u=>({id:u.id,no:u.no,itemId:u.item_id,item:u.item_name,
     loc:u.loc||null,status:u.status||"use",kind:u.kind||"tool",
@@ -1385,6 +1393,8 @@ async function applyState(st,urls){
   N.vehicleOn={};   (st.vehicles||[]).forEach(v=>N.vehicleOn[v.code]=v.active!==false);
   N.vehicleNote={}; (st.vehicles||[]).forEach(v=>N.vehicleNote[v.code]=v.note||"");
   N.vehicleUnits={};(st.vehicles||[]).forEach(v=>N.vehicleUnits[v.code]=v.units||0);
+  N.vehicleLend={}; (st.vehicles||[]).forEach(v=>{ if(v.lend_to) N.vehicleLend[v.code]=v.lend_to; });
+  N.vehicleSrc={};  (st.vehicles||[]).forEach(v=>{ if(v.src_region) N.vehicleSrc[v.code]={region:v.src_region,code:v.src_code}; });
   N.onCar=st.vehicle_stock||{};
   N.vehicles.forEach(v=>{N.onCar[v]=N.onCar[v]||{};});
   N.admins=(st.operators||[]).map(o=>({id:o.id,name:o.name,regions:o.regions||[],
@@ -1434,7 +1444,21 @@ async function reload(){
     (x.lines||[]).forEach(l=>{if(l.photo)paths.push(l.photo);});
   });
   await applyState(st,await signUrls(paths));
+  lastLoad=Date.now();
 }
+/* 兩個人同時在用：切回這個頁面時，自動抓最新資料（正在填表單時不動，免得把打到一半的字洗掉） */
+let lastLoad=0;
+async function softRefresh(){
+  if(role!=="admin"||!token||!S||busy) return;
+  if(Date.now()-lastLoad<20000) return;
+  if(ed||nw||page||editSku||eqEdit||cardEdit||logNew||calNew||fixNew||stopNew||scrapNew||inspNew||inspSet||plan||unitEdit) return;
+  const a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  const y=window.scrollY;
+  try{ await reload(); if(ISO&&tab==="iso") await isoLoad(); }catch(e){ return; }
+  render(); window.scrollTo(0,y);
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") softRefresh(); });
+window.addEventListener("focus",()=>softRefresh());
 async function guard(fn,okMsg){
   try{ await fn(); if(okMsg)toast(okMsg); }
   catch(e){ toast(e.message||"操作失敗"); }
@@ -3190,6 +3214,15 @@ function edOpen(id){
   openPage("edit",id);
 }
 function edSet(k,v){ ed[k]=v; render(); }
+/* 別人剛改過：換成最新內容，留在編輯頁讓他再確認一次 */
+function edRefresh(id){ const it=itemById(id); if(!it){ ed=null; closePage(); return; }
+  ed={id:id,name:it.sku,loc:it.loc,safe:S.safety[it.sku]||0,kind:it.kind||"tool",
+      valuable:!!it.valuable,abbr:it.abbr||"",wasKind:it.kind||"tool"}; }
+async function itemUpd(id,name,loc,safe,ver,onClash){
+  try{ await rpc("mgr_item_update",{p_token:token,p_id:id,p_name:name,p_loc:loc,
+         p_safety:safe,p_ver:(ver==null?null:ver)}); }
+  catch(err){ if(isClash(err)){ await reload(); if(onClash) onClash(); render(); } throw err; }
+}
 function viewEditPage(){
   const e=ed; if(!e) return `<div class="wrap"><div class="empty">沒有在編輯的品項</div></div>`;
   const toNo=needsNo(e.kind), wasNo=needsNo(e.wasKind);
@@ -3234,8 +3267,7 @@ async function edSave(){
   // 從不編號變成要編號：先讓他決定各車編幾個
   if(needsNo(e.kind) && !needsNo(it.kind)){
     await guard(async()=>{
-      await rpc("mgr_item_update",{p_token:token,p_id:e.id,p_name:n,p_loc:e.loc,
-        p_safety:Math.max(0,parseInt(e.safe)||0)});
+      await itemUpd(e.id,n,e.loc,Math.max(0,parseInt(e.safe)||0),it.ever,()=>edRefresh(e.id));
       await rpc("mgr_item_tags",{p_token:token,p_id:e.id,p_kind:null,
         p_valuable:!!e.valuable,p_abbr:e.abbr||null});
       await reload(); ed=null; page=null; planY=retY; retY=null;
@@ -3244,8 +3276,7 @@ async function edSave(){
     return;
   }
   await guard(async()=>{
-    await rpc("mgr_item_update",{p_token:token,p_id:e.id,p_name:n,p_loc:e.loc,
-      p_safety:Math.max(0,parseInt(e.safe)||0)});
+    await itemUpd(e.id,n,e.loc,Math.max(0,parseInt(e.safe)||0),it.ever,()=>edRefresh(e.id));
     await rpc("mgr_item_tags",{p_token:token,p_id:e.id,p_kind:e.kind,
       p_valuable:!!e.valuable,p_abbr:e.abbr||null});
     ed=null; ISO=null; await reload(); closePage();
@@ -3420,8 +3451,7 @@ async function saveEdit(k){
   if(needsNo(edKind) && !needsNo(it.kind)){
     const ab=g("e_abbr")?g("e_abbr").value:"";
     await guard(async()=>{
-      await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:nn,
-        p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
+      await itemUpd(it.id,nn,g("e_loc").value,Math.max(0,parseInt(g("e_safe").value)||0),it.ever);
       await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:null,
         p_valuable:g("e_val").checked,p_abbr:ab||null});
       await reload();
@@ -3430,8 +3460,7 @@ async function saveEdit(k){
     return;
   }
   await guard(async()=>{
-    await rpc("mgr_item_update",{p_token:token,p_id:it.id,p_name:nn,
-      p_loc:g("e_loc").value,p_safety:Math.max(0,parseInt(g("e_safe").value)||0)});
+    await itemUpd(it.id,nn,g("e_loc").value,Math.max(0,parseInt(g("e_safe").value)||0),it.ever);
     await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:edKind,
       p_valuable:g("e_val").checked,p_abbr:(g("e_abbr")?g("e_abbr").value:null)});
     // 編號管理由分類決定，資料庫的 trigger 會自己處理，不用再送開關
@@ -3461,24 +3490,45 @@ async function addVehicle(){
     nVeh={code:"",preload:false}; await reload(); render();
   },`已新增 ${c} 車`);
 }
-async function vehActive(v,on){
+/* 一台車給誰用：'self'＝這一區自己（驗屋）、'off'＝都不用、其他＝部門區代號（例：甲醛） */
+function vehUse(v){
+  const L=(S.vehicleLend||{})[v]; if(L) return L;
+  return (S.vehicleOn||{})[v]!==false?"self":"off";
+}
+async function vehAssign(v,to){
   const id=(S.vehicleIds||{})[v]; if(!id) return;
-  const n=(S.vehicleUnits||{})[v]||0;
-  if(!on){
-    let msg=`把 ${v} 車改成「不納入驗屋盤點」？\n\n`
+  const cur=vehUse(v); if(cur===to) return;
+  const n=(S.vehicleUnits||{})[v]||0, D=DEPT();
+  let msg;
+  if(to==="self"){
+    msg=`把 ${v} 車改回「${D}」使用？`;
+    if(cur!=="off"&&cur!=="self") msg+=`\n\n${regName(cur)}那邊的 ${v} 車會收起來，`
+      +`車上掛的編號收回${regName(cur)}的公司庫存並留下紀錄；${regName(cur)}的歷史紀錄照樣查得到。`;
+  }else if(to==="off"){
+    msg=`把 ${v} 車改成「都不用」？\n\n`
       +`· 不列入標配，也不會算車上數量\n· 外勤盤點選不到這台車\n· 不會出現在待補料\n`
-      +`· 歷史紀錄照樣查得到，車輛管理系統不受影響\n`;
-    if(n) msg+=`\n這台車上目前掛著 ${n} 個編號，會用「車輛多出繳回」收回公司庫存並留下紀錄。`;
-    if(!confirm(msg)) return render();
+      +`· 歷史紀錄照樣查得到，車輛管理系統不受影響`;
+  }else{
+    msg=`把 ${v} 車切換給「${regName(to)}」使用？\n\n`
+      +`· ${D}這邊不列入標配、車上數量、盤點與待補料\n`
+      +`· ${regName(to)}那邊會出現這台車，讓他們設定車上放哪些設備\n`
+      +`· 出車紀錄、悠遊卡照常登記，車輛管理系統不受影響`;
   }
-  const note=on?null:(prompt(`${v} 車不納入的原因（選填，會顯示在設定頁）`,vehNote(v)||"固定放甲醛部門工具")||"");
+  if(n&&cur==="self") msg+=`\n\n這台車上目前掛著 ${n} 個編號，會用「車輛多出繳回」收回公司庫存並留下紀錄。`;
+  if(!confirm(msg)) return render();
+  const note=to==="off"?(prompt(`${v} 車不用的原因（選填，會顯示在設定頁）`,vehNote(v)||"")||""):null;
   await guard(async()=>{
-    const back=await rpc("mgr_vehicle_active",{p_token:token,p_id:id,p_on:on,p_note:note});
+    const r=await rpc("mgr_vehicle_assign",{p_token:token,p_id:id,p_to:to,p_note:note});
     ISO=null; await reload(); render();
-    toast(on?`${v} 車已納入驗屋盤點`
-           :(back?`${v} 車已排除，${back} 個編號收回公司庫存`:`${v} 車已排除`));
+    const back=(r&&r.back)||0;
+    toast((to==="self"?`${v} 車改回${D}使用`
+          :to==="off"?`${v} 車已改成都不用`
+          :`${v} 車已切換給${regName(to)}${r&&r.code&&r.code!==v?`（那邊叫 ${r.code} 車）`:""}`)
+          +(back?`，${back} 個編號收回公司庫存`:""));
   });
 }
+/* 舊的開關（測試與舊流程還會叫）：開＝自己用、關＝都不用 */
+function vehActive(v,on){ return vehAssign(v,on?"self":"off"); }
 async function delVehicle(v){
   if(!confirm(`刪除 ${v} 車？`))return;
   await guard(async()=>{
@@ -3724,6 +3774,8 @@ function mqInput(el){
 function restoreSearch(){
   if(!mqRestore) return;
   const el=document.getElementById(mqRestore.id||"mvsearch");
+  // 輸入框沒被換掉（還在打字）：游標維持原位，不要拉回舊位置
+  if(el&&el===document.activeElement){ mqRestore=null; return; }
   if(el){ el.focus();
     const p=Math.min(mqRestore.pos==null?el.value.length:mqRestore.pos, el.value.length);
     try{ el.setSelectionRange(p,p); }catch(e){} }
@@ -4887,29 +4939,42 @@ async function amAddByName(){
   await amAdd(el.value);
 }
 function viewVehicles(){
+  const D=DEPT(), targets=DEPTREGS().filter(r=>r.code!==REG);
+  const opts=[["self",D]].concat(targets.map(r=>[r.code,r.name])).concat([["off","都不用"]]);
   const vlist=VEHALL().map(v=>{
     const used=S.records.some(r=>r.vehicle===v);
     const last=S.records.find(r=>r.vehicle===v);
     const cnt=S.records.filter(r=>r.vehicle===v).length;
-    const on=(S.vehicleOn||{})[v]!==false, nt=vehNote(v);
-    return `<div class="prow${on?"":" voff"}">
-      <span style="flex:none;width:34px;font-size:18px;font-weight:700">${v}</span>
+    const src=(S.vehicleSrc||{})[v], use=vehUse(v), on=use==="self", nt=vehNote(v);
+    const stat=on?(used?`${cnt} 張盤點單　·　最近 ${last.date.slice(5).replace("-","/")}`:"尚未使用")
+              :use==="off"?`不列入標配與車上數量${nt?`　·　${esc(nt)}`:""}`
+              :`給${esc(regName(use))}使用　·　這邊不列入標配與車上數量`;
+    if(src) return `<div class="prow${on?"":" voff"}">
+      <span style="flex:none;width:34px;font-size:18px;font-weight:700">${esc(v)}</span>
       <span class="bd2" style="flex:1;min-width:0">
+        <span style="display:block;font-size:13.5px;font-weight:600">${on?"":"（已還回）"}從${esc(regName(src.region))}的 ${esc(src.code)} 車切換過來</span>
         <span class="s" style="display:block;font-size:12.5px;color:var(--muted)">${
           on?(used?`${cnt} 張盤點單　·　最近 ${last.date.slice(5).replace("-","/")}`:"尚未使用")
-            :`不列入標配與車上數量${nt?`　·　${esc(nt)}`:""}`}</span></span>
-      <label class="sw"><input type="checkbox" ${on?"checked":""}
-        onchange="vehActive('${esc(v)}',this.checked)"><i></i></label>
-      ${used?"":`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪</button>`}
+            :"歷史紀錄照樣查得到"}　·　要換車請到${esc(regName(src.region))}的設定頁切換</span></span>
+    </div>`;
+    return `<div class="prow vrow${on?"":" voff"}">
+      <span style="flex:none;width:34px;font-size:18px;font-weight:700">${esc(v)}</span>
+      <span class="bd2" style="flex:1;min-width:0">
+        <span class="s" style="display:block;font-size:12.5px;color:var(--muted)">${stat}</span>
+        <span class="seg vuse" style="margin-top:7px">${opts.map(([k,t])=>
+          `<button aria-pressed="${use===k}" onclick="vehAssign('${esc(v)}','${esc(k)}')">${esc(t)}</button>`).join("")}</span></span>
+      ${used||use!=="self"&&use!=="off"?"":`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪</button>`}
     </div>`;}).join("");
+  const nOff=VEHALL().length-VEH().length;
   return `<div class="wrap wide">
-    ${sect("veh","車輛",`${VEH().length} 台納入　${VEH().join(" ")}${
-        VEHALL().length>VEH().length?`　·　${VEHALL().length-VEH().length} 台不納入`:""}`,`
-      <div class="bd" style="padding-bottom:4px"><div class="lbl">
-        跟別的部門共用、沒放驗屋工具的車（例如固定放甲醛工具的），
-        把「納入驗屋盤點」關掉就不會列入標配、車上數量、盤點與待補料。
-        車輛管理系統那邊不受影響。</div></div>
-      <div class="bd nopad">${vlist}</div>
+    ${sect("veh","車輛",`${VEH().length} 台${D}用　${VEH().join(" ")}${nOff?`　·　${nOff} 台不在這邊用`:""}`,`
+      <div class="bd" style="padding-bottom:4px"><div class="lbl">${targets.length
+        ?`跟別的部門共用的車（例如固定放甲醛設備的 B 車），切到「${esc(targets.map(r=>r.name).join("／"))}」，
+          那邊就會出現這台車，讓他們設定車上放哪些設備；${D}這邊就不列入標配、車上數量、盤點與待補料。
+          都沒用到就選「都不用」。出車紀錄、悠遊卡照常登記，車輛管理系統不受影響。`
+        :`從各區切換過來的車會列在這裡，車上放哪些設備由這邊自己設定。
+          要換車請到那台車原本所在區的設定頁切換。也可以自己新增（例如工具組）。`}</div></div>
+      <div class="bd nopad">${vlist||`<div class="empty" style="padding:16px">還沒有車輛</div>`}</div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:9px">新增車輛</div>
         <label class="f"><span class="lbl">車輛代號（3 字以內）</span>
@@ -4920,7 +4985,7 @@ function viewVehicles(){
           <span>直接帶入整套標配數量（新車已配齊時勾選）</span></label>
         <button class="btn block" onclick="addVehicle()">新增車輛</button>
       </div>`,
-      "已有盤點紀錄的車不能刪除，避免歷史資料失去對應。關掉「納入」的車，歷史紀錄照樣查得到")}
+      "已有盤點紀錄的車不能刪除，避免歷史資料失去對應。切到別處或都不用的車，歷史紀錄照樣查得到")}
 
     ${sect("loc","擺放位置",`${(S.locs||[]).length} 個`,`
       ${(S.locs||[]).length?`<div class="bd" style="padding-bottom:10px">
@@ -5453,7 +5518,7 @@ function eqNew(kind){
   if(!its.length) return toast(`請先到「庫存」把品項分類改成${KN}`);
   eqEdit={id:null,item_id:its[0].id,no:"",spec:"",brand:"",tol:"",
     cal_type:kind==="inst"?"none":"out",cal_org:"",cal_months:kind==="inst"?0:12,
-    buy_date:isoToday(),keeper:"驗屋部",
+    buy_date:isoToday(),keeper:DEPT()+"部",
     owner_name:"",loc_code:"",note:"",_model:"",_kind:kind};
   const ms=eqModels(eqEdit.item_id);
   if(ms.length===1) applyModel(ms[0].key);          // 只有一種機型就自動帶
@@ -5584,10 +5649,8 @@ function viewEqForm(){
         <input type="text" value="${esc(E.owner_name)}" oninput="setEq('owner_name',this.value)">
         ${E._ownerAuto?`<span style="font-size:12px;color:var(--muted)">自動帶入，可以改</span>`:""}</label>
       <label class="f"><span class="lbl">目前位置</span>
-        <select onchange="setEq('loc_code',this.value)">
-          <option value="" ${!E.loc_code?"selected":""}>公司庫存</option>
-          ${VEH().map(v=>`<option value="${v}" ${E.loc_code===v?"selected":""}>${v} 車</option>`).join("")}
-        </select></label>
+        <input type="text" class="roin" readonly value="${esc(locName(E.loc_code))}">
+        <span style="font-size:12px;color:var(--muted)">要調動請用「出入庫」，才會留下紀錄</span></label>
     </div>
     <div class="note">上傳<b>原廠校驗／檢驗證明</b>之後，這台在購入一年內才能被選為內校的標準件。
       沒有證明也還是可以選，只是稽核時沒有依據。</div>
@@ -5607,8 +5670,11 @@ async function eqSave(){
       cal_type:E.cal_type,cal_org:E.cal_org,cal_months:String(E.cal_months||0),
       buy_date:E.buy_date||"",keeper:E.keeper,owner_name:E.owner_name,
       loc_code:E.loc_code||"",note:E.note||""};
+    if(E.id&&E.ever!=null) p.ever=String(E.ever);
     if(cert) p.cert_photo=cert;
-    const id=await rpc("eq_save",{p_token:token,p:p});
+    let id;
+    try{ id=await rpc("eq_save",{p_token:token,p:p}); }
+    catch(err){ if(isClash(err)){ await isoLoad(); eqEditOpen(E.id); } throw err; }
     // 補建檔：存完直接回清單原位，接著補下一台；一般編輯：回這台的頁面
     eqEdit=null; eqPhoto=null; eqOpen=(E._todo&&isoBackY!=null)?null:id;
   },E._todo?`${E.no} 已建檔`:"已儲存");
@@ -5842,7 +5908,7 @@ function viewCardList(){
       <div style="padding:12px 0 2px"><button class="btn sm ghost" onclick="cardNew()">＋ 新增一張履歷卡</button></div>
     </div></div>`;
 }
-function cardNew(){ cardEdit={id:null,region:REG,name:"",maker:"",buy_date:"",keeper:"驗屋部",
+function cardNew(){ cardEdit={id:null,region:REG,name:"",maker:"",buy_date:"",keeper:DEPT()+"部",
   owner_name:"",pack_note:"",insp_on:false,insp_day:1}; cardOpen="_new"; window.scrollTo(0,0); render(); }
 function cardEditOpen(id){ const c=cardById(id); if(!c)return;
   cardEdit=Object.assign({},c,{buy_date:dOnly(c.buy_date)}); render(); }
@@ -5959,7 +6025,7 @@ function viewCardForm(){
     </div>
     <div class="g2">
       <label class="f"><span class="lbl">保管單位</span>
-        <input type="text" value="${esc(C.keeper||"驗屋部")}" oninput="setCard('keeper',this.value)"></label>
+        <input type="text" value="${esc(C.keeper||(DEPT()+"部"))}" oninput="setCard('keeper',this.value)"></label>
       <label class="f"><span class="lbl">負責人</span>
         <input type="text" value="${esc(C.owner_name||"")}" oninput="setCard('owner_name',this.value)"></label>
     </div>
@@ -5971,7 +6037,10 @@ function viewCardForm(){
 async function cardSave(){
   const C=cardEdit; if(!C) return;
   if(!(C.name||"").trim()) return toast("請填名稱");
-  await isoDo(async()=>{ const id=await rpc("card_save",{p_token:token,p:Object.assign({region:REG},C)});
+  await isoDo(async()=>{ let id;
+    try{ id=await rpc("card_save",{p_token:token,p:Object.assign({region:REG},C,
+           {ever:C.ever==null?"":String(C.ever)})}); }
+    catch(err){ if(isClash(err)&&C.id){ await isoLoad(); cardEditOpen(C.id); } throw err; }
     cardEdit=null; cardOpen=id; },"已儲存");
 }
 
@@ -6357,8 +6426,53 @@ function subBar(){
     return `<button aria-pressed="${tab===k}" onclick="go('${k}')">${SCREEN[k][0]}${
       n?`<i class="sbb">${n}</i>`:""}</button>`;}).join("")}</div>`;
 }
+/* ===================================================================
+   打字中重畫不換掉輸入框：
+   以前每次重畫整個畫面都換新，打字打到一半（尤其中文注音停下來選字時）
+   遇到搜尋延遲重畫、照片上傳狀態更新，輸入框被換掉，鍵盤收起來、組字中斷。
+   現在：正在打字的那個輸入框原封不動留著，只換掉它周圍的內容。
+   =================================================================== */
+function setApp(app,html){
+  const a=document.activeElement;
+  const typing=a&&a!==document.body&&app.contains(a)&&/^(INPUT|TEXTAREA)$/.test(a.tagName)
+    &&!/^(checkbox|radio|file|button|submit|date|month|time|range|color)$/i.test(a.type||"");
+  if(!typing){ app.innerHTML=html; return; }
+  const path=[]; let n=a;
+  while(n&&n!==app){ path.unshift(Array.prototype.indexOf.call(n.parentNode.childNodes,n)); n=n.parentNode; }
+  const tmp=document.createElement(app.tagName); tmp.innerHTML=html;
+  // 新畫面裡同一個位置，必須也是同一種輸入框，才沿用
+  let m=tmp, okPath=true, l=app;
+  for(const i of path){ m=m&&m.childNodes[i]; l=l&&l.childNodes[i];
+    if(!m||!l||m.nodeType!==1||m.tagName!==l.tagName){ okPath=false; break; } }
+  const same=x=>x.getAttribute("oninput")||x.getAttribute("onchange")||x.getAttribute("name")||"";
+  if(!okPath||(m.id||"")!==(a.id||"")||same(m)!==same(a)){ app.innerHTML=html; return; }
+  const sync=(el,src,skip)=>{
+    for(const at of Array.from(el.attributes)) if(!src.hasAttribute(at.name)&&!(skip&&skip.includes(at.name))) el.removeAttribute(at.name);
+    for(const at of Array.from(src.attributes)) if(!(skip&&skip.includes(at.name))&&el.getAttribute(at.name)!==at.value) el.setAttribute(at.name,at.value);
+  };
+  let live=app, nw=tmp;
+  for(let d=0;d<path.length;d++){
+    const i=path[d], keep=live.childNodes[i], kids=Array.from(nw.childNodes), nk=kids[i];
+    while(keep.previousSibling) live.removeChild(keep.previousSibling);
+    while(keep.nextSibling) live.removeChild(keep.nextSibling);
+    for(let j=0;j<i;j++) live.insertBefore(kids[j],keep);
+    for(let j=i+1;j<kids.length;j++) live.appendChild(kids[j]);
+    if(d<path.length-1) sync(keep,nk); else sync(keep,nk,["value"]);
+    live=keep; nw=nk;
+  }
+}
+// 開始組字（注音選字）時，取消還沒跑的搜尋重畫，等選完字再說
+document.addEventListener("compositionstart",()=>{
+  ["_lsT","_sqt","_mqt","_pq_rs","_pq_mv","_pq_nr"].forEach(k=>clearTimeout(window[k]));
+},true);
 function render(){
   if(UPGRADING) return;
+  // 打完字點下一格時，前一格的 change 會先觸發重畫；等焦點移到下一格之後再畫，下一格才不會被換掉
+  const ev=window.event;
+  if(ev&&ev.type==="change"&&ev.target&&/^(INPUT|TEXTAREA)$/.test(ev.target.tagName)
+     &&!/^(checkbox|radio|file|button|submit|date|month|time|range|color)$/i.test(ev.target.type||"")){
+    clearTimeout(window._rdT); window._rdT=setTimeout(render,0); return; }
+  clearTimeout(window._rdT);
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
   if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">${REG?regName(REG):"請先選擇區域"}</div></div>`;
@@ -6385,7 +6499,7 @@ function render(){
         ><span class="ic">${i}${n?`<i class="nbadge">${n>9?"9+":n}</i>`:""}</span>${l}</button>`;}).join("");
     document.body.classList.remove("norole");
   } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
-  app.innerHTML = role==="field" ? viewField() : (subBar()+screenHTML());
+  setApp(app, role==="field" ? viewField() : (subBar()+screenHTML()));
   restoreSearch();
   saveDraftSoon();
 }
