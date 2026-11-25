@@ -13,64 +13,256 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
+/* ===================================================================
+   設計系統 v2
+   白卡片 ＋ 大圓角 ＋ 柔和底色，不用框線分隔，改用留白與層次
+   深靛藍為主色，狀態色（綠／琥珀／紅）各自分明
+   =================================================================== */
 :root{
-  --ink:#15181C; --paper:#E9EBEE; --card:#FFF; --line:#D3D7DC; --line2:#E6E9ED;
-  --amber:#FFB020; --amber-d:#8A5A00; --ok:#2C7A5C; --ok-bg:#E8F3EE;
-  --alert:#CE3524; --alert-bg:#FBEAE7; --muted:#6C737D;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
-  --tc:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  /* 中性 */
+  --ink:#1A1F2B;          /* 主要文字 */
+  --ink2:#454D5E;         /* 次要文字 */
+  --muted:#5E6676;        /* 說明文字：白底上對比 5.9:1，戶外也看得清楚 */
+  --faint:#8A92A2;        /* placeholder、次要圖示 */
+  --paper:#D5DCE8;        /* 頁面底色：要明顯比卡片暗，邊界才看得出來 */
+  --card:#FFFFFF;
+  --sunk:#EDF0F6;         /* 卡片裡再凹一層 */
+  --line:#B9C3D6;         /* 卡片與按鈕的邊框，要看得見 */
+  --line2:#DCE2EC;        /* 卡片內部的分隔線 */
+
+  /* 主色 */
+  --brand:#1E2B4D;        /* 深靛藍：標題列、主要按鈕 */
+  --brand2:#33477A;
+  --brandsoft:#DEE6F7;
+  --brandline:#9FB1D8;
+  --link:#1B4FC4;         /* 可點的東西 */
+
+  /* 狀態：顏色要認得出來，不要都糊成一片 */
+  --ok:#0A7A52;    --ok-bg:#D6F0E4;   --ok-line:#86CBAE;
+  --warn:#9E5A00;  --warn-bg:#FDEBCB; --warn-line:#E8B765;
+  --bad:#C22D20;   --bad-bg:#FBDDD8;  --bad-line:#EC9A8F;
+  --blue:#1B4FC4;  --blue-bg:#DBE5FB; --blue-line:#9FB7EE;
+  --purple:#6B3FA0;--purple-bg:#EBE0F7;--purple-line:#BFA3E0;
+  --amber:#E89510; --amber-d:#9E5A00; --amber-bg:#FDEBCB;
+  --alert:#C22D20; --alert-bg:#FBDDD8;
+
+  /* 形狀與陰影 */
+  --r:14px; --r2:10px; --r3:7px;
+  --sh:0 1px 2px rgba(20,30,56,.07), 0 3px 10px rgba(20,30,56,.07);
+  --sh2:0 3px 8px rgba(20,30,56,.10), 0 14px 34px rgba(20,30,56,.14);
+
+  --tc:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  --mono:var(--tc);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;overflow-x:hidden}
 html{-webkit-text-size-adjust:100%}
-body{font-family:var(--tc);background:var(--paper);color:var(--ink);font-size:16px;line-height:1.5;padding-bottom:78px}
+body{font-family:var(--tc);background:var(--paper);color:var(--ink);
+  font-size:15.5px;line-height:1.6;padding-bottom:86px;
+  -webkit-font-smoothing:antialiased}
 body.norole{padding-bottom:0}
-.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font-family:inherit}
 
-header.top{position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;padding:11px 14px 9px;
-  border-bottom:3px solid var(--amber);display:flex;align-items:center;gap:10px}
-header.top h1{margin:0;font-size:14.5px;font-weight:900;letter-spacing:.05em}
-header.top .sub{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#98A0AA;margin-top:2px}
-header.top .sw{margin-left:auto;background:none;border:1px solid #4A525C;color:#C7CCD2;border-radius:3px;
-  padding:6px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
-.wrap{max-width:560px;margin:0 auto;padding:14px 14px 26px}
-.wide{max-width:860px}
+/* 數字一律等寬，對帳才對得齊 */
+.num,.fig,.n{font-variant-numeric:tabular-nums}
 
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--ink);display:grid;
+/* 小標籤：不再用大寫等寬，改成好讀的淡字 */
+.lbl{font-size:12.5px;color:var(--muted);letter-spacing:0;text-transform:none;line-height:1.6}
+
+/* ---------- 版面 ---------- */
+.wrap{max-width:600px;margin:0 auto;padding:16px 15px 28px}
+.wide{max-width:900px}
+
+/* ---------- 標題列 ---------- */
+header.top{position:sticky;top:0;z-index:40;background:var(--brand);color:#fff;
+  padding:13px 15px;display:flex;align-items:center;gap:10px;border-bottom:0}
+header.top h1{margin:0;font-size:16.5px;font-weight:700;letter-spacing:.01em}
+header.top .sub{font-size:12px;color:#A9B4CE;margin-top:1px;font-weight:400}
+header.top .htitle{flex:1;min-width:0}
+header.top h1,header.top .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.regsel{flex:none;max-width:128px;background:rgba(255,255,255,.12);color:#fff;
+  border:1px solid rgba(255,255,255,.22);border-radius:var(--r3);height:36px;
+  padding:0 8px 0 11px;font-size:13.5px;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23fff' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;padding-right:24px}
+.regsel option{color:var(--ink);background:#fff}
+.hmenu,.hback{flex:none;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;border-radius:var(--r3);width:36px;height:36px;font-size:17px;line-height:1;cursor:pointer}
+.hmenu:active,.hback:active{background:rgba(255,255,255,.2)}
+.hmpanel{position:absolute;top:calc(100% + 6px);right:12px;z-index:60;background:#fff;
+  border-radius:var(--r2);box-shadow:var(--sh2);min-width:184px;overflow:hidden;padding:5px}
+.hmpanel button{display:block;width:100%;text-align:left;background:none;border:0;
+  border-radius:var(--r3);padding:11px 13px;font-size:14.5px;color:var(--ink);cursor:pointer}
+.hmpanel button:hover,.hmpanel button:active{background:var(--sunk)}
+
+/* ---------- 底部頁籤 ---------- */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;
+  display:grid;border-top:1px solid var(--line2);
+  padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 16px rgba(26,31,43,.06)}
+nav.tabs.hide{display:none}
+nav.tabs button{border:0;background:none;padding:9px 2px 8px;cursor:pointer;
+  font-size:10.5px;font-weight:600;color:var(--faint);line-height:1.3;
+  display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.tabs button .ic{font-size:18px;line-height:1;position:relative;display:inline-block}
+nav.tabs button[aria-selected="true"]{color:var(--brand)}
+nav.tabs button[aria-selected="true"] .ic{transform:translateY(-1px)}
+.nbadge{position:absolute;top:-5px;right:-10px;background:var(--bad);color:#fff;font-style:normal;
+  font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;
+  display:flex;align-items:center;justify-content:center;line-height:1}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--sh);margin-bottom:14px;overflow:hidden}
+.card>.hd{display:flex;align-items:center;gap:9px;padding:15px 16px 0}
+.card>.hd h2{margin:0;font-size:16px;font-weight:700;letter-spacing:.01em}
+.card>.bd{padding:15px 16px}
+.card>.bd.nopad{padding:0}
+.card>.hd+.bd{padding-top:12px}
+.card .foot{padding:11px 16px;background:var(--sunk);font-size:12.5px;color:var(--muted)}
+
+/* ---------- 按鈕 ---------- */
+.btn{appearance:none;border:1.5px solid var(--brand);border-radius:var(--r2);
+  background:var(--brand);color:#fff;
+  font-size:15px;font-weight:600;padding:12px 17px;cursor:pointer;line-height:1.3;
+  transition:transform .06s ease, filter .12s ease}
+.btn:active{transform:scale(.985);filter:brightness(1.12)}
+.btn:disabled{background:#AEB7C8;border-color:#AEB7C8;color:#fff;cursor:not-allowed;transform:none}
+.btn.block{display:block;width:100%}
+.btn.ghost{background:#fff;color:var(--brand);border-color:var(--line)}
+.btn.ghost:active{background:var(--brandsoft)}
+.btn.ghost:disabled{color:var(--faint);border-color:var(--line2);background:#fff}
+.btn.amber{background:var(--amber);border-color:var(--amber-d);color:#3A2600}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{padding:10px 13px;font-size:14px;border-radius:var(--r3)}
+.btn.tiny{padding:7px 11px;font-size:12.5px;border-radius:var(--r3);font-weight:600}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* ---------- 輸入 ---------- */
+.f{display:block;margin-bottom:14px}
+.f>.lbl{display:block;margin-bottom:6px;font-size:13px;color:var(--ink2);font-weight:600}
+input[type=text],input[type=number],input[type=password],input[type=date],select,textarea{
+  width:100%;border:1.5px solid var(--line);border-radius:var(--r2);background:#fff;
+  padding:11px 13px;font-size:15.5px;color:var(--ink);outline:0;
+  transition:border-color .12s, box-shadow .12s}
+input:focus,select:focus,textarea:focus{border-color:var(--brand2);
+  box-shadow:0 0 0 3px rgba(51,71,122,.18)}
+input::placeholder{color:var(--faint)}
+input.num,input[type=number]{text-align:center;font-weight:700}
+select{appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2379808F' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;padding-right:32px}
+label.ck{display:flex;align-items:center;gap:9px;font-size:14.5px;cursor:pointer;margin-bottom:12px}
+label.ck input{width:19px;height:19px;flex:none;accent-color:var(--brand)}
+
+/* ---------- 分段控制 ---------- */
+.iseg,.seg{display:flex;gap:3px;background:var(--sunk);border:1.5px solid var(--line);
+  border-radius:var(--r2);padding:3px}
+.iseg button,.seg button{flex:1;border:0;background:none;border-radius:var(--r3);
+  padding:10px 6px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
+.iseg button[aria-pressed="true"],.seg button[aria-pressed="true"]{
+  background:#fff;color:var(--brand);box-shadow:0 1px 3px rgba(26,31,43,.10)}
+
+/* ---------- 標籤 / 狀態點 ---------- */
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;
+  margin-left:6px;vertical-align:middle;border:0}
+.tag.m{background:var(--brandsoft);color:var(--brand)}
+.tag.i{background:#EFEBF8;color:#5B4B8A}
+.tag.v{background:var(--amber-bg);color:var(--amber-d)}
+.tag.c{background:#EEF0F5;color:var(--muted)}
+.ipill{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px}
+.ipill.ok{background:var(--ok-bg);color:var(--ok)}
+.ipill.bad{background:var(--bad-bg);color:var(--bad)}
+.ipill.warn{background:var(--warn-bg);color:var(--warn)}
+.ipill.grey{background:#EEF0F5;color:var(--muted)}
+
+/* ---------- 數字磚 ---------- */
+.stats,.numrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:0}
+.stats>div,.numrow>div{background:var(--sunk);border:0;border-radius:var(--r2);
+  padding:13px 10px;text-align:center}
+.stats .lbl,.numrow i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-bottom:4px}
+.stats .fig,.numrow b{display:block;font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;
+  font-variant-numeric:tabular-nums}
+
+/* ---------- 清單列 ---------- */
+.list{border-radius:var(--r);overflow:hidden}
+.row2{display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
+  background:none;border:0;border-bottom:1px solid var(--line2);padding:13px 16px;font-family:inherit}
+.row2:last-child{border-bottom:0}
+.row2:active{background:var(--sunk)}
+.row2 .bd2{flex:1;min-width:0}
+.row2 .t{display:block;font-size:15px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row2 .s{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row2 .go{flex:none;color:var(--faint);font-size:19px}
+.row2 .q{flex:none;text-align:right}
+.row2 .q b{display:block;font-size:19px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.row2 .q i{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px}
+
+/* ---------- 表格（還是需要表格的地方）---------- */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:9px 10px;
+  background:var(--sunk);border:0;white-space:nowrap}
+td{padding:11px 10px;border-top:1px solid var(--line2);vertical-align:middle}
+tr.warn td{background:var(--bad-bg)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- 空狀態 ---------- */
+.empty{padding:34px 18px;text-align:center;color:var(--muted);font-size:14px}
+.empty b{display:block;color:var(--ink);font-size:15.5px;font-weight:700;margin-bottom:5px}
+.emptyic{font-size:30px;line-height:1;margin-bottom:11px;opacity:.5}
+
+/* ---------- 提示框 ---------- */
+.warnbox{background:var(--warn-bg);border-radius:var(--r2);padding:12px 14px;
+  font-size:13.5px;line-height:1.7;color:#6B4200}
+.err{background:var(--bad-bg);border-radius:var(--r2);padding:12px 14px;
+  font-size:13.5px;line-height:1.7;color:#8A2820}
+.note{background:var(--brandsoft);border-radius:var(--r2);padding:12px 14px;
+  font-size:13.5px;line-height:1.7;color:var(--brand)}
+.krule{font-size:13px;color:var(--muted);background:var(--sunk);border:0;
+  border-radius:var(--r2);padding:10px 13px;margin:-4px 0 14px}
+
+/* ---------- 浮出視窗 ---------- */
+.mask{position:fixed;inset:0;background:rgba(18,22,31,.5);z-index:90;backdrop-filter:blur(2px)}
+.sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:540px;z-index:91;
+  background:#fff;border-radius:20px 20px 0 0;box-shadow:var(--sh2);
   padding-bottom:env(safe-area-inset-bottom)}
-nav.tabs button{border:0;background:none;color:#8E96A0;padding:10px 1px 11px;font-family:var(--tc);
-  font-size:10px;font-weight:700;cursor:pointer;border-top:3px solid transparent}
-nav.tabs button .ic{display:block;font-size:15px;margin-bottom:1px}
-nav.tabs button[aria-selected="true"]{color:#fff;border-top-color:var(--amber)}
+.sheet .shd{padding:20px 20px 8px;font-size:17px;font-weight:700}
+.sheet .sbd{padding:0 20px 6px;font-size:14.5px;line-height:1.75;color:var(--ink2)}
+.sheet .sft{display:flex;gap:10px;padding:16px 20px 20px}
+.sheet .sft .btn{flex:1}
+@media(min-width:560px){.sheet{bottom:auto;top:10vh;border-radius:var(--r)}}
 
-.card{background:var(--card);border:1px solid var(--line);border-radius:3px;margin-bottom:12px}
+/* ---------- 吐司 ---------- */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:95;
+  background:var(--ink);color:#fff;padding:12px 18px;border-radius:var(--r2);
+  font-size:14px;max-width:88%;text-align:center;box-shadow:var(--sh2)}
+
+/* ---------- 搜尋與篩選 ---------- */
+.mvf{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:0 16px 13px}
+.mvchip{display:inline-flex;align-items:center;gap:6px;
+  border:1.5px solid var(--line);background:#fff;color:var(--ink2);border-radius:20px;
+  padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.mvchip:hover{background:var(--sunk)}
+.mvchip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.mvchip[aria-pressed="true"] .c{color:#B9C6E4}
+.mvsearch{flex:1;min-width:150px;border:1.5px solid var(--line);border-radius:var(--r2);
+  padding:10px 13px;font-size:14.5px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1.5px solid var(--line);background:#fff;color:var(--ink2);border-radius:20px;
+  padding:8px 15px;font-size:14px;font-weight:600;cursor:pointer}
+.chip:hover{background:var(--sunk)}
+.chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+
+/* ===== 既有元件樣式（沿用新變數，之後逐一改寫） ===== */
 .card .hd{padding:11px 14px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:8px}
 .card .hd h2{margin:0;font-size:14px;font-weight:900;letter-spacing:.04em}
 .card .bd{padding:14px}
-.note{background:#FFF7E6;border:1px solid #F0D9A0;border-radius:3px;padding:10px 12px;font-size:12.5px;color:#6B5417;margin-bottom:12px}
 .note b{color:#4A3A0C}
-
 label.f{display:block;margin-bottom:13px}
 label.f .lbl{display:block;margin-bottom:6px}
-input[type=text],input[type=number],select,textarea{width:100%;font-family:var(--tc);font-size:16px;
-  padding:11px 12px;border:1px solid var(--line);border-radius:3px;background:#fff;color:var(--ink)}
-input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
-.chips{display:flex;flex-wrap:wrap;gap:7px}
-.chip{font-family:var(--mono);font-size:17px;font-weight:600;min-width:52px;height:48px;border:1px solid var(--line);
-  background:#fff;border-radius:3px;cursor:pointer;color:var(--ink)}
 .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:var(--tc);font-weight:700;
-  font-size:15px;padding:13px 18px;border-radius:3px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
-.btn.amber{background:var(--amber);border-color:var(--amber);color:#241A00}
-.btn.ghost{background:#fff;color:var(--ink)}
-.btn.sm{padding:8px 12px;font-size:13px}
-.btn.tiny{padding:5px 9px;font-size:11.5px;font-weight:500}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn.block{display:flex;width:100%}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-
 /* 角色選擇 */
 .gate{max-width:420px;margin:0 auto;padding:34px 18px}
 .gate h2{font-size:19px;font-weight:900;margin:0 0 4px}
@@ -80,7 +272,6 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .role.amber{border-left-color:var(--amber)}
 .role b{display:block;font-size:16.5px;font-weight:900;margin-bottom:3px}
 .role span{font-size:13px;color:var(--muted)}
-
 /* 進度 */
 .tape{display:flex;gap:2px;padding:10px 14px 0}
 .tape i{flex:1;height:6px;background:#C9CDD3;border-radius:1px}
@@ -93,7 +284,6 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .pkgnav button[aria-selected="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
 .pkgnav button .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:5px;vertical-align:middle}
 .pkgnav button .dot.ok{background:var(--amber)} .pkgnav button .dot.bad{background:var(--alert)}
-
 /* 盤點列 */
 .row{border-bottom:1px solid var(--line2);padding:10px 12px;display:flex;align-items:center;gap:10px}
 .row:last-child{border-bottom:0}
@@ -107,10 +297,6 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .row .info{flex:1;min-width:0}
 .row .nm{font-size:15px;font-weight:500;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .row .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
-.tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;padding:2px 5px;border-radius:2px;border:1px solid var(--line);color:var(--muted)}
-.tag.v{border-color:var(--amber-d);color:var(--amber-d);background:#FFF6E3}
-.tag.c{border-color:#9AA2AC;color:#5C636D;background:#F1F3F5}
-.tag.m{border-color:#1F5F8B;color:#1F5F8B;background:#E7F0F7}
 .stat{font-family:var(--tc);font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;
   border-radius:3px;padding:9px 8px;min-width:70px;cursor:pointer;color:var(--muted)}
 .stat.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
@@ -124,30 +310,18 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .pk:disabled{opacity:.35}
 @media (max-width:360px){.pk{width:48px;font-size:12px}}
 .panel{background:#FBFCFD;border-top:1px solid var(--line2);padding:12px 14px 14px}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
-.seg button{padding:11px 4px;font-family:var(--tc);font-size:14px;font-weight:700;border:1px solid var(--line);
-  background:#fff;border-radius:3px;cursor:pointer;color:var(--ink)}
-.seg button[aria-pressed="true"]{background:var(--alert);border-color:var(--alert);color:#fff}
 .step{display:flex;align-items:center;gap:8px}
 .step button{width:46px;height:46px;font-size:22px;border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer;font-family:var(--mono)}
 .step input{width:76px;text-align:center;font-family:var(--mono);font-size:19px;font-weight:600}
 .step.big button{width:54px;height:58px;font-size:26px}
 .step.big input{width:96px;height:58px;font-size:30px;font-weight:600;border-width:2px;border-color:var(--ink)}
 .deltahint{font-family:var(--tc);font-size:12.5px;color:var(--muted);line-height:1.3}
-
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
-  text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
-td{padding:9px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
 td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 tr:nth-of-type(even) td{background:#FBFCFD}
 tr.warn td,tr.warn:nth-of-type(even) td{background:#FDF1EF}
 tr.edit td{background:#FFFBF0!important;padding:16px 14px}
-th{background:#F7F8FA;white-space:nowrap;padding:9px 12px}
 th.n{text-align:right}
-td{padding:10px 12px}
 td.n{font-size:14px}
-.tw{overflow-x:auto}
 .c-name{line-height:1.35}
 .c-num{font-weight:700}
 .c-act{text-align:right;white-space:nowrap}
@@ -155,10 +329,7 @@ td.n{font-size:14px}
 .c-loc{font-size:12.5px;letter-spacing:.04em;color:#3A424C}
 .c-loc.un{color:var(--muted)}
 th.c-loc{color:var(--muted);background:#F7F8FA}
-.stats{display:flex;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line2);padding:18px 16px 20px}
-.stats>div{flex:1 1 132px;padding:16px 16px 18px;border:1px solid var(--line2);border-radius:3px;background:#FBFCFD}
 .stats>div .lbl{line-height:1.5}
-.stats .fig{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;line-height:1.1;margin-top:10px}
 .foot{padding:11px 14px;border-top:1px solid var(--line2);background:#FBFCFD}
 .prev{border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:3px;
   padding:12px 14px;margin-bottom:14px;background:#FFFDF7}
@@ -166,12 +337,10 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
   padding:6px 0;font-size:13.5px;border-bottom:1px dashed var(--line2)}
 .prevrow:last-child{border-bottom:0}
 .prevrow b{font-size:15px;white-space:nowrap}
-.err{color:var(--alert);font-size:12.5px;font-weight:700;margin-top:7px}
 .bar{height:5px;background:var(--line2);border-radius:2px;overflow:hidden;margin-top:4px;min-width:64px}
 .bar i{display:block;height:100%;background:var(--ok)} .bar i.low{background:var(--alert)}
 .pill{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:2px 6px;border-radius:2px}
 .pill.in{background:var(--ok-bg);color:var(--ok)} .pill.out{background:#EEF1F4;color:#4A525C}
-
 .fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}
 .vcard{border:1px solid var(--line);border-radius:3px;background:#fff;padding:11px 12px;border-left:4px solid var(--ok)}
 .vcard.amber{border-left-color:var(--amber)} .vcard.red{border-left-color:var(--alert)}
@@ -180,9 +349,6 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
 .vcard .who{font-size:11.5px;color:var(--muted);margin-top:3px}
 .thumbs{display:flex;gap:4px;flex-wrap:wrap;padding:10px 14px}
 .thumbs img{width:52px;height:52px;object-fit:cover;border-radius:2px;border:1px solid var(--line)}
-.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:26px 10px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;z-index:99;background:var(--ink);color:#fff;
-  padding:12px 18px;border-radius:3px;font-size:14px;font-weight:700;border-left:4px solid var(--amber);max-width:88%}
 .rechd{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border:0;border-bottom:1px solid var(--line2);
   padding:12px 14px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
 .rechd .caret{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
@@ -218,19 +384,12 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
   font-family:var(--mono);font-size:9px;letter-spacing:.08em;padding:2px 5px}
 .pkgtip{flex:1;min-width:0;font-size:13px}
 .hide{display:none!important}
-
 /* 出入庫明細 v2 */
 .mvf{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 14px;
   border-bottom:1px solid var(--line2);background:#FBFCFD}
-.mvchip{appearance:none;border:1px solid var(--line);background:#fff;border-radius:999px;
-  padding:7px 13px;font-family:var(--tc);font-size:13.5px;cursor:pointer;display:inline-flex;
-  align-items:center;gap:7px;color:var(--ink);line-height:1}
 .mvchip .sw{width:10px;height:10px;border-radius:3px;flex:none}
 .mvchip .c{font-family:var(--mono);font-size:12px;color:var(--muted)}
-.mvchip[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.mvchip[aria-pressed="true"] .c{color:var(--ink)}
-.mvsearch{flex:1;min-width:150px;border:1px solid var(--line);border-radius:3px;padding:8px 11px;
-  font-family:var(--tc);font-size:14px}
+.mvchip .sw{box-shadow:0 0 0 1px rgba(0,0,0,.12) inset}
 .mvdate{border:1px solid var(--line);border-radius:3px;padding:7px 9px;font-family:var(--mono);font-size:13px}
 .isel{display:flex;flex-direction:column;gap:7px}
 .isel .iselq{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
@@ -260,14 +419,20 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
 .mvr .rnote{font-size:12.5px;color:var(--muted);margin-top:3px;word-break:break-all}
 .mvr .q{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:700;text-align:right}
 .mvr .del{text-align:center;padding-right:8px}
-.k-lost .edge{background:var(--alert)} .k-lost .tag{background:var(--alert-bg);color:var(--alert)}
-.k-dmg  .edge{background:var(--amber-d)} .k-dmg  .tag{background:#FDF3E0;color:var(--amber-d)}
-.k-adj  .edge{background:var(--muted)} .k-adj  .tag{background:#EDEFF2;color:#4A5059}
-.k-etc  .edge{background:#C0C6CC} .k-etc  .tag{background:#F4F6F8;color:#5A6069}
-.k-make .edge{background:#5B6B7A} .k-make .tag{background:#EDF1F4;color:#3C4854}
-.k-person .edge{background:#9AA1AA} .k-person .tag{background:#F2F4F6;color:#4A5059}
-.k-buy  .edge{background:#1F5C9E} .k-buy  .tag{background:#E8F0F8;color:#1F5C9E}
-.k-ret  .edge{background:var(--ok)} .k-ret  .tag{background:var(--ok-bg);color:var(--ok)}
+.mvr .tag{border:1px solid transparent}
+.k-lost .edge{background:var(--bad)}
+.k-lost .tag{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-line)}
+.k-dmg  .edge{background:var(--amber)}
+.k-dmg  .tag{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.k-adj  .edge{background:#6B3FA0}
+.k-adj  .tag{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-line)}
+.k-etc  .edge{background:#8A93A5} .k-etc  .tag{background:#E9ECF2;color:#4A5262;border-color:#C3CAD8}
+.k-make .edge{background:#0E8A8A} .k-make .tag{background:#D7F0EF;color:#07696A;border-color:#88CFCE}
+.k-person .edge{background:#8A93A5} .k-person .tag{background:#E9ECF2;color:#4A5262;border-color:#C3CAD8}
+.k-buy  .edge{background:var(--blue)}
+.k-buy  .tag{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-line)}
+.k-ret  .edge{background:var(--ok)}
+.k-ret  .tag{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
 .mvpin{display:inline-flex;align-items:center;background:#EEF1F4;border-radius:3px;
   padding:1px 6px;font-size:11px;color:#4A5059}
 .mvmore{padding:15px 14px;text-align:center;border-top:1px solid var(--line2);background:#FBFCFD}
@@ -275,9 +440,8 @@ th.c-loc{color:var(--muted);background:#F7F8FA}
 .mvmore .btn{margin:0 4px 6px}
 @media (max-width:560px){
   .mvr{grid-template-columns:5px 74px 1fr 60px 38px;gap:0 8px}
-  .mvr .tag{font-size:11.5px} .mvr .q{font-size:16px}
+.mvr .tag{font-size:11.5px} .mvr .q{font-size:16px}
 }
-
 /* 月報表 v2 */
 .mrtabs{display:flex;border-bottom:1px solid var(--line2);background:#fff;overflow-x:auto}
 .mrtabs button{flex:1;min-width:92px;appearance:none;border:0;background:#fff;color:var(--muted);
@@ -328,7 +492,6 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 @media (max-width:560px){
   .mrk,.mrkh{grid-template-columns:1fr 72px 96px;gap:9px}
 }
-
 /* 外勤場次 */
 .ses2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .ses2 button{border:1px solid var(--line);background:#fff;border-radius:4px;padding:15px 12px;
@@ -345,7 +508,6 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 .okbox{border:1px solid var(--ok);background:var(--ok-bg);border-radius:4px;
   padding:13px 14px;margin-bottom:12px;font-size:14px;color:#1E5A42}
 @media (max-width:420px){ .ses2{grid-template-columns:1fr} }
-
 /* 盤點結果 v2 */
 .fleet2{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:11px}
 .vc2{border:1px solid var(--line);border-left-width:5px;border-radius:3px;padding:11px 12px;
@@ -378,7 +540,6 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 .b-ok{background:var(--ok-bg);color:var(--ok)} .b-ab{background:var(--alert-bg);color:var(--alert)}
 .sdetail{background:#FBFCFD;border-bottom:1px solid var(--line2)}
 @media (max-width:560px){ .shr{grid-template-columns:66px 1fr 76px;gap:9px} }
-
 /* 上午場清單 */
 .amhd{padding:10px 14px;background:#F7F8FA;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)}
 .amrow{display:grid;grid-template-columns:1fr 78px 70px;gap:11px;align-items:center;
@@ -387,14 +548,12 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 .amrow .sub2{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
 .amrow .rt{font-family:var(--mono);font-size:13px;text-align:right;color:var(--muted)}
 .amrow .btn{white-space:nowrap}
-
 /* 設定頁：每位操作者的可管區域 */
 .rgrant{display:flex;gap:4px;flex-wrap:wrap}
 .rgrant button{border:1px solid var(--line2);background:#fff;color:var(--muted);
   border-radius:999px;padding:3px 9px;font-family:var(--tc);font-size:11.5px;cursor:pointer;white-space:nowrap}
 .rgrant button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:700}
 .rgrant button[disabled]{opacity:.35;cursor:not-allowed}
-
 /* 區域切換 */
 .regsw{display:flex;gap:6px;margin-left:auto;margin-right:9px}
 .swshort{display:none}
@@ -406,18 +565,13 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 @media (max-width:560px){ .regsw{gap:5px;margin-right:7px} .regsw button{padding:0 10px;font-size:12px} }
 @media (max-width:380px){
   header.top{padding-left:10px;padding-right:10px}
-  header.top .sw{padding:6px 8px}
-  .swlong{display:none} .swshort{display:inline}
-  .regsw{margin-right:5px;gap:4px}
-  .regsw button{padding:0 7px;font-size:11.5px}
-  header.top h1{font-size:14px;white-space:nowrap}
-  header.top .sub{font-size:9px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px}
+.swlong{display:none} .swshort{display:inline}
+.regsw{margin-right:5px;gap:4px}
+.regsw button{padding:0 7px;font-size:11.5px}
 }
-
 /* 上午場清單：包別標籤 */
 .ampkg{display:inline-block;background:var(--bg2);border:1px solid var(--line2);
   border-radius:4px;padding:1px 6px;font-size:11px;color:var(--ink);font-weight:700;margin-right:4px}
-
 /* 設定頁：可收合區塊 */
 .card.sect{overflow:hidden}
 .secHd{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;
@@ -428,7 +582,6 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
   text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .secC{color:var(--muted);font-size:11px;flex:none}
 .secHd:active{background:var(--bg2)}
-
 /* 擺放位置：標籤格 */
 .locgrid{display:flex;flex-wrap:wrap;gap:7px}
 .lchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);
@@ -440,12 +593,10 @@ td.mrcell{text-align:center;font-family:var(--mono);font-variant-numeric:tabular
 .lchip.on i{background:rgba(255,255,255,.22);color:#fff}
 .locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;
   padding-top:11px;border-top:1px dashed var(--line2)}
-
 /* 用現代模式渲染，但版面緊密度維持跟原本一樣 */
 table{line-height:normal}
 .foot{line-height:1}
 label.f>.lbl{display:block;line-height:1.5}
-
 .upg{min-height:70vh;display:flex;flex-direction:column;align-items:center;
      justify-content:center;text-align:center;padding:0 28px;gap:14px}
 .upgT{font-size:21px;font-weight:800;letter-spacing:.04em}
@@ -453,18 +604,7 @@ label.f>.lbl{display:block;line-height:1.5}
 .upgS b{color:var(--ink,#15181c)}
 /* ===== ISO 設備與量測儀器 ===== */
 .iseg{display:flex;gap:0;margin-bottom:12px}
-.iseg button{flex:1;font-family:var(--tc);font-size:13.5px;font-weight:700;padding:10px 4px;background:#fff;
-  border:1px solid var(--line);color:var(--muted);margin-left:-1px;cursor:pointer}
-.iseg button:first-child{margin-left:0;border-radius:3px 0 0 3px}
-.iseg button:last-child{border-radius:0 3px 3px 0}
-.iseg button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink);position:relative;z-index:1}
 .iseg.am button[aria-pressed="true"]{background:var(--amber);color:#241A00;border-color:var(--amber)}
-.ipill{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 7px;
-  border-radius:2px;border:1px solid var(--line);color:var(--muted);background:#fff;white-space:nowrap}
-.ipill.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
-.ipill.warn{background:#FFF6E3;border-color:var(--amber-d);color:var(--amber-d)}
-.ipill.bad{background:var(--alert-bg);border-color:var(--alert);color:var(--alert)}
-.ipill.grey{background:#F1F3F5;border-color:#9AA2AC;color:#5C636D}
 .eqrow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:#fff;border:0;
   border-bottom:1px solid var(--line2);padding:11px 12px;cursor:pointer;font-family:var(--tc);color:var(--ink)}
 .eqrow:last-child{border-bottom:0}
@@ -478,8 +618,6 @@ label.f>.lbl{display:block;line-height:1.5}
 .ilist{background:#fff;border:1px solid var(--line);border-radius:3px}
 .ihd{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line2);
   font-size:12.5px;font-weight:700;color:#49505A;background:#F7F8FA}
-.warnbox{background:var(--alert-bg);border:1px solid var(--alert);border-radius:3px;padding:10px 12px;
-  margin-bottom:12px;font-size:13px;color:#7A2318}
 .okbox{background:var(--ok-bg);border:1px solid var(--ok);border-radius:3px;padding:10px 12px;
   margin-bottom:12px;font-size:13px;color:#1F5A42}
 /* 列印 */
@@ -495,12 +633,9 @@ table.pf .mo{font-family:var(--mono);white-space:nowrap}
 .iso-form .sig{display:flex;gap:22px;justify-content:flex-end;font-size:11px;margin-top:9px;color:#333}
 @media print{
   .noprint,header.top,nav.tabs,.toast{display:none!important}
-  body{background:#fff;padding:0}
-  .wrap{max-width:none;padding:0}
-  .iso-form{border:0;padding:0;page-break-after:always}
-  table.pf{min-width:0}
+.iso-form{border:0;padding:0;page-break-after:always}
+table.pf{min-width:0}
 }
-
 /* ---- 編號管理：庫存頁的母子列 ---- */
 .uexp{display:inline;padding:0 6px 0 0;margin:0;border:0;background:none;
   color:var(--muted);font-size:11px;line-height:1;cursor:pointer}
@@ -525,10 +660,6 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
   border-radius:3px;padding:9px 12px;margin-bottom:10px}
 .isoreg b{color:var(--ink);font-size:14px}
 .isoreg span{display:block;font-size:12px;margin-top:3px}
-.tag.i{border-color:#5B4B8A;color:#5B4B8A;background:#EFEBF7}
-.krule{font-size:12px;color:var(--muted);background:#F5F7FA;border:1px solid var(--line2);
-  border-radius:3px;padding:8px 11px;margin:-6px 0 13px;letter-spacing:.02em}
-
 /* ---- 倉庫盤點 ---- */
 .pgtop2{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .pgtop2 .pgback{background:none;border:1px solid var(--line);border-radius:3px;width:36px;height:36px;
@@ -538,12 +669,13 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .whprog{flex:none;font-size:11.5px;color:var(--muted);text-align:right}
 .whprog b{display:block;font-family:var(--mono);font-size:15px;color:var(--ink)}
-.whgrp{background:#F2F4F7;padding:7px 13px;font-size:12px;font-weight:700;color:var(--muted);
-  border-bottom:1px solid var(--line2);letter-spacing:.04em}
+.whgrp{display:flex;align-items:center;gap:9px;background:var(--sunk);padding:8px 12px;
+  font-size:13.5px;font-weight:700;color:var(--ink);border-bottom:1px solid var(--line2)}
+.whgrp .whloc,.whrow .whloc{flex:none;width:40px;font-size:12px;font-weight:700;color:var(--ink2);
+  text-align:center;background:#fff;border:1px solid var(--line);border-radius:var(--r3);padding:2px 0}
 .whrow{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--line2)}
 .whrow:last-child{border-bottom:0}
 .whrow.diff{background:#FFFBF0}
-.whrow .whloc{flex:none;width:40px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center}
 .whrow .whnm{flex:1;min-width:0;font-size:14px;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .whrow .whin{flex:none;width:62px;height:38px;text-align:center;font-family:var(--mono);
@@ -556,7 +688,6 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
 .whrow .whd em.up{color:var(--ok)}
 .whrow .whd em.dn{color:var(--alert)}
 .whb{flex:none;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
-
 /* ---- 產號分配表 ---- */
 .planrow{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid var(--line2)}
 .planrow.head{font-size:11.5px;color:var(--muted);font-family:var(--mono);letter-spacing:.06em;
@@ -578,13 +709,11 @@ tr.unitrow>td{background:var(--soft,#FAFAF8);border-top:1px dashed var(--line2);
 .stp:active{background:#EEF1F5}
 .plantot{text-align:right;font-size:13px;color:var(--muted);padding:11px 2px 0}
 .plantot b{font-family:var(--mono);font-size:19px;color:var(--ink)}
-
 /* ---- 車輛納入開關 ---- */
 tr.voff td{background:#FAFAF8;color:var(--muted)}
 tr.voff td:first-child{opacity:.6}
 .vsw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--ink)}
 .vsw input{width:16px;height:16px;flex:none}
-
 /* ---- 外勤：選編號 ---- */
 .uslot{background:#F7F8FA;border-bottom:1px solid var(--line2);padding:10px 12px 11px}
 .uslot .ulead{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px;line-height:1.5}
@@ -597,7 +726,6 @@ tr.voff td:first-child{opacity:.6}
   border-radius:3px;background:#fff;padding:0 9px}
 .urow.got select{border-color:var(--ok);background:var(--ok-bg)}
 .urow.none select{border-color:var(--alert);background:#FFF4F3;color:var(--alert);font-weight:700}
-
 /* ---- 編號對不上的警示 ---- */
 .alertcard{border-color:var(--alert)}
 .alertcard>.hd h2{color:var(--alert)}
@@ -613,9 +741,263 @@ tr.voff td:first-child{opacity:.6}
 .adet{font-size:13px;color:#3C444E;line-height:1.6;margin-bottom:8px}
 .aact{display:flex;gap:7px;flex-wrap:wrap}
 nav.tabs .ic{position:relative;display:inline-block}
-.nbadge{position:absolute;top:-6px;right:-11px;background:var(--alert);color:#fff;font-style:normal;
-  font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;
-  display:flex;align-items:center;justify-content:center;line-height:1}
+
+/* ---- 待補料的清單列 ---- */
+.nrow{display:flex;align-items:center;gap:11px;padding:12px 16px;border-top:1px solid var(--line2)}
+.nrow:first-child{border-top:0}
+.nrow.lack{background:var(--bad-bg)}
+.nbd{flex:1;min-width:0}
+.nbd .nt{display:block;font-size:15px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nbd .ns{display:block;font-size:12px;color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nq,.nw{flex:none;text-align:center;min-width:38px}
+.nq b,.nw b{display:block;font-size:19px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.nq i,.nw i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);margin-top:1px}
+.nw b{color:var(--muted);font-size:16px}
+.nw.bad b{color:var(--bad)}
+.nq.bad b{color:var(--bad)}
+
+/* ---- 次分頁 ---- */
+.subbar{display:flex;gap:4px;background:#fff;border:1.5px solid var(--line);
+  border-radius:var(--r2);padding:4px;margin:0 auto 14px;max-width:600px;box-shadow:var(--sh)}
+.subbar button{flex:1;border:0;background:none;border-radius:var(--r3);padding:10px 6px;
+  font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;position:relative}
+.subbar button[aria-pressed="true"]{background:var(--brandsoft);color:var(--brand)}
+.sbb{position:absolute;top:4px;right:6px;background:var(--bad);color:#fff;font-style:normal;
+  font-size:10px;font-weight:700;min-width:15px;height:15px;border-radius:8px;padding:0 4px;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1}
+
+/* ---- 全螢幕子頁 ---- */
+.pgtop{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.pgback{flex:none;background:#fff;border:0;box-shadow:var(--sh);border-radius:var(--r2);
+  width:38px;height:38px;font-size:18px;color:var(--ink);cursor:pointer}
+.pgback:active{background:var(--sunk)}
+.pgt{flex:1;min-width:0}
+.pgt b{display:block;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pgt span{display:block;font-size:12.5px;color:var(--muted);margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---- 品項頁的小列 ---- */
+.prow{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--line2)}
+.prow:first-child{border-top:0}
+.prow .pn{flex:1;min-width:0;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .mvd{flex:none;width:48px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pq{flex:none;display:flex;align-items:center;gap:7px}
+.pq b{font-size:17px;font-weight:700;min-width:24px;text-align:center;font-variant-numeric:tabular-nums}
+.stp{width:32px;height:32px;border:0;background:var(--sunk);border-radius:var(--r3);
+  font-size:16px;line-height:1;color:var(--ink);cursor:pointer;flex:none}
+.stp:active{background:var(--line)}
+
+/* 庫存清單左邊的位置欄 */
+.row2 .iloc{flex:none;width:40px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;
+  font-variant-numeric:tabular-nums}
+.uno{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+
+/* ---- 車輛小格 ---- */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:8px}
+.vtile{position:relative;background:var(--sunk);border:1px solid var(--line2);border-radius:var(--r2);
+  padding:10px 4px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px}
+.vtile b{font-size:20px;font-weight:700;line-height:1;color:var(--ink)}
+.vtile .dots{display:flex;gap:4px}
+.vtile em{position:absolute;top:-5px;right:-4px;background:var(--bad);color:#fff;font-style:normal;
+  font-size:10.5px;font-weight:700;min-width:17px;height:17px;border-radius:9px;padding:0 4px;
+  display:flex;align-items:center;justify-content:center}
+.vtile.bad{background:var(--bad-bg);border-color:#F3C7C1}
+.vtile.miss{background:var(--warn-bg);border-color:#F0DCB4}
+.vtile[aria-pressed="true"]{border-color:var(--brand);box-shadow:0 0 0 2px var(--brandsoft)}
+/* 數字列裡的分母 */
+.numrow b s{font-size:13px;font-weight:600;color:var(--faint);text-decoration:none}
+
+.psel{border:1px solid var(--line);background:#fff;border-radius:var(--r3);padding:7px 10px;
+  font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--tc);max-width:150px}
+.mrtabs button .n i{font-variant-numeric:tabular-nums}
+
+/* ---- 開關 ---- */
+.sw{flex:none;position:relative;width:44px;height:26px;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.sw i{position:absolute;inset:0;background:var(--line);border-radius:13px;transition:background .15s}
+.sw i:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;
+  border-radius:50%;box-shadow:0 1px 3px rgba(26,31,43,.25);transition:transform .15s}
+.sw input:checked+i{background:var(--ok)}
+.sw input:checked+i:after{transform:translateX(18px)}
+.prow.voff{background:var(--sunk)}
+.prow.voff>span:first-child{color:var(--faint)}
+
+/* ---- 庫存品項一列 ---- */
+.srow{border-top:1px solid var(--line2)}
+.srow:first-child{border-top:0}
+.srow.low{background:#FFF8F7}
+.shead{display:flex;align-items:center;gap:9px;padding:11px 14px;cursor:pointer}
+.shead:hover{background:var(--sunk)}
+.srow.low .shead:hover{background:#FFEFEC}
+.gapt{color:var(--bad);font-weight:700}
+.sx{flex:none;width:26px;height:26px;border:1.5px solid var(--line);background:#fff;
+  border-radius:var(--r3);font-size:12px;color:var(--ink2);cursor:pointer;line-height:1}
+.sx.ph{border:0;background:none}
+.srow .iloc{flex:none;width:34px;font-size:12px;font-weight:700;color:var(--ink2);
+  text-align:center;background:var(--sunk);border:1px solid var(--line2);
+  border-radius:var(--r3);padding:3px 0}
+.sbd{flex:1;min-width:0}
+.st{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss{font-size:12px;color:var(--muted);margin-top:1px}
+.sn{flex:none;display:flex;gap:4px}
+/* 倉庫＝實心色塊大字；安全量＝旁邊一行小字。一眼分得出哪個是現有、哪個是門檻 */
+.sn{align-items:center;gap:8px}
+.wh{min-width:52px;text-align:center;border-radius:var(--r2);padding:4px 6px 3px;
+  background:var(--ok);color:#fff;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.wh.low{background:var(--bad)}
+.wh.nosf{background:#6B7488}   /* 沒設安全量：不判斷夠不夠，用中性灰 */
+.wh b{display:block;font-size:19px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.wh i{display:block;font-style:normal;font-size:10px;opacity:.9}
+.sf{min-width:40px;text-align:center;color:var(--muted);border-left:1.5px dashed var(--line);padding-left:8px}
+.sf i{display:block;font-style:normal;font-size:10px}
+.sf b{display:block;font-size:13.5px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums}
+.srow.flash{animation:flash 1.6s ease-out}
+@keyframes flash{0%{background:#FFF2C2}100%{background:transparent}}
+.sunits{background:var(--sunk);border-top:1px solid var(--line2);padding:4px 14px 8px 48px}
+.urow{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--line2)}
+.urow:first-child{border-top:0}
+.gapb{flex:none;font-size:11.5px;font-weight:700;border-radius:20px;padding:3px 9px;
+  background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-line)}
+.gapb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
+.card.hil{border-color:var(--brandline);background:var(--brandsoft)}
+.card.hil>.bd{background:var(--brandsoft)}
+@media (max-width:400px){ .wh{min-width:46px} .shead{gap:7px;padding:11px 10px} }
+
+/* ---- 盤點單一列 ---- */
+.shrow{border-top:1px solid var(--line2)}
+.shrow:first-child{border-top:0}
+.shrow.ab{background:#FFF8F7}
+.shhead{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:none;border:0;padding:11px 14px;cursor:pointer}
+.shhead:hover{background:var(--sunk)}
+.shv{flex:none;width:30px;height:30px;border-radius:var(--r3);background:var(--brand);color:#fff;
+  font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.shs{flex:none;font-size:11.5px;font-weight:700;border-radius:20px;padding:3px 9px;border:1px solid}
+.shs.am{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.shs.pm{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-line)}
+.shb{flex:1;min-width:0}
+.shb .t{display:block;font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shb .s{display:block;font-size:12px;color:var(--muted)}
+.shx{flex:none;color:var(--muted);font-size:12px}
+.shrow .sdetail{border-top:1px solid var(--line2)}
+
+/* ===================================================================
+   電腦版：版面置中、頁籤一樣留在下面，只是不要被拉成一條
+   =================================================================== */
+@media (min-width:900px){
+  body{padding-bottom:92px}
+  body.norole{padding-bottom:0}
+
+  /* 底部頁籤：白底橫跨整列，但按鈕本身置中成一組 */
+  nav.tabs{display:flex!important;justify-content:center;gap:6px;
+    grid-template-columns:none!important;
+    padding:9px 16px calc(9px + env(safe-area-inset-bottom));
+    border-top:1.5px solid var(--line);box-shadow:0 -2px 18px rgba(20,30,56,.08)}
+  nav.tabs button{flex:0 0 auto;min-width:132px;flex-direction:row;justify-content:center;gap:9px;
+    padding:11px 18px;border-radius:var(--r2);font-size:14.5px;font-weight:600;color:var(--ink2)}
+  nav.tabs button .ic{font-size:17px}
+  nav.tabs button:hover{background:var(--sunk)}
+  nav.tabs button[aria-selected="true"]{background:var(--brandsoft);color:var(--brand)}
+
+  header.top{padding:15px max(28px,calc((100% - 940px) / 2))}
+  header.top h1{font-size:19px}
+  .subbar{max-width:940px;margin-bottom:16px}
+
+  .wrap{max-width:700px;padding:20px 24px 36px}
+  .wide{max-width:940px}
+
+  .vgrid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+  .shead,.prow,.row2,.card>.hd,.card>.bd,.card>.foot{padding-left:20px;padding-right:20px}
+  .row2:hover{background:var(--sunk)}
+  .btn{cursor:pointer}
+}
+
+/* ---- 月報表：統計期間要一進來就看到 ---- */
+.pmain,.pmain.pbar{display:block;background:var(--brand);color:#fff;border-radius:var(--r);
+  padding:13px 16px 14px;margin-bottom:14px;box-shadow:var(--sh);border:0}
+.pmk{font-size:15px;font-weight:700;margin-bottom:9px}
+.pmk span{font-size:12px;font-weight:400;color:#B9C6E4;margin-left:9px}
+.pmrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.pmrow .mvf{padding:0!important;background:transparent!important;border:0!important}
+.pmain .psel{font-size:15px;padding:9px 34px 9px 12px;max-width:none;border:1.5px solid #fff;
+  background-color:#fff;color:var(--brand);font-weight:700}
+.pmain input[type=date]{width:auto;padding:8px 10px}
+.pmnow{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff}
+
+.chip.vchip{min-width:56px;font-size:17px;font-weight:700;padding:10px 16px}
+
+/* ---- ISO 儀器：同品項收成一列 ---- */
+.ilist{border:1.5px solid var(--line)!important;border-radius:var(--r2)!important;overflow:hidden;margin-top:11px}
+.eqg{border-top:1px solid var(--line2)}
+.eqg:first-child{border-top:0}
+.eqgh{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:#fff;border:0;
+  padding:11px 12px;cursor:pointer}
+.eqgh:hover{background:var(--sunk)}
+.eqgn{flex:1;min-width:0}
+.eqgn b{display:block;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eqgn i{display:block;font-style:normal;font-size:12px;color:var(--muted)}
+.eqgc{flex:none;min-width:44px;text-align:center;background:var(--brand);color:#fff;border-radius:var(--r3);padding:3px 6px}
+.eqgc b{display:block;font-size:17px;line-height:1.1}
+.eqgc i{display:block;font-style:normal;font-size:10px;opacity:.85}
+.eqgu{background:var(--sunk);border-top:1px solid var(--line2);padding:2px 0 2px 34px}
+.eqgu .eqrow{background:transparent;border-bottom:1px solid var(--line2)}
+.eqgu .eqrow:last-child{border-bottom:0}
+.eqgh .sx{display:flex;align-items:center;justify-content:center}
+
+/* 月報四個頁籤：手機上數字換到第二行，不要被切掉 */
+.mrtabs button{min-width:0;padding:10px 4px;font-size:15px}
+.mrtabs .n{display:block;margin:2px 0 0;font-size:12.5px}
+.mrtabs button[aria-selected="true"]{color:var(--brand);box-shadow:inset 0 -3px 0 var(--brand)}
+.pmain .mvf,.pmain .mvf span{color:#DDE4F3}
+
+/* ---- 身分選擇 ---- */
+.gate .role{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#fff;
+  border:1.5px solid var(--line);border-left-width:1.5px;border-radius:var(--r);padding:16px;margin-bottom:12px;
+  box-shadow:var(--sh);cursor:pointer}
+.gate .role:hover{border-color:var(--brandline)}
+.gate .role em{flex:none;width:48px;height:48px;border-radius:var(--r2);display:flex;align-items:center;
+  justify-content:center;font-style:normal;font-size:22px;color:#fff}
+.gate .role.r-field em{background:var(--amber)}
+.gate .role.r-admin em{background:var(--brand)}
+.gate .role .rt{flex:1;min-width:0}
+.gate .role .rt b{display:block;font-size:17px;font-weight:700;color:var(--ink)}
+.gate .role .rt span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.gate .role i{flex:none;font-style:normal;font-size:20px;color:var(--faint)}
+
+/* ---- 盤點單異常明細 ---- */
+.ablist{border-top:1px solid var(--line2)}
+.abr{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line2);background:#FFF8F7}
+.abm{flex:1;min-width:0}
+.abm b{display:block;font-size:14.5px}
+.abm span{display:block;font-size:12.5px;color:var(--muted)}
+.abm .abn{color:var(--ink2)}
+.abt{flex:none;font-size:12px;font-weight:700;border-radius:20px;padding:3px 10px;border:1px solid}
+.abt.t-lost{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-line)}
+.abt.t-dmg{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.abt.t-etc{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-line)}
+
+.stdin{width:52px!important;height:32px;padding:0 4px!important;font-size:16px!important;font-weight:700;text-align:center}
+.mvpk{width:auto!important;max-width:92px;padding:6px 24px 6px 8px!important;font-size:12.5px!important;
+  background-position:right 7px center!important}
+@media (max-width:420px){ .prow.pkr{flex-wrap:wrap} .prow.pkr .pn{flex-basis:100%} .prow.pkr .pq{margin-right:auto} }
+
+.drange{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);flex:1 1 100%;min-width:0}
+.drange .mvdate{flex:1;min-width:0;width:100%}
+/* 底部頁籤：沒選中的字要看得清楚 */
+nav.tabs button{color:#5E6676}
+@media (max-width:899px){
+  nav.tabs button{font-size:12.5px;padding:8px 2px 7px;gap:3px}
+  nav.tabs button .ic{font-size:21px}
+}
+@media (min-width:900px){
+  nav.tabs.hide{display:none!important}          /* 登出後不要留著 */
+  nav.tabs button{font-size:15.5px;padding:12px 20px;min-width:140px}
+  nav.tabs button .ic{font-size:19px}
+  /* 右上角選單貼著 ⋮ 按鈕，不要跑到螢幕最右邊 */
+  .hmpanel{right:max(12px,calc((100% - 940px) / 2))}
+}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -670,7 +1052,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=18;
+const APP_VER=19;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -962,6 +1344,7 @@ async function applyState(st,urls){
       done:l.done||0,itemId:l.item_id,
       note:l.note||"",photo:U[l.photo]||null})),
     photoLines:(x.photo_lines||[]).map(l=>({name:l.name,pkg:l.pkg,std:l.std,actual:l.actual,
+      diff:(Number(l.actual)||0)-(Number(l.std)||0),
       type:l.status,photo:U[l.photo]||null})),
     pkgPhotos:(x.pkg_photos||[]).map(p=>({pkg:p.pkg,url:U[p.photo]||null})).filter(p=>p.url)
   }));
@@ -1014,7 +1397,7 @@ function sect(k,title,meta,body,foot){
     <button class="secHd" onclick="toggleSet('${k}')" aria-expanded="${o}">
       <span class="secTitle">${title}</span>
       <span class="secM">${meta}</span>
-      <span class="secC">${o?"▲":"▼"}</span>
+      <span class="secC">${o?"▾":"›"}</span>
     </button>
     ${o?body+(foot?`<div class="foot"><span class="lbl">${foot}</span></div>`:""):""}
   </div>`;
@@ -1175,7 +1558,7 @@ function resumeBox(){
 function doResume(){
   const p=resume.pack;
   _sig="";
-  draft=p.draft; curPkg=p.curPkg||firstPkg();
+  draft=p.draft; draft.started=true; curPkg=p.curPkg||firstPkg();
   if(!PKGS().some(x=>x.id===curPkg)) curPkg=firstPkg();
   resume=null; window.scrollTo(0,0); render();
   toast("已接續上次的盤點單");
@@ -1217,10 +1600,10 @@ function viewGate(){
     <p><b>${regName(REG)}</b>　·　${S.rows.length} 項標配 · ${S.vehicles.length} 台車</p>
     <button class="btn ghost block" style="margin-bottom:16px" onclick="gate='switchRegion';render()">
       目前是${regName(REG)}，換一區</button>
-    <button class="role amber" onclick="setRole('field')">
-      <b>盤點人員</b><span>逐項拍照記錄，送出當日盤點單</span></button>
-    <button class="role" onclick="gotoAdmin()">
-      <b>設備管理人</b><span>庫存、出入庫、待補料與盤點結果</span></button>
+    <button class="role r-field" onclick="setRole('field')"><em>☑</em>
+      <span class="rt"><b>盤點人員</b><span>外勤用：選車、拍照、送出今天的盤點單</span></span><i>›</i></button>
+    <button class="role r-admin" onclick="gotoAdmin()"><em>▤</em>
+      <span class="rt"><b>設備管理人</b><span>補料、庫存、出入庫、報表與 ISO（要密碼）</span></span><i>›</i></button>
   </div>`;
 }
 async function hdrRegion(k){
@@ -1234,6 +1617,7 @@ async function hdrRegion(k){
   ISO=null; isoUrls={}; eqOpen=null; eqEdit=null; cardOpen=null; cardEdit=null;
   printWhat=null; lostPick=null; openSku=null; unitEdit=null; mvClearUnits();
   WH=null; whForm=null; whOpenId=null; ALERTS=null;
+  resetView();
   saveReg(k); S=blankState(); render();
   await loadRegion();
   if(role==="admin"&&token){ await guard(async()=>{ await reload(); render(); }); }
@@ -1312,7 +1696,7 @@ async function asAdmin(){
     token=row.token; me={id:row.operator_id,name:row.name};
     myRegions=Array.isArray(row.regions)?row.regions:[REG];
     await reload();
-    role="admin"; tab="restock"; gate="pick"; login={id:"",pin:""}; mv.person=me.name;
+    resetView(); role="admin"; tab="restock"; lastIn={}; gate="pick"; login={id:"",pin:""}; mv.person=me.name;
     alertLoad();
     window.scrollTo(0,0);
   }catch(e){ toast(e.message||"登入失敗"); }
@@ -1460,7 +1844,20 @@ function switchRole(){
   if(hasProgress()) clearDraft();
   if(token) rpc("op_logout",{p_token:token}).catch(()=>{});
   role=null; me=null; token=null; draft=null; gate="pick"; login={id:"",pin:""};
+  resetView();
   render();
+}
+/* 換區、換身分時，把「正在看／正在改哪一筆」全部清掉，
+   不然另一區的畫面會帶著上一區的編輯頁或篩選條件（甚至把上一區的品項存回去） */
+function resetView(){
+  page=null; ed=null; nw=null; plan=null; retY=null; lastEd=null;
+  editPkg=null; nPkg=""; openSku=null; stockQ="";
+  rVeh=null; rDate=null; openRec=null; lightbox=null;
+  eqGrpOpen={}; isoQ=""; isoLoc=""; isoFilt="all";
+  rsOpen=false; hdrMenu=false;
+  calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null;
+  if(typeof mv==="object"){ mv.vehicle=""; mv.units={}; }
+  if(typeof rs==="object"){ rs.vehicle=""; }
 }
 
 /* ===================== 盤點人員頁 ===================== */
@@ -1496,7 +1893,8 @@ const hasProgress=()=>!!draft&&(Object.keys(draft.items||{}).length>0
 
 function viewField(){
   if(!draft)draft=newDraft();
-  if(!draft.person||!draft.vehicle)return viewStart();
+  /* 選完車不會直接衝進去，要按「進入盤點」才開始，場次才有機會選 */
+  if(!draft.started||!draft.person||!draft.vehicle)return viewStart();
   if(!PKGS().some(p=>p.id===curPkg)) curPkg=firstPkg();
   if(!curPkg) return `<div class="wrap"><div class="card"><div class="empty">
     目前沒有任何盤點項目<div class="lbl" style="margin-top:6px">請管理者到「項目」分頁新增</div></div></div></div>`;
@@ -1533,18 +1931,25 @@ function viewField(){
         <div class="pkgtip"><b>本包整體照片（至少一張，最多兩張）</b>
           <div class="lbl" style="margin-top:4px">拍完第一張後可再加拍一張，東西多的包別分兩張拍比較清楚。
           ${ph.length>1?`<br><button class="btn ghost tiny" style="margin-top:6px" onclick="removePkgPhoto(1)">移除第二張</button>`:""}</div></div>
-      </div>
-      <div style="padding:10px 12px;border-bottom:1px solid var(--line2)">
-        <button class="btn amber block" onclick="markPkgOK()">本包全部正常（${pkgRows(curPkg).length} 項）</button>
       </div>`;})()}
       ${pkgRows(curPkg).map(rowHTML).join("")}
+      ${pkgRows(curPkg).length&&!byItem()?`<div class="bd" style="border-top:1px solid var(--line2)">
+        <button class="btn ghost block" onclick="markPkgOK()">把這一包全部改回正常</button>
+        <div class="lbl" style="margin-top:7px">上面已經預設全部正常，有問題的才要按「異常」。
+          按錯了可以用這個清掉。</div></div>`:""}
     </div>
     ${s.done===s.total&&nextPkg&&nextPkg.id!==curPkg?
       `<button class="btn amber block" style="margin-bottom:10px" onclick="curPkg='${nextPkg.id}';window.scrollTo(0,0);render()">
         下一包：${nextPkg.name}</button>`:""}
     <button class="btn block" ${allDone()&&!busy?"":"disabled"} onclick="submitCount()">
-      <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":
-        (allDone()?"送出盤點單":(byItem()?`還有 ${RW().length-RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} 項未拍照`:`還有 ${PKGS().length-doneCount()} 個包別未完成`))}</button>
+      <span id="prog">${busy?(progressMsg||"送出中…"):""}</span>${busy?"":(()=>{
+        if(allDone()) return "送出盤點單";
+        if(byItem()) return `還有 ${RW().length-RW().filter(r=>draft.items[r.rid]&&draft.items[r.rid].photo).length} 項未拍照`;
+        const noPhoto=PKGS().filter(p=>!pkgStat(p.id).photo);
+        const noDone=PKGS().filter(p=>{const z=pkgStat(p.id);return z.photo&&!z.ok;});
+        if(noPhoto.length&&!noDone.length)
+          return noPhoto.length<=3?`還要拍：${noPhoto.map(p=>p.name).join("、")}`:`還有 ${noPhoto.length} 包沒拍照`;
+        return `還有 ${PKGS().length-doneCount()} 個包別未完成`;})()}</button>
     ${(()=>{const u=upStat(); if(!u.need) return "";
       const left=u.need-u.done;
       return `<div class="lbl" style="margin-top:9px;text-align:center;line-height:1.7;
@@ -1588,10 +1993,7 @@ function viewStart(){
           <label class="f"><span class="lbl">盤點時間</span>
             <input type="text" value="${nowHM()}" readonly style="background:#F4F6F8;color:var(--muted)"></label>
         </div>
-        <div class="lbl" style="margin-bottom:6px">車別</div>
-        <div class="chips">${VEH().map(v=>`<button class="chip" aria-pressed="${draft.vehicle===v}" onclick="pickV('${v}')">${v}</button>`).join("")}</div>
-
-        <div class="lbl" style="margin:16px 0 6px">這次是哪一場</div>
+        <div class="lbl" style="margin:2px 0 6px">① 這次是哪一場</div>
         <div class="ses2">
           <button aria-pressed="${draft.session==="am"}" onclick="pickSes('am')" ${amCount()?"":"disabled"}>
             <div class="h">上午場</div>
@@ -1601,7 +2003,12 @@ function viewStart(){
             <div class="s">完整 ${ALLRW().length} 項<br>收工前的正式盤點</div></button>
         </div>
 
-        <div style="margin-top:16px"><button class="btn block" onclick="startCount()">進入${draft.session==="am"?"上午場":"下午場"}盤點（${byItem()?`逐項拍照 · ${RW().length} 張`:`每包一張 · ${PKGS().length} 張`}）</button></div>
+        <div class="lbl" style="margin:16px 0 6px">② 哪一台車</div>
+        <div class="chips">${VEH().map(v=>`<button class="chip vchip" aria-pressed="${draft.vehicle===v}" onclick="pickV('${v}')">${v}</button>`).join("")}</div>
+
+        <div style="margin-top:18px"><button class="btn block" ${draft.vehicle?"":"disabled"} onclick="startCount()">${
+          draft.vehicle?`③ 開始盤點　${draft.vehicle} 車 · ${draft.session==="am"?"上午場":"下午場"}`:"③ 先選車，再開始盤點"}</button>
+          <div class="lbl" style="margin-top:7px;text-align:center">${byItem()?`逐項拍照 · ${RW().length} 張`:`每包一張照片 · ${PKGS().length} 包`}</div></div>
       </div></div>
   </div>`;
 }
@@ -1688,7 +2095,10 @@ function firstPkg(){
 function startCount(){const n=document.getElementById("pname");if(n)draft.person=n.value.trim();
   if(!draft.person)return toast("請先填盤點人姓名");
   if(!draft.vehicle)return toast("請選擇車別");
-  curPkg=firstPkg();render();}
+  // 上面還掛著一張沒送出的單：開新單會把它蓋掉，先問清楚
+  if(resume&&!confirm("上面還有一張沒送出的盤點單。\n開始新的盤點會把那張蓋掉、找不回來。\n\n確定要開新的嗎？（要接續請按取消，再按上面的「接續」）")) return;
+  resume=null;
+  draft.started=true; curPkg=firstPkg(); window.scrollTo(0,0); render();}
 const PXQ={640:0.62,1280:0.72,1800:0.78};
 const PXNAME={640:"省流量",1280:"標準",1800:"高畫質"};
 const photoPx=()=>{const v=(S&&S.photoPx)|0; return PXQ[v]?v:1280;};
@@ -1871,7 +2281,7 @@ function setProgress(m){ progressMsg=m;
   if(!el) render(); }
 
 /* ===================== 報表匯出 ===================== */
-let rng={preset:"week",from:"",to:""};
+let rng={preset:"month",from:"",to:""};
 let mq="", mPage=0, mHide=[], mCat="all";   // 搜尋字、頁碼、被排除的原因、類別
 const PAGE=50;
 function setMq(v){mq=v;mPage=0;render();}
@@ -1889,11 +2299,11 @@ const MKIND={"遺失":["lost","遺失"],"損壞":["dmg","損壞"],"遺失或損�
   "採購入庫":["buy","採購"],"車輛多出繳回":["ret","車輛繳回"]};
 const kindOf=r=>(MKIND[r]||["etc",r])[0];
 const shortOf=r=>(MKIND[r]||["etc",r])[1];
-const MCATS={out:[["all","全部",""],["lost","遺失","var(--alert)"],["dmg","損壞","var(--amber-d)"],
-    ["adj","盤點調整","var(--muted)"],["make","工具製作領料","#5B6B7A"],
-    ["person","個人用品","#9AA1AA"],["etc","其他","#C0C6CC"]],
-  in:[["all","全部",""],["buy","採購／製作","#1F5C9E"],["ret","車輛繳回","var(--ok)"],
-    ["adj","盤點調整","var(--muted)"]]};
+const MCATS={out:[["all","全部",""],["lost","遺失","var(--bad)"],["dmg","損壞","var(--amber)"],
+    ["adj","盤點調整","var(--purple)"],["make","工具製作領料","#0E8A8A"],
+    ["person","個人用品","#8A93A5"],["etc","其他","#8A93A5"]],
+  in:[["all","全部",""],["buy","採購／製作","var(--blue)"],["ret","車輛繳回","var(--ok)"],
+    ["adj","盤點調整","var(--purple)"]]};
 const WDAY=["日","一","二","三","四","五","六"];
 function wdayOf(d){const [y,m,dd]=d.split("-").map(Number);return "週"+WDAY[new Date(y,m-1,dd).getDay()];}
 function movesFiltered(type){
@@ -1933,7 +2343,61 @@ const esc=x=>String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 const TH_S='background:#DCE1E6;border:1px solid #6E7680;padding:4px 5px;font-size:10pt;font-weight:bold;';
 const TD_S='border:1px solid #98A0AA;padding:4px 5px;font-size:10pt;vertical-align:middle;word-wrap:break-word;';
 const PP='margin:0;padding:0;font-size:10pt;line-height:1.25;mso-line-height-rule:exactly;';
-function reportHTML(title,meta,cols,rows,foot,extra,mainTitle){
+/* 同一份報表資料：匯出 Word/Excel 用 wordHTML，直接列印用 printHTML（排版給人看的） */
+let RPT_PRINT=false;
+function reportHTML(){ return RPT_PRINT?printHTML.apply(null,arguments):wordHTML.apply(null,arguments); }
+function printHTML(title,meta,cols,rows,foot,extra,mainTitle){
+  const [brand,name]=title.indexOf(" · ")>0?title.split(" · "):["鉅誠驗屋",title];
+  const al=c=>c.c?"center":c.n?"right":"left";
+  const kv=meta.map(m=>{const i=m.indexOf("：");
+    return i>0?`<div class="kv"><i>${esc(m.slice(0,i))}</i><b>${esc(m.slice(i+1))}</b></div>`
+              :`<div class="kv wide"><b>${esc(m)}</b></div>`;}).join("");
+  const table=(cs,rs)=>`<table><colgroup>${cs.map(c=>`<col style="width:${c.w}%">`).join("")}</colgroup>
+    <thead><tr>${cs.map(c=>`<th style="text-align:${al(c)}">${esc(c.t)}</th>`).join("")}</tr></thead>
+    <tbody>${rs.map(r=>`<tr class="${r.low?"low":""}">${r.c.map((v,i)=>
+      `<td style="text-align:${al(cs[i])}${cs[i].nw?";white-space:nowrap":""}"${
+        (cs[i].n||cs[i].c)?' class="num"':""}>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(name)}</title><style>
+@page{size:A4 portrait;margin:14mm 13mm 16mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  color:#1A1F2B;font-size:10pt;line-height:1.45;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.top{display:flex;align-items:flex-end;justify-content:space-between;
+  border-bottom:2.5pt solid #1E2B4D;padding-bottom:7pt;margin-bottom:10pt}
+.top .br{font-size:9pt;font-weight:700;color:#5B6680;letter-spacing:.12em}
+.top h1{margin:2pt 0 0;font-size:19pt;font-weight:800;letter-spacing:.02em;color:#1E2B4D}
+.top .rt{text-align:right;font-size:8.5pt;color:#5B6680}
+.meta{display:flex;flex-wrap:wrap;gap:6pt;margin-bottom:12pt}
+.kv{border:1pt solid #C9D1E0;border-radius:4pt;padding:3pt 8pt;background:#F3F5FA}
+.kv i{font-style:normal;font-size:8pt;color:#5B6680;margin-right:5pt}
+.kv b{font-size:9.5pt;font-weight:700}
+.kv.wide{flex-basis:100%}
+h2{font-size:12pt;margin:14pt 0 6pt;padding-left:7pt;border-left:4pt solid #1E2B4D;color:#1E2B4D}
+table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:4pt}
+thead{display:table-header-group}
+th{background:#1E2B4D;color:#fff;font-size:9pt;font-weight:700;padding:5pt 7pt;border:1pt solid #1E2B4D}
+td{padding:4.5pt 7pt;border-bottom:.75pt solid #DCE2EC;font-size:9.5pt;vertical-align:top;word-break:break-word}
+td.num{font-variant-numeric:tabular-nums;font-weight:600}
+tbody tr:nth-child(even) td{background:#F6F8FB}
+tr.low td{background:#FCE4E0!important;color:#9E1F14}
+tr.low td:first-child{box-shadow:inset 3pt 0 0 #C22D20}
+tr{page-break-inside:avoid}
+.note{margin-top:6pt;font-size:8.5pt;color:#4A5262;background:#F3F5FA;border-radius:4pt;padding:5pt 8pt}
+.foot{margin-top:14pt;font-size:7.5pt;color:#8A93A5;
+  display:flex;justify-content:space-between;border-top:.75pt solid #DCE2EC;padding-top:3pt}
+</style></head><body>
+<div class="top"><div><div class="br">${esc(brand)}　·　${esc(regName(REG))}</div><h1>${esc(name)}</h1></div>
+  <div class="rt">列印　${esc(today())}<br>製表　${esc(me?me.name:"—")}</div></div>
+<div class="meta">${kv}</div>
+${mainTitle?`<h2>${esc(mainTitle)}</h2>`:""}
+${table(cols,rows)}
+${foot?`<div class="note">${esc(foot)}</div>`:""}
+${(extra?[].concat(extra):[]).filter(x=>x&&x.rows.length).map(x=>`<h2>${esc(x.title)}</h2>
+${table(x.cols,x.rows)}${x.foot?`<div class="note">${esc(x.foot)}</div>`:""}`).join("")}
+<div class="foot"><span>${esc(brand)} 設備盤點系統</span><span>${esc(name)}　${esc(today())}</span></div>
+</body></html>`;
+}
+function wordHTML(title,meta,cols,rows,foot,extra,mainTitle){
   const PW=640;   // A4 直式可用寬度（px），確保 Word/Excel 依比例撐滿
   const colg=cols.map(c=>`<col style="width:${c.w}%" width="${Math.round(c.w*PW/100)}">`).join("");
   const head=cols.map(c=>`<th style="${TH_S}text-align:${c.c?"center":c.n?"right":"left"}"><p style="${PP}font-weight:bold">${esc(c.t)}</p></th>`).join("");
@@ -2007,6 +2471,7 @@ function download(name,mime,content){
 const stamp=d=>d.replace(/-/g,"");
 
 function exportStock(fmt){
+  RPT_PRINT=(fmt==="print");
   const sorted=ITEMS().slice().sort((a,b)=>{
     const d=locRank(a.loc)-locRank(b.loc);return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
   const heads=[{t:"位置",w:14,px:60,nw:1,c:1},{t:"品項",w:50,px:250},
@@ -2018,7 +2483,7 @@ function exportStock(fmt){
   const html=reportHTML("鉅誠驗屋 · 倉庫庫存報表",
     [`列印日期：${today()}`,`區域：${regName(REG)}`,`品項總數：${sorted.length}`,`低於安全庫存：${lowN} 項`,
      `製表：${me?me.name:"—"}`],
-    heads,rows,"依儲位順序排列。灰底列代表倉庫數量低於安全庫存，需要補貨。");
+    heads,rows,"依儲位順序排列。紅底列代表倉庫數量低於安全庫存，需要補貨。");
   if(fmt==="print") return printReport(html);
   fmt==="doc" ? download(`庫存報表_${stamp(today())}.doc`,"application/msword",html)
               : download(`庫存報表_${stamp(today())}.xls`,"application/vnd.ms-excel",html);
@@ -2029,17 +2494,19 @@ function movesInRange(type){
     .slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.ts-a.ts);
 }
 function exportMoves(fmt){
+  RPT_PRINT=(fmt==="print");
   const type=mv.type, r=rangeDates(), list=movesFiltered(type);
   if(!list.length)return toast(`${r.label}沒有${type==="in"?"入庫":"出庫"}紀錄`);
   const heads=[{t:"日期",w:13,px:72,nw:1},{t:"原因",w:15,px:82},{t:"品項",w:21,px:118},
-               {t:"位置",w:6,px:34,nw:1},{t:"數量",w:7,px:40,n:1},{t:"車別",w:6,px:34,nw:1},
-               {t:"經手人",w:11,px:62},{t:"備註",w:21,px:118}];
+               {t:"位置",w:8,px:34,nw:1},{t:"數量",w:7,px:40,n:1},{t:"車別",w:8,px:34,nw:1},
+               {t:"經手人",w:11,px:62},{t:"備註",w:17,px:118}];
   const rows=list.map(m=>{const it=itemOf(m.sku);
     return {c:[m.date,m.reason,m.sku,it?it.loc:"—",m.qty,m.vehicle||"—",m.person||"—",m.note||""]};});
   const total=list.reduce((t,m)=>t+m.qty,0);
   const byReason={}; list.forEach(m=>byReason[m.reason]=(byReason[m.reason]||0)+m.qty);
-  const html=reportHTML(`鉅誠驗屋 · ${type==="in"?"入庫":"出庫"}報表`,
-    [`期間：${r.from} ~ ${r.to}（${r.label}）`,`筆數：${list.length}`,`合計數量：${total}`,
+  const catName=mCat&&mCat!=="all"?((MCATS[type].find(x=>x[0]===mCat)||[])[1]||""):"";
+  const html=reportHTML(`鉅誠驗屋 · ${type==="in"?"入庫":"出庫"}報表${catName?`（只列${catName}）`:""}`,
+    [`期間：${r.from} ~ ${r.to}（${r.label}）`,...(catName?[`類別：${catName}`]:[]),`筆數：${list.length}`,`合計數量：${total}`,
      ...(mq?[`搜尋：${mq}`]:[]), ...(mHide.length?[`已排除：${mHide.join("、")}`]:[]),
      `列印日期：${today()}`,`製表：${me?me.name:"—"}`],
     heads,rows,
@@ -2113,8 +2580,8 @@ function periodBar(spec, setter, presets){
   const seq=allMonths();
   const f=spec.from||seq[0]||"", t=spec.to||seq[seq.length-1]||"";
   return `<div class="mvf" style="border-bottom:0;background:transparent;padding:0">
-    ${presets.map(([k,tt])=>`<button class="mvchip sm" aria-pressed="${spec.preset===k}"
-        onclick="${setter}('preset','${k}')">${tt}</button>`).join("")}
+    <select class="psel" onchange="${setter}('preset',this.value)">${presets.map(([k,tt])=>
+      `<option value="${k}" ${spec.preset===k?"selected":""}>${tt}</option>`).join("")}</select>
     ${spec.preset==="custom"?`<span style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)">
       <input type="month" class="mvdate" value="${f}" min="${seq[0]||""}" max="${seq[seq.length-1]||""}"
         onchange="${setter}('from',this.value)">
@@ -2195,41 +2662,78 @@ function needBySku(){const m={};
 
 /* ---- 頁面①：待補料清單 ＋ 採購建議 ---- */
 function viewRestock(){
-  if(!rs.sku)rs.sku=ALLSKU()[0]||"";
-  if(!rs.vehicle)rs.vehicle=VEH()[0]||"";
   const g=needByVehicle(), bySku=needBySku(), all=needList();
-  const low=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k]).sort((a,b)=>(S.safety[b]-S.warehouse[b])-(S.safety[a]-S.warehouse[a]));
+  const cars=VEH().filter(v=>g[v]&&g[v].length);
+  const short=bySku.filter(b=>(S.warehouse[b.sku]||0)<b.qty);
+  const total=all.reduce((a,n)=>a+n.qty,0);
+  const low=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k])
+    .sort((a,b)=>(S.safety[b]-S.warehouse[b])-(S.safety[a]-S.warehouse[a]));
 
-  const carBlocks=VEH().filter(v=>g[v]&&g[v].length).map(v=>{
-    const lines=g[v].map(n=>{
-      const h=S.warehouse[n.sku]||0;
-      const can=h>0;
-      return `<tr class="${h<n.qty?"warn":""}">
-        <td class="c-name">${n.sku}<div class="lbl">${n.src}</div></td>
-        <td class="n c-num">${n.qty}</td>
-        <td class="n">${h}${h<n.qty?`<div class="lbl" style="color:var(--alert)">${h?"只能補 "+h:"沒庫存"}</div>`:""}</td>
-        <td class="n" style="white-space:nowrap">
-          <button class="btn ${can?"amber":"ghost"} tiny" ${can?"":"disabled"}
-            onclick="fulfillItem('${v}','${n.itemId}','${n.sku}')">${can?"補這項":"沒庫存"}</button>
-          ${n.auto?"":`<button class="btn ghost tiny" onclick="delManual('${n.id}')">刪除</button>`}</td></tr>`;}).join("");
-    const cnt=g[v].reduce((t,n)=>t+n.qty,0);
-    const short=[];
-    const byS={}; g[v].forEach(n=>byS[n.sku]=(byS[n.sku]||0)+n.qty);
-    Object.keys(byS).forEach(k=>{ if((S.warehouse[k]||0)<byS[k]) short.push(`${k}（需 ${byS[k]}、倉庫 ${S.warehouse[k]||0}）`); });
-    return `<div class="card"><div class="hd"><h2>${v} 車</h2>
-        <span class="lbl" style="margin-left:auto">${g[v].length} 項 · 共 ${cnt} 個</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:64px"><col style="width:72px"><col style="width:132px"></colgroup><tr><th>品項 / 來源</th><th class="n">要補</th><th class="n">倉庫</th><th></th></tr>${lines}</table></div>
-      <div class="bd" style="border-top:1px solid var(--line2)">
-        ${short.length?`<div class="err" style="margin:0 0 10px;font-weight:500">
-          倉庫不足：${short.join("、")}<br>
-          <span style="color:var(--muted)">這幾項會留在清單上，其餘照補。進貨後再回來補即可。</span></div>`:""}
-        <button class="btn ghost block" onclick="fulfill('${v}')">${v} 車全部補完 → 一次出庫扣帳</button>
-        <div class="lbl" style="margin-top:8px">也可以按上面每一列的「補這項」單獨補</div></div></div>`;}).join("");
+  if(!all.length) return `<div class="wrap wide">
+    <div class="card"><div class="empty">
+      <div class="emptyic">✓</div>
+      <b>沒有待補料</b>
+      所有車都是滿的。外勤盤到短缺之後，這裡會自動出現。</div></div>
+    ${rsBox()}
+    ${buyCard(low)}
+  </div>`;
 
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>手動新增待補</h2></div><div class="bd">
-      <div class="lbl" style="margin-bottom:6px">補到哪一台車</div>
-      <div class="chips" style="margin-bottom:13px">${VEH().map(v=>
+    <div class="card"><div class="hd"><h2>今天要補什麼</h2></div>
+      <div class="bd">
+        <div class="stats" style="margin-bottom:14px">
+          <div><div class="lbl">要補的車</div><div class="fig">${cars.length}</div></div>
+          <div><div class="lbl">品項</div><div class="fig">${bySku.length}</div></div>
+          <div><div class="lbl">總件數</div><div class="fig">${total}</div></div>
+        </div>
+        ${short.length?`<div class="err" style="margin-bottom:0">
+          <b>${short.length} 項倉庫不足</b>：${short.slice(0,3).map(b=>esc(b.sku)).join("、")}${
+            short.length>3?` 等 ${short.length} 項`:""}<br>
+          這幾項會留在清單上，其他的照補。</div>`:""}
+        <div class="lbl" style="margin-top:${short.length?"11px":"0"}">
+          下面一台一台列出來，可以只補某一台或某一項。
+          全部確認過了，最下面有「一次補完」。</div>
+      </div></div>
+
+    ${cars.map(v=>{
+      const lines=g[v], cnt=lines.reduce((t,n)=>t+n.qty,0);
+      return `<div class="card"><div class="hd"><h2>${v} 車</h2>
+        <span class="lbl" style="margin-left:auto">${lines.length} 項 · ${cnt} 件</span>
+        <button class="btn amber tiny" onclick="fulfillCar('${v}')">補這台</button></div>
+        <div class="bd nopad" style="margin-top:12px">${lines.map(n=>{
+          const h=S.warehouse[n.sku]||0, can=h>0, lack=h<n.qty;
+          return `<div class="nrow ${lack?"lack":""}">
+            <div class="nbd"><span class="nt">${esc(n.sku)}</span>
+              <span class="ns">${esc(n.src)}</span></div>
+            <div class="nq"><b>${n.qty}</b><i>要補</i></div>
+            <div class="nw ${lack?"bad":""}"><b>${h}</b><i>倉庫</i></div>
+            <button class="btn ${can?"amber":"ghost"} tiny" ${can?"":"disabled"}
+              onclick="fulfillItem('${v}','${n.itemId}','${esc(n.sku)}')">${can?"補":"無貨"}</button>
+            ${n.auto?"":`<button class="btn ghost tiny" onclick="delManual('${n.id}')">刪</button>`}
+          </div>`;}).join("")}</div></div>`;}).join("")}
+
+    ${rsBox()}
+
+    <div class="card hil"><div class="bd">
+      <button class="btn block" onclick="fulfillAll()">一次補完　${cars.length} 台車 · ${total} 件</button>
+      <div class="lbl" style="margin-top:9px;text-align:center">
+        上面全部確認過再按。按下去等於把這 ${total} 件從倉庫出庫到各車。</div>
+    </div></div>
+
+    ${buyCard(low)}
+    <div style="height:16px"></div>
+  </div>`;
+}
+/* 手動新增：收起來，要用才展開 */
+let rsOpen=false;
+function rsBox(){
+  if(!rsOpen) return `<button class="btn ghost block" onclick="rsOpen=true;render()">
+    ＋ 手動新增待補</button>`;
+  return `<div class="card"><div class="hd"><h2>手動新增待補</h2>
+    <button class="btn ghost tiny" style="margin-left:auto" onclick="rsOpen=false;render()">收起</button></div>
+    <div class="bd">
+      <div class="lbl" style="margin-bottom:7px">補到哪一台車</div>
+      <div class="chips" style="margin-bottom:14px">${VEH().map(v=>
         `<button class="chip" aria-pressed="${rs.vehicle===v}" onclick="setRs('vehicle','${v}')">${v}</button>`).join("")}</div>
       <label class="f"><span class="lbl">品項</span>
         ${itemSelect("rs", rs.sku, "setRs('sku',this.value)")}</label>
@@ -2237,44 +2741,43 @@ function viewRestock(){
         <label class="f"><span class="lbl">數量</span>
           <input type="number" min="1" class="num" value="${rs.qty}" onchange="setRs('qty',this.value)"></label>
         <label class="f"><span class="lbl">備註</span>
-          <input type="text" value="${rs.note}" placeholder="選填，如：外勤口頭回報" onchange="setRs('note',this.value)"></label></div>
-      <button class="btn block" onclick="addManual()">加入待補料清單</button>
-    </div></div>
-
-    ${all.length?carBlocks:`<div class="card"><div class="empty">目前沒有待補料。</div></div>`}
-
-    ${all.length?`<div class="card"><div class="hd"><h2>出庫合計</h2>
-        <span class="lbl" style="margin-left:auto">${bySku.length} 個品項</span></div>
-      <div class="tw"><table><colgroup><col><col style="width:80px"><col style="width:80px"></colgroup><tr><th>品項 / 分配</th><th class="n">合計</th><th class="n">倉庫</th></tr>
-        ${bySku.map(b=>{const h=S.warehouse[b.sku]||0;
-          return `<tr class="${h<b.qty?"warn":""}"><td class="c-name">${b.sku}
-            <div class="lbl">${Object.entries(b.cars).map(([v,q])=>`${v}車 ${q}`).join("　")}</div></td>
-            <td class="n c-num">${b.qty}</td>
-            <td class="n">${h}${h<b.qty?`<div class="lbl" style="color:var(--alert)">不足</div>`:""}</td></tr>`;}).join("")}
-      </table></div>
-      <div class="bd" style="border-top:1px solid var(--line2)">
-        ${bySku.some(b=>(S.warehouse[b.sku]||0)<b.qty)
-          ?`<div class="err" style="margin:0 0 10px;font-weight:500">部分品項倉庫不足（上表紅底）<br>
-            <span style="color:var(--muted)">不足的會留在清單上，有貨的照補</span></div>`:""}
-        <button class="btn block" onclick="fulfill()">全部揀貨完成 → 自動產生出庫、扣庫存</button>
-        <div class="lbl" style="margin-top:8px">會在「出入庫」留下「遺失或損壞」出庫紀錄（標註來自盤點），各車在庫補回標配</div>
-        <div class="lbl" style="margin-top:5px">盤點來源只採計每台車最新一次的結果，連續多次未補料不會重複累加。
-          倉庫不足的品項會自動留在清單上，標註尚缺多少</div></div></div>`:""}
-
-    <div class="card"><div class="hd"><h2>採購建議</h2>
-      <span class="lbl" style="margin-left:auto">${low.length} 項待補</span></div>
-      ${low.length?`<div class="tw"><table>
-        <colgroup><col><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:96px"></colgroup>
-        <tr><th>品項</th><th class="n">現有</th><th class="n">安全</th><th class="n">缺口</th><th>位置</th></tr>
-        ${low.map(k=>{const gp=S.safety[k]-S.warehouse[k],it=itemOf(k);
-          return `<tr class="warn"><td class="c-name">${k}</td><td class="n">${S.warehouse[k]}</td><td class="n">${S.safety[k]}</td>
-          <td class="n" style="font-weight:700;color:var(--alert)">${gp}</td>
-          <td class="num" style="font-size:12.5px;${!it||it.loc==="未設定"?"color:var(--muted)":""}">${it?it.loc:"—"}</td></tr>`;}).join("")}
-        </table></div>`:`<div class="empty">所有品項都在安全庫存以上。</div>`}</div>
-  </div>`;
+          <input type="text" value="${esc(rs.note)}" placeholder="例：外勤口頭回報" onchange="setRs('note',this.value)"></label></div>
+      <button class="btn block" ${rs.vehicle?"":"disabled"} onclick="addManual()">${
+        rs.vehicle?`加入 ${rs.vehicle} 車的待補清單`:"先選上面要補到哪一台車"}</button>
+    </div></div>`;
 }
+/* 採購建議：這是進貨的事，收在最後面 */
+function buyCard(low){
+  if(!low.length) return "";
+  return `<div class="card"><div class="hd"><h2>該進貨了</h2>
+    <span class="lbl" style="margin-left:auto">${low.length} 項低於安全量</span></div>
+    <div class="bd nopad" style="margin-top:12px">
+      ${low.slice(0,10).map(k=>{const it=itemOf(k), gap=S.safety[k]-S.warehouse[k];
+        return `<div class="nrow">
+          <div class="nbd"><span class="nt">${esc(k)}</span>
+            <span class="ns">${it&&it.loc!=="未設定"?esc(it.loc)+"　·　":""}現有 ${S.warehouse[k]} ／ 安全 ${S.safety[k]}</span></div>
+          <div class="nq bad"><b>${gap}</b><i>缺</i></div>
+        </div>`;}).join("")}
+      ${low.length>10?`<div class="bd"><span class="lbl">還有 ${low.length-10} 項，到「庫存」看完整清單</span></div>`:""}
+    </div></div>`;
+}
+async function fulfillAll(){
+  const all=needList(), bySku=needBySku();
+  const short=bySku.filter(b=>(S.warehouse[b.sku]||0)<b.qty);
+  let m=`會一次處理 ${all.reduce((a,n)=>a+n.qty,0)} 件：產生出庫紀錄、從倉庫扣掉、各車在庫補回標配。\n`;
+  if(short.length) m+=`\n有 ${short.length} 項倉庫不足（${short.slice(0,3).map(b=>b.sku).join("、")}${
+    short.length>3?" 等":""}），這幾項會留在清單上，進貨後再補。\n`;
+  if(confirm(m+"\n確定嗎？")) fulfill();
+}
+async function fulfillCar(v){
+  const g=needByVehicle()[v]||[];
+  if(confirm(`補 ${v} 車？\n\n會補 ${g.length} 項、共 ${g.reduce((a,n)=>a+n.qty,0)} 件，產生出庫紀錄並扣倉庫。`))
+    fulfill(v);
+}
+
 function setRs(k,v){rs[k]=k==="qty"?Math.max(1,parseInt(v)||1):v;render();}
 async function addManual(){
+  if(!rs.vehicle) return toast("請先選要補到哪一台車");
   const it=itemOf(rs.sku); if(!it)return toast("請選擇品項");
   const sk=rs.sku,q=rs.qty,v=rs.vehicle;
   await guard(async()=>{
@@ -2520,128 +3023,299 @@ function goStockItem(name){
   if(it){ edKind=it.kind||"tool"; edVal=!!it.valuable; edAbbr=it.abbr||""; }
   window.scrollTo(0,0); render();
 }
+/* ===================================================================
+   庫存品項：五欄表格改成一列一張卡，編輯改成全螢幕頁
+   =================================================================== */
+let page=null;                       /* {kind:"edit"|"new"|"pkg", id} */
+let retY=null, lastEd=null;          /* 編輯完回到原本捲到的位置 */
+function openPage(k,id){ retY=window.scrollY; page={kind:k,id:id||null}; window.scrollTo(0,0); render(); }
+function closePage(){
+  const y=retY; retY=null; page=null; ed=null; nw=null; render();
+  lastEd=null;                       // 只閃這一次
+  window.scrollTo(0,y||0);
+  requestAnimationFrame(()=>window.scrollTo(0,y||0));
+}
+
 function viewStock(){
   if(plan) return viewPlan();
-  const ni=nItem;
+  if(page) return pageHTML();
+  const sq=stockQ.trim().toLowerCase();
   const sorted=ITEMS().slice().sort((a,b)=>{
     const d=locRank(a.loc)-locRank(b.loc); return d!==0?d:a.sku.localeCompare(b.sku,"zh-Hant");});
-  const sq=stockQ.trim().toLowerCase();
-  const shownItems=sq?sorted.filter(it=>
+  const list=sq?sorted.filter(it=>
       (it.sku+" "+(it.loc||"")+" "+(KINDWORD[itemKind(it.sku)]||"")).toLowerCase().indexOf(sq)>=0):sorted;
-  let rows="";
-  shownItems.forEach(it=>{
-    const k=it.sku, h=S.warehouse[k]||0, sf=S.safety[k]||0;
-    const pct=sf?Math.min(100,Math.round(h/sf*100)):100;
-    if(editSku===k){
-      rows+=`<tr class="edit"><td colspan="5">
-        <div class="lbl" style="margin-bottom:9px">編輯品項　·　改名會同步更新盤點項目</div>
-        <div class="g2">
-          <label class="f"><span class="lbl">品項名稱</span><input type="text" id="e_name" value="${k}"></label>
-          <label class="f"><span class="lbl">擺放位置</span>
-            <select id="e_loc">${LOCS().map(l=>`<option ${l===it.loc?"selected":""}>${l}</option>`).join("")}</select></label>
-        </div>
-        <label class="f"><span class="lbl">安全庫存</span>
-          <input type="number" min="0" id="e_safe" class="num" value="${sf}"></label>
-        <label class="f"><span class="lbl">分類（必選一個）</span>
-          <div class="iseg am" id="e_kind" style="margin:0">${KINDS.map(([kk,t])=>
-            `<button type="button" aria-pressed="${edKind===kk}" onclick="edKind='${kk}';render()">${t}</button>`).join("")}</div></label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:11px">
-          <input type="checkbox" id="e_val" ${edVal?"checked":""} style="width:17px;height:17px">貴重設備（額外標記）</label>
-        <div class="krule">${KINDRULE[edKind]||""}</div>
-        ${needsNo(edKind)&&!needsNo(it.kind)?`<div class="warnbox" style="margin-bottom:12px">
-            ${edKind==="meas"
-              ?`改成量測儀器之後，倉庫數量＝<b>你已經在「ISO」分頁登記、而且放在公司的台數</b>。
-                 系統不會幫量測儀器自動產生空白編號（那會混進 ISO 的儀器一覽），
-                 所以存檔後數量會先變少，等你把每一台建進去才會對。`
-              :`改成儀器之後，系統會照現在的數量自動產生編號（車上的照各車在庫、剩下的放公司庫存），
-                 產完可以在庫存頁展開這個品項修改。之後倉庫數量改成由編號自動算，不能手改。`}</div>`:""}
-        ${!needsNo(edKind)&&needsNo(it.kind)&&unitsLive(it.id).length?`<div class="warnbox" style="margin-bottom:12px">
-            這個品項還有 ${unitsLive(it.id).length} 個編號在管理中，改成${kindName(edKind)}會被擋下來。
-            要嘛先把編號報廢或出庫，要嘛改歸「儀器」。</div>`:""}
-        ${needsNo(edKind)?`<label class="f"><span class="lbl">編號代號（例如「熱像」，會變成 熱像-01）</span>
-            <input type="text" id="e_abbr" value="${esc(edAbbr)}" placeholder="留白就用名稱前兩個字"></label>
-          <div class="lbl" style="margin:-8px 0 14px">目前 ${unitsLive(it.id).length} 台有編號${
-            edKind==="meas"?"，校驗與履歷在「ISO」分頁":"，在庫存頁展開這個品項就能看每一台在哪"}</div>`:""}
-        <div class="lbl" style="margin-bottom:12px">分類改這裡就好，所有包別的盤點項目會自動跟著變。</div>
-        <div class="g2"><button class="btn" onclick="saveEdit('${k}')">儲存</button>
-          <button class="btn ghost" onclick="editSku=null;render()">取消</button></div>
-      </td></tr>`;
-      return;
-    }
-    const tk=!!it.track, us=tk?unitsLive(it.id):[];
-    const onCar=us.filter(u=>u.loc&&u.status==="use").length;
-    const open=openSku===k;
-    rows+=`<tr class="${h<sf?"warn":""}">
-      <td class="c-loc num${it.loc==="未設定"?" un":""}" style="font-weight:700">${it.loc}</td>
-      <td class="c-name">${tk?`<span class="unm" onclick="toggleSku('${esc(k)}')"
-          role="button" aria-expanded="${open}" title="展開編號"><button class="uexp"
-          >${open?"▾":"▸"}</button>${k}</span>`:k}${itemTags(k)}
-        ${tk?`<div class="ulbl">庫存 ${h} ／ 車上 ${onCar}　·　共 ${us.length} 台有編號</div>`
-            :`<div class="bar"><i class="${h<sf?"low":""}" style="width:${pct}%"></i></div>`}</td>
-      <td class="n c-num">${h}</td>
-      <td class="n c-num" style="color:var(--muted)">${sf}</td>
-      <td class="c-act">
-        <button class="btn ghost tiny" onclick="editSku='${k}';edKind='${it.kind||"tool"}';edVal=${!!it.valuable};edAbbr='${esc(it.abbr||"")}';edTrack=${tk};render()">編輯</button>
-        <button class="btn ghost tiny" onclick="delSku('${k}')">刪除</button></td></tr>`;
-    if(tk&&open) rows+=unitRows(it);});
+  const lowN=ITEMS().filter(i=>(S.warehouse[i.sku]||0)<(S.safety[i.sku]||0)).length;
 
-  const lowN=ALLSKU().filter(k=>S.warehouse[k]<S.safety[k]).length;
-  const noLoc=ITEMS().filter(i=>i.loc==="未設定").length;
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>庫存總表</h2>
-      <span class="lbl" style="margin-left:auto">${ITEMS().length} 個品項</span></div>
-      <div class="stats">
-        <div><div class="lbl">品項總數</div><div class="fig">${ITEMS().length}</div></div>
-        <div><div class="lbl">低於安全庫存</div><div class="fig" style="color:${lowN?"var(--alert)":"var(--ok)"}">${lowN}</div></div>
-        <div><div class="lbl">未設定位置</div><div class="fig" style="color:${noLoc?"var(--amber-d)":"var(--ok)"}">${noLoc}</div></div>
-      </div>
-      <div class="mvf">
+    <div class="card"><div class="hd"><h2>全部品項</h2>
+      <span class="lbl" style="margin-left:auto">${ITEMS().length} 項${
+        lowN?`　·　<b style="color:var(--bad)">${lowN} 項低於安全量</b>`:""}</span></div>
+      <div class="mvf" style="margin-top:12px">
         <input class="mvsearch" id="stocksearch" value="${esc(stockQ)}" autocomplete="off"
-          placeholder="搜尋品項或位置…"
+          placeholder="搜尋品項、位置或分類…"
           oncompositionstart="stockComposing=true"
           oncompositionend="stockComposing=false;stockInput(this)"
           oninput="stockInput(this)">
-        ${sq?`<button class="mvchip sm" onclick="clearStockQ()">清除</button>
-          <span class="lbl">${shownItems.length} / ${sorted.length} 項</span>`:""}
+        ${sq?`<button class="mvchip" onclick="clearStockQ()">清除</button>`:""}
       </div>
-      <div class="tw"><table>
-        <colgroup><col style="width:74px"><col><col style="width:78px"><col style="width:88px"><col style="width:124px"></colgroup>
-        <tr><th class="c-loc">位置</th><th>品項</th><th class="n">倉庫</th><th class="n">安全庫存</th><th></th></tr>${rows}</table></div>
-      ${sq&&!shownItems.length?`<div class="empty">找不到符合「${esc(stockQ)}」的品項</div>`:""}
-      <div class="bd" style="border-top:1px solid var(--line2)">
-        <div class="lbl" style="margin-bottom:9px">匯出目前庫存報表（依儲位排序，含差額與低於安全庫存標示）</div>
-        <div class="g3">
-          <button class="btn ghost" onclick="exportStock('xls')">Excel</button>
-          <button class="btn ghost" onclick="exportStock('doc')">Word</button>
-          <button class="btn amber" onclick="exportStock('print')">直接列印</button></div></div>
-      <div class="foot"><span class="lbl">依儲位排序　·　倉庫數量唯讀，只能透過「出入庫」變更</span></div></div>
+      <div class="bd nopad">${list.map(it=>stockRow(it)).join("")
+        ||`<div class="empty">找不到符合「${esc(stockQ)}」的品項</div>`}</div>
+      <div class="foot" style="display:flex;gap:8px;align-items:center">
+        <span>匯出目前庫存</span>
+        <span style="margin-left:auto;display:flex;gap:7px">
+          <button class="btn ghost tiny" onclick="exportStock('xls')">Excel</button>
+          <button class="btn ghost tiny" onclick="exportStock('doc')">Word</button>
+          <button class="btn ghost tiny" onclick="exportStock('print')">列印</button></span>
+      </div></div>
 
-    <div class="card"><div class="hd"><h2>新增庫存品項</h2></div><div class="bd">
-      <div class="g2">
-        <label class="f"><span class="lbl">品項名稱</span>
-          <input type="text" value="${ni.name}" placeholder="例：打診棒" onchange="setNi('name',this.value)"></label>
-        <label class="f"><span class="lbl">擺放位置</span>
-          <select onchange="setNi('loc',this.value)">${LOCS().map(l=>`<option ${l===ni.loc?"selected":""}>${l}</option>`).join("")}</select></label>
-      </div>
-      <div class="g2">
-        <label class="f"><span class="lbl">目前倉庫數量</span>
-          <input type="number" min="0" class="num" value="${ni.qty}" onchange="setNi('qty',this.value)"></label>
-        <label class="f"><span class="lbl">安全庫存</span>
-          <input type="number" min="0" class="num" value="${ni.safe}" onchange="setNi('safe',this.value)"></label>
-      </div>
-      <label class="f"><span class="lbl">分類（必選一個）</span>
-        <div class="iseg am" id="ni_kind" style="margin:0">${KINDS.map(([kk,t])=>
-          `<button type="button" aria-pressed="${(ni.kind||"tool")===kk}" onclick="setNiK('${kk}')">${t}</button>`).join("")}</div></label>
-      <div class="krule">${KINDRULE[ni.kind||"tool"]||""}</div>
-      ${needsNo(ni.kind)?`<label class="f"><span class="lbl">編號代號（例如「熱像」會變成 熱像-01）</span>
-        <input type="text" value="${esc(ni.abbr||"")}" placeholder="留白就用名稱前兩個字" onchange="setNi('abbr',this.value)"></label>`:""}
-      <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;cursor:pointer;margin-bottom:14px">
-        <input type="checkbox" ${ni.valuable?"checked":""} onchange="setNiV(this.checked)"
-          style="width:17px;height:17px">貴重設備（額外標記）</label>
-      <button class="btn block" onclick="addSku()">新增品項</button>
-    </div></div>
+    <button class="btn block" onclick="openPage('new')">＋ 新增品項</button>
+    <div style="height:16px"></div>
   </div>`;
 }
+
+/* 一列一個品項：位置、名稱、倉庫數量、安全量；有編號的可以就地展開 */
+function stockRow(it){
+  const h=S.warehouse[it.sku]||0, sf=S.safety[it.sku]||0;
+  const low=h<sf, gap=sf-h;
+  const rs=RW().filter(r=>r.itemId===it.id), std=rs.reduce((a,r)=>a+r.std,0);
+  const open=openSku===it.sku;
+  const us=it.track?unitsLive(it.id).slice()
+    .sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true})):[];
+  return `<div class="srow${low?" low":""}${lastEd===it.id?" flash":""}" id="sr_${it.id}">
+    <div class="shead" onclick="edOpen('${it.id}')">
+      ${it.track?`<button class="sx" aria-expanded="${open}" title="看編號"
+        onclick="event.stopPropagation();openSku='${open?"":esc(it.sku)}';render()">${open?"▾":"▸"}</button>`
+        :`<span class="sx ph"></span>`}
+      <span class="iloc">${esc(it.loc==="未設定"?"—":it.loc)}</span>
+      <div class="sbd"><div class="st">${esc(it.sku)}${itemTags(it.sku)}</div>
+        <div class="ss">${it.track?`${us.length} 台編號　·　車上 ${
+            us.filter(u=>u.loc&&u.status==="use").length}`
+          :(std?`每車 ${std}`:"沒排進盤點表")}${low?`　·　<b class="gapt">還缺 ${gap}</b>`:""}</div></div>
+      <div class="sn">
+        <div class="wh ${low?"low":sf?"":"nosf"}"><b>${h}</b><i>倉庫</i></div>
+        <div class="sf"><i>安全量</i><b>${sf}</b></div>
+      </div>
+      <span class="shx">›</span>
+    </div>
+    ${open&&it.track?`<div class="sunits">${us.length?us.map(u=>`<div class="urow">
+      <span class="uno">${esc(u.no)}</span>
+      <span class="ipill ${u.loc?"warn":"ok"}">${esc(unitLoc(u))}</span>
+      ${u.status!=="use"?`<span class="ipill bad">${(UST[u.status]||[""])[0]}</span>`:""}
+      <span style="flex:1"></span>
+      ${u.kind==="meas"?`<button class="btn ghost tiny" onclick="goEq('${u.id}')">履歷</button>`
+        :`<button class="btn ghost tiny" onclick="unitOpen('${u.id}')">編輯</button>`}
+    </div>`).join("")
+      :`<div class="urow"><span class="lbl">還沒有編號。採購入庫時系統會自動產號。</span></div>`}
+      <div class="urow"><button class="btn ghost tiny" onclick="unitNew('${it.id}')">＋ 手動補一個</button>
+        <button class="btn ghost tiny" onclick="planOpen('${it.id}')">重新分配各車數量</button></div>
+    </div>`:""}
+  </div>`;
+}
+
+/* ---- 編輯品項：全螢幕，不再塞在表格列裡 ---- */
+let ed=null, nw=null;
+function itemById(id){ return (S.items||[]).find(x=>x.id===id)||null; }
+function edOpen(id){
+  const it=itemById(id); lastEd=id;
+  ed={id:id,name:it.sku,loc:it.loc,safe:S.safety[it.sku]||0,kind:it.kind||"tool",
+      valuable:!!it.valuable,abbr:it.abbr||"",wasKind:it.kind||"tool"};
+  openPage("edit",id);
+}
+function edSet(k,v){ ed[k]=v; render(); }
+function viewEditPage(){
+  const e=ed; if(!e) return `<div class="wrap"><div class="empty">沒有在編輯的品項</div></div>`;
+  const toNo=needsNo(e.kind), wasNo=needsNo(e.wasKind);
+  return `<div class="wrap wide">
+    <div class="pgtop"><button class="pgback" onclick="closePage()">←</button>
+      <div class="pgt"><b>編輯品項</b><span>改名會同步更新所有包別的盤點表</span></div></div>
+    <div class="card"><div class="bd">
+      <label class="f"><span class="lbl">品項名稱</span>
+        <input type="text" id="e_name" value="${esc(e.name)}" onchange="ed.name=this.value"></label>
+      <div class="g2">
+        <label class="f"><span class="lbl">擺放位置</span>
+          <select onchange="ed.loc=this.value">${LOCS().map(l=>
+            `<option ${l===e.loc?"selected":""}>${esc(l)}</option>`).join("")}</select></label>
+        <label class="f"><span class="lbl">安全庫存</span>
+          <input type="number" min="0" class="num" value="${e.safe}" onchange="ed.safe=this.value"></label>
+      </div>
+      <label class="f"><span class="lbl">分類</span>
+        <div class="iseg" style="margin:0">${KINDS.map(([kk,t])=>
+          `<button type="button" aria-pressed="${e.kind===kk}" onclick="edSet('kind','${kk}')">${t}</button>`).join("")}</div></label>
+      <div class="krule">${KINDRULE[e.kind]||""}</div>
+      <label class="ck"><input type="checkbox" ${e.valuable?"checked":""}
+        onchange="ed.valuable=this.checked"><span>貴重設備（額外標記）</span></label>
+      ${toNo&&!wasNo?`<div class="warnbox" style="margin-bottom:13px">
+        ${e.kind==="meas"
+          ?`改成量測儀器之後，倉庫數量＝你已經在「ISO」分頁登記、而且放在公司的台數。
+             系統不會自動產生空白編號，所以存檔後數量會先變少。`
+          :`存檔後會跳出分配表，讓你決定各車要編幾個，不會照標配編出對不到實物的假編號。`}</div>`:""}
+      ${!toNo&&wasNo?`<div class="warnbox" style="margin-bottom:13px">
+        這個品項還有編號在管理中的話，改成${kindName(e.kind)}會被擋下來。
+        要嘛先把編號報廢或出庫，要嘛改歸「儀器」。</div>`:""}
+      ${toNo?`<label class="f"><span class="lbl">編號代號（例如「熱像」會變成 熱像-01）</span>
+        <input type="text" id="e_abbr" value="${esc(e.abbr)}" placeholder="留白就用名稱前兩個字"
+          onchange="ed.abbr=this.value"></label>`:""}
+      <button class="btn block" onclick="edSave()">儲存</button>
+    </div></div>
+    <button class="btn ghost block" style="color:var(--bad);border-color:var(--bad-line)"
+      onclick="delItem2('${e.id}')">刪除這個品項</button>
+    <div style="height:16px"></div></div>`;
+}
+async function edSave(){
+  const e=ed; if(!e) return;
+  const n=(e.name||"").trim(); if(!n) return toast("品項名稱不能空白");
+  const it=itemById(e.id);
+  if(n!==it.sku && ALLSKU().includes(n)) return toast(`「${n}」已經存在`);
+  // 從不編號變成要編號：先讓他決定各車編幾個
+  if(needsNo(e.kind) && !needsNo(it.kind)){
+    await guard(async()=>{
+      await rpc("mgr_item_update",{p_token:token,p_id:e.id,p_name:n,p_loc:e.loc,
+        p_safety:Math.max(0,parseInt(e.safe)||0)});
+      await rpc("mgr_item_tags",{p_token:token,p_id:e.id,p_kind:null,
+        p_valuable:!!e.valuable,p_abbr:e.abbr||null});
+      await reload(); ed=null; page=null;
+      await planOpen(e.id, e.kind, e.abbr);
+    });
+    return;
+  }
+  await guard(async()=>{
+    await rpc("mgr_item_update",{p_token:token,p_id:e.id,p_name:n,p_loc:e.loc,
+      p_safety:Math.max(0,parseInt(e.safe)||0)});
+    await rpc("mgr_item_tags",{p_token:token,p_id:e.id,p_kind:e.kind,
+      p_valuable:!!e.valuable,p_abbr:e.abbr||null});
+    ed=null; ISO=null; await reload(); closePage();
+  },"已儲存");
+}
+
+/* ---- 新增品項：一條流程，包別標配一起設完 ---- */
+function viewNewPage(){
+  if(!nw) nw={name:"",loc:LOCS()[0]||"未設定",qty:0,safe:1,kind:"tool",valuable:false,abbr:"",pkgs:{}};
+  const pk=PKGS();
+  return `<div class="wrap wide">
+    <div class="pgtop"><button class="pgback" onclick="closePage()">←</button>
+      <div class="pgt"><b>新增品項</b><span>一次設定完，不用再去「包別」加一遍</span></div></div>
+    <div class="card"><div class="hd"><h2>基本資料</h2></div><div class="bd">
+      <label class="f"><span class="lbl">品項名稱</span>
+        <input type="text" value="${esc(nw.name)}" placeholder="例：打診棒" onchange="nw.name=this.value"></label>
+      <div class="g2">
+        <label class="f"><span class="lbl">擺放位置</span>
+          <select onchange="nw.loc=this.value">${LOCS().map(l=>
+            `<option ${l===nw.loc?"selected":""}>${esc(l)}</option>`).join("")}</select></label>
+        <label class="f"><span class="lbl">目前倉庫數量</span>
+          <input type="number" min="0" class="num" value="${nw.qty}" onchange="nw.qty=this.value"></label>
+      </div>
+      <label class="f"><span class="lbl">安全庫存</span>
+        <input type="number" min="0" class="num" value="${nw.safe}" onchange="nw.safe=this.value"></label>
+      <div class="lbl" style="margin:-9px 0 14px">低於這個數字會變紅色，並出現在待補料頁的「該進貨了」。</div>
+      <label class="f"><span class="lbl">分類</span>
+        <div class="iseg" style="margin:0">${KINDS.map(([kk,t])=>
+          `<button type="button" aria-pressed="${nw.kind===kk}" onclick="nw.kind='${kk}';render()">${t}</button>`).join("")}</div></label>
+      <div class="krule">${KINDRULE[nw.kind]||""}</div>
+      <label class="ck"><input type="checkbox" ${nw.valuable?"checked":""}
+        onchange="nw.valuable=this.checked"><span>貴重設備</span></label>
+      ${needsNo(nw.kind)?`<label class="f"><span class="lbl">編號代號</span>
+        <input type="text" value="${esc(nw.abbr)}" placeholder="例：熱像" onchange="nw.abbr=this.value"></label>`:""}
+    </div></div>
+    <div class="card"><div class="hd"><h2>要帶上車嗎</h2>
+      <span class="lbl" style="margin-left:auto">選填</span></div>
+      <div class="bd nopad" style="margin-top:12px">
+        ${pk.map(p=>`<div class="prow">
+          <label class="ck" style="flex:1;margin:0">
+            <input type="checkbox" ${nw.pkgs[p.id]?"checked":""}
+              onchange="nwPkg('${p.id}',this.checked)"><span>${esc(p.name)}</span></label>
+          ${nw.pkgs[p.id]?`<span class="pq">
+            <button class="stp" onclick="nwQty('${p.id}',-1)">−</button><b>${nw.pkgs[p.id]}</b>
+            <button class="stp" onclick="nwQty('${p.id}',1)">＋</button></span>`:""}
+        </div>`).join("")||`<div class="bd"><span class="lbl">還沒有任何包別。</span></div>`}
+      </div>
+      <div class="foot">勾了就會直接出現在外勤的盤點表裡。只放倉庫的東西不用勾。</div></div>
+    <button class="btn block" onclick="nwSave()">新增品項</button>
+    <div style="height:16px"></div>
+  </div>`;
+}
+function nwPkg(id,on){ if(on) nw.pkgs[id]=nw.pkgs[id]||1; else delete nw.pkgs[id]; render(); }
+function nwQty(id,d){ nw.pkgs[id]=Math.max(1,(nw.pkgs[id]||1)+d); render(); }
+async function nwSave(){
+  const n=(nw.name||"").trim();
+  if(!n) return toast("請填品項名稱");
+  if(ALLSKU().includes(n)) return toast(`「${n}」已經在清單裡了`);
+  await guard(async()=>{
+    await rpc("mgr_item_add",{p_token:token,p_region:REG,p_name:n,p_loc:nw.loc||"未設定",
+      p_qty:Math.max(0,parseInt(nw.qty)||0),p_safety:Math.max(0,parseInt(nw.safe)||0)});
+    await reload();
+    const it=(S.items||[]).find(x=>x.sku===n);
+    const k=Object.keys(nw.pkgs).length;
+    if(it){
+      await rpc("mgr_item_tags",{p_token:token,p_id:it.id,p_kind:nw.kind,
+        p_valuable:!!nw.valuable,p_abbr:nw.abbr||null});
+      for(const pid of Object.keys(nw.pkgs))
+        await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:it.id,
+          p_std:nw.pkgs[pid],p_valuable:false,p_consumable:false});
+    }
+    nw=null; ISO=null; await reload(); closePage();
+    toast(k?`已新增「${n}」，並排進 ${k} 個包別`:`已新增「${n}」`);
+  });
+}
+function pageHTML(){
+  if(!page) return "";
+  if(page.kind==="edit") return viewEditPage();
+  if(page.kind==="new")  return viewNewPage();
+  if(page.kind==="pkg")  return viewPkgPage(page.id);
+  return "";
+}
+
+async function rowSetStd(rid,v){
+  const r=RW().find(x=>x.rid===rid); if(!r) return;
+  const n=Math.max(0,parseInt(v));
+  if(isNaN(n)||n===r.std){ render(); return; }
+  await guard(async()=>{
+    await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:null,
+      p_std:n,p_pkg:r.pkg,p_valuable:null,p_consumable:null});
+    await reload(); render();
+  });
+}
+async function rowMovePkg(rid,pkg){
+  const r=RW().find(x=>x.rid===rid); if(!r||!pkg) return;
+  const to=(PKGS().find(x=>x.id===pkg)||{}).name||"";
+  await guard(async()=>{
+    await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:null,
+      p_std:r.std,p_pkg:pkg,p_valuable:null,p_consumable:null});
+    await reload(); render();
+  },`「${r.name}」已移到 ${to}，標配維持 ${r.std}`);
+}
+async function rowStd(rid,d){
+  const r=RW().find(x=>x.rid===rid); if(!r) return;
+  await guard(async()=>{
+    await rpc("mgr_row_update",{p_token:token,p_id:rid,p_name:null,
+      p_std:Math.max(0,r.std+d),p_pkg:r.pkg,p_valuable:null,p_consumable:null});
+    await reload(); render();
+  });
+}
+async function rowOut(rid){
+  const r=RW().find(x=>x.rid===rid); if(!r) return;
+  if(!confirm(`從「${r.pkgName}」的盤點表移除「${r.name}」？\n\n`
+    +`移除後外勤就不會盤到這一項。品項本身和倉庫數量不會被刪掉。`)) return;
+  await guard(async()=>{ await rpc("mgr_row_delete",{p_token:token,p_id:rid});
+    await reload(); render(); },`已從 ${r.pkgName} 移除`);
+}
+async function rowAddHere(itemId){
+  const sel=document.getElementById("d_pkg"); if(!sel) return;
+  await guard(async()=>{
+    await rpc("mgr_row_add",{p_token:token,p_pkg:sel.value,p_item:itemId,p_std:1,
+      p_valuable:false,p_consumable:false});
+    await reload(); render();
+  },"已加入，標配先設成 1，可以用 ＋ − 調整");
+}
+async function delItem2(id){
+  const it=itemById(id); if(!it) return;
+  const rs=RW().filter(r=>r.itemId===id);
+  if(!confirm(`刪除「${it.sku}」？\n\n`
+    +(rs.length?`它排在 ${rs.length} 個包別的盤點表裡，會一起移除。\n`:"")
+    +`歷史出入庫紀錄會留著查得到，但這個品項不會再出現在清單裡。`)) return;
+  await guard(async()=>{ await rpc("mgr_item_delete",{p_token:token,p_id:id});
+    closePage(); await reload(); render(); },`已刪除：${it.sku}`);
+}
+
 async function setSafety(k,v){
   const it=itemOf(k); if(!it)return;
   await guard(async()=>{
@@ -2808,7 +3482,17 @@ function mvUnitPanel(){
     <div class="lbl" style="margin-top:2px">已勾 ${mvPicked().length} 台　·　數量就是勾選的台數，不用另外填</div></div>`;
 }
 
-function viewMove(){
+function viewMoveForm(){
+  const n=(S.moves||[]).filter(m=>m.date===today()).length;
+  return `<div class="wrap wide">${moveFormHTML()}
+    <button class="btn ghost block" onclick="go('movelog')">
+      看出入庫紀錄${n?`（今天 ${n} 筆）`:""} ›</button>
+    <div style="height:16px"></div></div>`;
+}
+function viewMoveLog(){
+  return `<div class="wrap wide">${moveLogHTML()}<div style="height:16px"></div></div>`;
+}
+function moveFormHTML(){
   const d=rdef();
   const um=mvUnitMode(), umPick=(um==="pick"||um==="back"), nPick=mvPicked().length;
   // 勾選模式下，數量就是勾了幾台
@@ -2819,37 +3503,7 @@ function viewMove(){
   // 車上在庫：有編號的照編號算，沒編號的永遠是標配（手動出入庫不會動它）
   const cAfter=um?(um==="toveh"||d.car?cCur+q:cCur):cCur;
   const bad = after<0 || (umPick && !nPick);
-  const r=rangeDates();
-  const inR=movesInRange(mv.type);
-  const allT=(S.moves||[]).filter(m=>m.type===mv.type);
-  const outside=allT.length-inR.length;
-  const mine=movesFiltered(mv.type);
-  const pages=Math.max(1,Math.ceil(mine.length/PAGE));
-  if(mPage>=pages)mPage=pages-1;
-  const pageList=mine.slice(mPage*PAGE,(mPage+1)*PAGE);
-  let lastD=null, list="";
-  pageList.forEach(m=>{
-    if(m.date!==lastD){
-      lastD=m.date;
-      const day=pageList.filter(x=>x.date===m.date);
-      list+=`<div class="mvday"><span class="d">${m.date.slice(5).replace("-","/")}</span>
-        <span class="w">${wdayOf(m.date)}</span>
-        <span class="n">${day.length} 筆　·　${day.reduce((a,x)=>a+x.qty,0)} 件</span></div>`;
-    }
-    list+=`<div class="mvr k-${kindOf(m.reason)}"><div class="edge"></div>
-      <div class="tag">${esc(shortOf(m.reason))}</div>
-      <div class="bd2"><div class="sku">${esc(m.sku)}${m.unitNo?`<span class="uno"
-          style="margin-left:7px;color:var(--ink)">${esc(m.unitNo)}</span>`:""}</div>
-        <div class="meta">${m.vehicle?`<span>${esc(m.vehicle)} 車</span>`:""}
-          <span>${esc(m.person||"—")}</span>
-          ${m.loss&&m.reason==="遺失或損壞"?`<span>${esc(m.loss)}</span>`:""}
-          ${m.fromCount?`<span class="mvpin">來自盤點</span>`:""}</div>
-        ${m.note?`<div class="rnote">${esc(m.note)}</div>`:""}</div>
-      <div class="q" style="color:${m.wh>0?"var(--ok)":"var(--alert)"}">${m.wh>0?"+":"−"}${m.qty}</div>
-      <div class="del"><button class="btn ghost tiny" onclick="delMove('${m.id}')">刪</button></div></div>`;
-  });
-
-  return `<div class="wrap wide">
+  return `
     <div class="card"><div class="hd"><h2>登錄出入庫</h2></div><div class="bd">
       <div class="g2" style="margin-bottom:13px">
         <button class="btn ${mv.type==="in"?"":"ghost"}" onclick="setMv('type','in')">入庫</button>
@@ -2888,13 +3542,48 @@ function viewMove(){
         ${after<0?`<div class="err">倉庫不足，不能出這麼多</div>`:""}
         ${after>=0&&after<S.safety[mv.sku]?`<div class="err">倉庫會低於安全庫存 ${S.safety[mv.sku]}</div>`:""}</div>
       <button class="btn block" ${bad?"disabled":""} onclick="submitMove()">確認登錄</button>
-    </div></div>
+    </div></div>`;
+}
+function moveLogHTML(){
+  const r=rangeDates();
+  const inR=movesInRange(mv.type);
+  const allT=(S.moves||[]).filter(m=>m.type===mv.type);
+  const outside=allT.length-inR.length;
+  const mine=movesFiltered(mv.type);
+  const pages=Math.max(1,Math.ceil(mine.length/PAGE));
+  if(mPage>=pages)mPage=pages-1;
+  const pageList=mine.slice(mPage*PAGE,(mPage+1)*PAGE);
+  let lastD=null, list="";
+  pageList.forEach(m=>{
+    if(m.date!==lastD){
+      lastD=m.date;
+      const day=pageList.filter(x=>x.date===m.date);
+      list+=`<div class="mvday"><span class="d">${m.date.slice(5).replace("-","/")}</span>
+        <span class="w">${wdayOf(m.date)}</span>
+        <span class="n">${day.length} 筆　·　${day.reduce((a,x)=>a+x.qty,0)} 件</span></div>`;
+    }
+    list+=`<div class="mvr k-${kindOf(m.reason)}"><div class="edge"></div>
+      <div class="tag">${esc(shortOf(m.reason))}</div>
+      <div class="bd2"><div class="sku">${esc(m.sku)}${m.unitNo?`<span class="uno"
+          style="margin-left:7px;color:var(--ink)">${esc(m.unitNo)}</span>`:""}</div>
+        <div class="meta">${m.vehicle?`<span>${esc(m.vehicle)} 車</span>`:""}
+          <span>${esc(m.person||"—")}</span>
+          ${m.loss&&m.reason==="遺失或損壞"?`<span>${esc(m.loss)}</span>`:""}
+          ${m.fromCount?`<span class="mvpin">來自盤點</span>`:""}</div>
+        ${m.note?`<div class="rnote">${esc(m.note)}</div>`:""}</div>
+      <div class="q" style="color:${m.wh>0?"var(--ok)":"var(--alert)"}">${m.wh>0?"+":"−"}${m.qty}</div>
+      <div class="del"><button class="btn ghost tiny" onclick="delMove('${m.id}')">刪</button></div></div>`;
+  });
+  return `
     <div class="card"><div class="hd"><h2>${mv.type==="in"?"入庫紀錄":"出庫紀錄"}</h2>
+      <div class="iseg" style="margin:0 0 0 auto;max-width:146px">
+        <button aria-pressed="${mv.type==="in"}" onclick="setMv('type','in')">入庫</button>
+        <button aria-pressed="${mv.type==="out"}" onclick="setMv('type','out')">出庫</button></div>
       <span class="lbl" style="margin-left:auto">保存近 6 個月</span></div>
 
       <div class="mvf">${[["week","本週"],["month","本月"],["q","近三個月"],["half","近六個月"],["last","上個月"],["custom","自訂區間"]].map(([k,t])=>
         `<button class="mvchip" aria-pressed="${rng.preset===k}" onclick="setRng('preset','${k}')">${t}</button>`).join("")}
-        ${rng.preset==="custom"?`<span style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)">
+        ${rng.preset==="custom"?`<span class="drange">
           <input type="date" class="mvdate" value="${r.from==="1900-01-01"?"":r.from}" onchange="setRng('from',this.value)">
           <span>到</span>
           <input type="date" class="mvdate" value="${r.to==="2999-12-31"?"":r.to}" onchange="setRng('to',this.value)"></span>`:""}
@@ -2933,8 +3622,7 @@ function viewMove(){
         <button class="btn ghost" onclick="setRng('preset','month')">看本月</button>
         <button class="btn ghost" onclick="setRng('preset','q')">看近三個月</button>
         <button class="btn ghost" onclick="setRng('preset','half')">看近六個月</button></div>`:""}
-    </div>
-  </div>`;
+    </div>`;
 }
 let mqComposing=false, mqRestore=null;
 // 中文輸入法在組字時不要重畫畫面，否則選字視窗會被打斷
@@ -2962,6 +3650,14 @@ function stockInput(el){
   window._sqt=setTimeout(()=>{ mqRestore={id:"stocksearch",pos}; stockQ=el.value; render(); },300);
 }
 function clearStockQ(){ stockQ=""; render(); }
+/* 通用的即時搜尋：等打完字（含中文組字）才重畫，重畫完把游標放回去 */
+let lsComposing=false;
+function liveSearch(el,id,apply){
+  if(lsComposing) return;
+  clearTimeout(window._lsT);
+  const pos=el.selectionStart;
+  window._lsT=setTimeout(()=>{ mqRestore={id,pos}; apply(el.value); render(); },300);
+}
 
 /* ---------- 品項選單：原生下拉 ＋ 上面一個搜尋框 ----------
    下拉維持原生（手機上就是系統原生的滾輪），
@@ -3147,26 +3843,17 @@ function lostPanel(){
         onclick="lostSave()">確認遺失</button>
     </div></div>`;
 }
-function sheetCard(r){
-  const ab=abLines(r), open=openRec===r.id;
-  const ses=sesOf(r);
-  const nShots=(r.pkgPhotos||[]).length+((r.photoLines||[]).filter(l=>l.photo).length||r.lines.filter(l=>l.photo).length);
-  const scope=ses==="am"?`精簡 ${r.lines.length+r.okCount} 項`:`完整 ${r.lines.length+r.okCount} 項`;
-  const head=`<div class="shr" onclick="toggleRec('${r.id}')">
-      <div><div class="sestag s-${ses}">${SESNAME[ses]}</div><div class="sti">${r.time||"—"}</div></div>
-      <div><div class="who">${esc(r.person)}</div>
-        <div class="smeta">${scope}　·　正常 ${r.okCount}　·　${nShots?nShots+" 張照片":"照片已清除"}</div></div>
-      <div class="sbadge ${ab.length?"b-ab":"b-ok"}">${ab.length?ab.length+" 項異常":"全部正常"}</div>
-    </div>`;
-  if(!open) return head;
-  const abTable=ab.length?`<div class="tw"><table>
-      <colgroup><col><col style="width:110px"><col style="width:64px"><col style="width:64px"><col style="width:80px"></colgroup>
-      <tr><th>品項</th><th>包別</th><th class="n">標配</th><th class="n">實際</th><th class="n">狀況</th></tr>
-      ${ab.map(l=>`<tr class="warn"><td>${esc(l.name)}${l.note?`<div class="lbl">${esc(l.note)}</div>`:""}
-        ${needPick(l.name)&&l.type!=="損壞"&&l.type!=="多出"?`<div style="margin-top:4px">
-          <button class="btn ghost tiny" onclick="event.stopPropagation();lostOpen('${r.vehicle}','${esc(l.name)}')">指認編號</button></div>`:""}</td>
-        <td style="color:var(--muted)">${esc(l.pkg)}</td><td class="n">${l.std}</td><td class="n">${l.actual}</td>
-        <td class="n" style="color:var(--alert);font-weight:700">${esc(l.type)}</td></tr>`).join("")}</table></div>`
+function sheetBody(r){
+  const ab=abLines(r);
+  /* 異常明細：手機上表格會把品項擠成一字一行，改成一項一列 */
+  const abTable=ab.length?`<div class="ablist">${ab.map(l=>`<div class="abr">
+      <div class="abm"><b>${esc(l.name)}</b>
+        <span>${esc(l.pkg)}　·　標配 ${l.std} → 實際 ${l.actual}</span>
+        ${l.note?`<span class="abn">${esc(l.note)}</span>`:""}
+        ${needPick(l.name)&&l.type!=="損壞"&&l.type!=="多出"?`<button class="btn ghost tiny" style="margin-top:6px"
+          onclick="event.stopPropagation();lostOpen('${r.vehicle}','${esc(l.name)}')">指認編號</button>`:""}</div>
+      <span class="abt t-${l.type==="遺失"?"lost":l.type==="損壞"?"dmg":"etc"}">${esc(l.type)}</span>
+    </div>`).join("")}</div>`
     :`<div style="padding:12px 14px;color:var(--ok);font-size:13.5px">全部正常</div>`;
   const shots=[];
   (r.pkgPhotos||[]).forEach(p=>shots.push({src:p.url,t:p.pkg,s:"本包照片",bad:false}));
@@ -3177,7 +3864,7 @@ function sheetCard(r){
       <div class="cell ${x.bad?"bad":""}" onclick="zoom('${r.id}',${k})">
         <img src="${x.src}"><div class="cap">${esc(x.t)}</div><div class="cap2">${esc(x.s)}</div></div>`).join("")}</div>`
     :`<div class="lbl" style="padding:10px 14px">照片已清除（每車只保留最新 ${KEEP} 組）</div>`;
-  return head+`<div class="sdetail">
+  return `<div class="sdetail">
       <div class="lbl" style="padding:10px 14px 0">異常明細</div>${abTable}
       <div class="lbl" style="padding:12px 14px 4px;border-top:1px solid var(--line2)">照片　點圖可放大</div>
       ${grid}
@@ -3185,52 +3872,48 @@ function sheetCard(r){
         <button class="btn ghost tiny" onclick="delSheet('${r.id}')">刪除這張盤點單</button></div></div>`;
 }
 
+/* ===================================================================
+   盤點結果：一眼看完全部車，有問題的才展開
+   =================================================================== */
 function viewResult(){
   const D=resDate();
   const dayRecs=S.records.filter(r=>r.date===D);
-  const amDone=VEH().filter(v=>dayRecs.some(r=>r.vehicle===v&&sesOf(r)==="am")).length;
-  const pmDone=VEH().filter(v=>dayRecs.some(r=>r.vehicle===v&&sesOf(r)==="pm")).length;
+  const vs=VEH();
+  const amDone=vs.filter(v=>dayRecs.some(r=>r.vehicle===v&&sesOf(r)==="am")).length;
+  const pmDone=vs.filter(v=>dayRecs.some(r=>r.vehicle===v&&sesOf(r)==="pm")).length;
   const dayAb=dayRecs.reduce((a,r)=>a+abLines(r).length,0);
 
-  const cards=VEH().map(v=>{
+  /* 一台車一格，上午／下午各一個點 */
+  const tiles=vs.map(v=>{
     const rs=dayRecs.filter(r=>r.vehicle===v);
     const am=rs.find(r=>sesOf(r)==="am"), pm=rs.find(r=>sesOf(r)==="pm");
-    const cls=(am&&pm)?"ok":(am||pm)?"part":"none";
-    const line=(r,lab,must)=>{
-      if(!r) return `<div class="vses"><span class="vdot ${must?"d-miss":"d-no"}"></span>
-        <span class="t">${lab}</span><span class="s"${must?' style="color:var(--alert);font-weight:700"':""}>未盤點</span></div>`;
-      const bad=abLines(r).length;
-      return `<div class="vses"><span class="vdot ${bad?"d-ab":"d-ok"}"></span><span class="t">${lab}</span>
-        <span class="s">${r.time||"—"}　${bad?`<b style="color:var(--alert)">${bad} 項異常</b>`:"正常"}</span></div>`;
-    };
-    return `<div class="vc2 ${cls}" aria-pressed="${rVeh===v}" onclick="pickRVeh('${v}')">
-      <div class="id">${v}</div>${line(am,"上午",true)}${line(pm,"下午",false)}</div>`;}).join("");
+    const bad=rs.reduce((a,r)=>a+abLines(r).length,0);
+    const st=d=>!d?"d-no":(abLines(d).length?"d-ab":"d-ok");
+    return `<button class="vtile ${bad?"bad":""}" aria-pressed="${rVeh===v}"
+      onclick="pickRVeh('${v}')"><b>${v}</b>
+      <span class="dots"><i class="vdot ${st(am)}"></i><i class="vdot ${st(pm)}"></i></span>
+      ${bad?`<em>${bad}</em>`:""}</button>`;}).join("");
 
-  let rows="";
+  /* 當天的單子：照車號或照時間排，不另外把異常抽到前面 */
+  const tkey=r=>(r.time||"99:99");
+  const show=(rVeh?dayRecs.filter(r=>r.vehicle===rVeh):dayRecs)
+    .slice().sort((a,b)=>{
+      if(rSort==="time"){ const t=tkey(a).localeCompare(tkey(b)); if(t) return t;
+        return a.vehicle.localeCompare(b.vehicle,"zh-Hant",{numeric:true}); }
+      const v=a.vehicle.localeCompare(b.vehicle,"zh-Hant",{numeric:true}); if(v) return v;
+      return tkey(a).localeCompare(tkey(b));});
+
+  let hist="";
   if(rVeh){
-    const mine=S.records.filter(r=>r.vehicle===rVeh);
-    if(!mine.length) rows=`<div class="empty">${rVeh} 車還沒有盤點紀錄。</div>`;
-    else{
-      [...new Set(mine.map(r=>r.date))].sort().reverse().slice(0,30).forEach(d=>{
-        const rs=mine.filter(r=>r.date===d).sort((a,b)=>sesOf(a)>sesOf(b)?1:-1);
-        rows+=`<div class="rgrp"><span class="v">${d}</span>
-          <span class="n">${rs.length} 場　·　${rs.reduce((a,r)=>a+abLines(r).length,0)} 項異常</span></div>`
-          +rs.map(sheetCard).join("");
-      });
-    }
-  }else{
-    VEH().forEach(v=>{
-      const rs=dayRecs.filter(r=>r.vehicle===v).sort((a,b)=>sesOf(a)>sesOf(b)?1:-1);
-      if(!rs.length){
-        rows+=`<div class="rgrp"><span class="v">${v}</span>
-          <span class="n" style="color:var(--alert)">這一天沒有盤點紀錄</span></div>`;
-        return;
-      }
+    const mine=S.records.filter(r=>r.vehicle===rVeh&&r.date!==D);
+    const ds=[...new Set(mine.map(r=>r.date))].sort().reverse().slice(0,14);
+    hist=ds.map(d=>{
+      const rs=mine.filter(r=>r.date===d).sort((a,b)=>sesOf(a)>sesOf(b)?1:-1);
       const bad=rs.reduce((a,r)=>a+abLines(r).length,0);
-      rows+=`<div class="rgrp"><span class="v">${v}</span>
-        <span class="n">${rs.length} 場　${bad?`· <b style="color:var(--alert)">${bad} 項異常</b>`:"· 全部正常"}</span></div>`
-        +rs.map(sheetCard).join("");
-    });
+      return `<button class="row2" onclick="setRDate('${d}')">
+        <span class="bd2"><span class="t">${d.slice(5).replace("-","/")}　${wdayOf(d)}</span>
+          <span class="s">${rs.length} 場　·　${bad?`${bad} 項異常`:"全部正常"}</span></span>
+        <span class="go">›</span></button>`;}).join("");
   }
 
   const yest=(()=>{const d=new Date(D);d.setDate(d.getDate()-1);
@@ -3239,31 +3922,61 @@ function viewResult(){
   return `<div class="wrap wide">
     ${lostPanel()}
     ${alertPanel()}
+
+    <div class="mvf" style="margin-bottom:13px">
+      <button class="mvchip" aria-pressed="${D===today()}" onclick="setRDate('${today()}')">今天</button>
+      <button class="mvchip" onclick="setRDate('${yest}')">‹ 前一天</button>
+      <input type="date" class="mvdate" value="${D}" onchange="setRDate(this.value)">
+    </div>
+
+    <div class="numrow" style="margin-bottom:13px">
+      <div><i>上午場</i><b>${amDone}<s>/${vs.length}</s></b></div>
+      <div><i>下午場</i><b>${pmDone}<s>/${vs.length}</s></b></div>
+      <div><i>異常</i><b${dayAb?' style="color:var(--bad)"':''}>${dayAb}</b></div>
+    </div>
+
+
     <div class="card"><div class="hd"><h2>各車狀態</h2>
-      <span class="lbl" style="margin-left:auto">${D}</span></div>
-      <div class="mvf">
-        <button class="mvchip" aria-pressed="${D===today()}" onclick="setRDate('${today()}')">今天</button>
-        <button class="mvchip" aria-pressed="${D===yest&&D!==today()}" onclick="setRDate('${yest}')">前一天</button>
-        <input type="date" class="mvdate" value="${D}" onchange="setRDate(this.value)">
-        ${rVeh?`<button class="mvchip" aria-pressed="true" onclick="pickRVeh('${rVeh}')">只看 ${rVeh} 車　✕</button>`:""}
-      </div>
-      <div class="bd"><div class="fleet2">${cards}</div>
-        <div class="lg2">
-          <span><i class="vdot d-ok"></i>已盤且正常</span>
-          <span><i class="vdot d-ab"></i>已盤有異常</span>
-          <span><i class="vdot d-miss"></i>上午場未做（每日必做）</span>
-          <span><i class="vdot d-no"></i>下午場未做</span>
-          <span>點車輛卡片＝只看那台車</span></div></div>
-      <div class="mvsum">
-        <div><b style="color:${amDone<VEH().length?"var(--alert)":"var(--ink)"}">${amDone}</b>/${VEH().length} 台完成上午場</div>
-        <div><b>${pmDone}</b>/${VEH().length} 台完成下午場</div>
-        <div><b style="color:${dayAb?"var(--alert)":"var(--ink)"}">${dayAb}</b> 項異常</div>
+      <span class="lbl" style="margin-left:auto">${
+        rVeh?`只看 ${rVeh} 車`:"點一台車只看它"}</span></div>
+      <div class="bd"><div class="vgrid">${tiles}</div>
+        <div class="lg2" style="margin-top:12px">
+          <span><i class="vdot d-ok"></i>正常</span>
+          <span><i class="vdot d-ab"></i>有異常</span>
+          <span><i class="vdot d-no"></i>還沒盤</span>
+          <span style="color:var(--faint)">左點＝上午，右點＝下午</span></div>
       </div></div>
 
-    <div class="card"><div class="hd"><h2>${rVeh?rVeh+" 車的盤點紀錄":"當日盤點紀錄"}</h2>
-      <span class="lbl" style="margin-left:auto">${rVeh?"依日期排列":"依車別排列"}</span></div>
-      ${S.records.length?rows:`<div class="empty">還沒有盤點紀錄。</div>`}</div>
+    ${show.length?`<div class="card"><div class="hd"><h2>${
+        rVeh?`${rVeh} 車的單子`:"每一張盤點單"}</h2>
+      <span class="lbl" style="margin-left:auto">${show.length} 張${
+        dayAb?`　·　${show.filter(r=>abLines(r).length).length} 張有異常`:""}</span></div>
+      <div class="bd" style="padding-bottom:0"><div class="iseg" style="margin:0;max-width:260px">
+        <button aria-pressed="${rSort!=="time"}" onclick="rSort='veh';render()">依車號</button>
+        <button aria-pressed="${rSort==="time"}" onclick="rSort='time';render()">依時間</button></div></div>
+      <div class="bd nopad" style="margin-top:12px">${show.map(r=>{
+        const ab=abLines(r), o=openRec===r.id;
+        return `<div class="shrow${ab.length?" ab":""}">
+          <button class="shhead" onclick="openRec='${o?"":r.id}';render()">
+            <span class="shv">${esc(r.vehicle)}</span>
+            <span class="shs ${sesOf(r)}">${sesOf(r)==="am"?"上午":"下午"}</span>
+            <span class="shb"><span class="t">${esc(r.person||"—")}</span>
+              <span class="s">${esc(r.time||"—")}　·　${r.lines.length+r.okCount} 項</span></span>
+            ${ab.length?`<span class="gapb">${ab.length} 項異常</span>`
+              :`<span class="gapb ok">全部正常</span>`}
+            <span class="shx">${o?"▾":"▸"}</span></button>
+          ${o?sheetBody(r):""}
+        </div>`;}).join("")}</div></div>`:""}
+
+    ${!show.length?`<div class="card"><div class="empty">
+      <b>${D===today()?"今天":D}還沒有任何盤點紀錄</b>
+      外勤送出盤點單之後就會出現在這裡。</div></div>`:""}
+
+    ${rVeh&&hist?`<div class="card"><div class="hd"><h2>${rVeh} 車之前的紀錄</h2>
+      <span class="lbl" style="margin-left:auto">最近 14 天</span></div>
+      <div class="bd nopad" style="margin-top:12px">${hist}</div></div>`:""}
     ${lightbox?lbHTML():""}
+    <div style="height:16px"></div>
   </div>`;
 }
 function toggleRec(id){openRec=openRec===id?null:id;render();}
@@ -3325,81 +4038,115 @@ let nRow={item:"",std:1,pkg:null,valuable:false,consum:false,kind:"tool"};
 let nPkg="", editPkg=null;
 function setNr(k,v){nRow[k]=(k==="std")?Math.max(0,parseInt(v)||0):v;render();}
 
+/* ===================================================================
+   包別與標配：一個包別一張卡，點進去改它的盤點表
+   =================================================================== */
 function viewItems(){
+  if(page) return pageHTML();
   const pk=PKGS();
-  if(!nRow.pkg&&pk.length)nRow.pkg=pk[0].id;
-  const blocks=pk.map(p=>{
-    const rs=RW().filter(r=>r.pkg===p.id);
-    const lines=rs.map(r=>{
-      if(editRow===r.rid) return `<tr class="edit"><td colspan="3">
-        <div class="lbl" style="margin-bottom:9px">編輯盤點項目</div>
-        <div class="lbl" style="margin-bottom:9px">品項：<b style="font-size:14px;color:var(--ink)">${r.name}</b>
-          　（要改名請到「庫存」分頁）</div>
-        <label class="f"><span class="lbl">標配數量（每車）</span>
-          <input type="number" min="0" class="num" id="r_std" value="${r.std}"></label>
-        <label class="f"><span class="lbl">所屬包別</span>
-          <select id="r_pkg">${pk.map(x=>`<option value="${x.id}" ${x.id===r.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
-        <div class="lbl" style="margin-bottom:14px">標籤：${itemTags(r.name)||"（一般工具）"}
-          　<button class="btn ghost tiny" onclick="editRow=null;goStockItem('${esc(r.name)}')">到庫存頁改標籤</button>
-          <div style="margin-top:5px">分類與貴重標記是跟著<b>庫存品項</b>走的，改一次所有包別都會同步。</div></div>
-        <div class="g2"><button class="btn" onclick="saveRow('${r.rid}')">儲存</button>
-          <button class="btn ghost" onclick="editRow=null;render()">取消</button></div></td></tr>`;
-      return `<tr><td class="c-name">${r.name}
-          ${r.kind==="meas"?`<span class="tag m">量測</span>`:""}${r.kind==="inst"?`<span class="tag i">儀器</span>`:""}${r.valuable?`<span class="tag v">貴重</span>`:""}${r.consum?`<span class="tag c">耗材</span>`:""}</td>
-        <td class="n c-num">${r.std}</td>
-        <td class="c-act">
-          <button class="btn ghost tiny" onclick="editRow='${r.rid}';render()">編輯</button>
-          <button class="btn ghost tiny" onclick="delRow('${r.rid}')">刪除</button></td></tr>`;}).join("");
-    const hd = editPkg===p.id
-      ? `<div class="bd" style="border-bottom:1px solid var(--line2);background:#FFFBF0">
-          <label class="f"><span class="lbl">包別名稱</span><input type="text" id="p_name" value="${p.name}"></label>
-          <div class="g2"><button class="btn" onclick="savePkg('${p.id}')">儲存</button>
-            <button class="btn ghost" onclick="editPkg=null;render()">取消</button></div>
-          <button class="btn ghost sm" style="margin-top:10px" onclick="delPkg('${p.id}')">刪除這個包別</button></div>`
-      : `<div class="hd"><h2>${p.name}</h2>
-          <span class="lbl" style="margin-left:auto">${rs.length} 項</span>
-          <button class="btn ghost tiny" onclick="editPkg='${p.id}';render()">重新命名</button></div>`;
-    return `<div class="card">${hd}
-      <div class="tw"><table>
-        <colgroup><col><col style="width:80px"><col style="width:124px"></colgroup>
-        <tr><th>品項</th><th class="n">標配</th><th></th></tr>${lines}</table></div></div>`;}).join("");
-
   const dup={}; RW().forEach(r=>{const k=cur(r.sku);dup[k]=(dup[k]||0)+1;});
   const multi=Object.keys(dup).filter(k=>dup[k]>1);
+  const empty=pk.filter(p=>!RW().some(r=>r.pkg===p.id));
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>盤點項目</h2>
-      <span class="lbl" style="margin-left:auto">${RW().length} 項 · ${pk.length} 個包別</span></div>
-      <div class="stats">
-        <div><div class="lbl">盤點行數</div><div class="fig">${RW().length}</div></div>
-        <div><div class="lbl">包別</div><div class="fig">${pk.length}</div></div>
-        <div><div class="lbl">跨包別重複</div><div class="fig">${multi.length}</div></div>
-      </div>
-      <div class="foot"><span class="lbl">這裡就是各車的標配表　·　改動會立刻影響盤點端與待補料計算</span></div></div>
+    <div class="numrow" style="margin-bottom:13px">
+      <div><i>包別</i><b>${pk.length}</b></div>
+      <div><i>盤點項目</i><b>${RW().length}</b></div>
+      <div><i>每車件數</i><b>${RW().reduce((a,r)=>a+r.std,0)}</b></div>
+    </div>
+    <div class="note" style="margin-bottom:13px">這裡就是外勤盤點時看到的表。
+      改動會立刻生效，待補料也會跟著重算。</div>
+
+    <div class="card"><div class="hd"><h2>全部包別</h2>
+      ${empty.length?`<span class="lbl" style="margin-left:auto">${empty.length} 個還沒放東西</span>`:""}</div>
+      <div class="bd nopad" style="margin-top:12px">${pk.map(p=>{
+        const rs=RW().filter(r=>r.pkg===p.id);
+        const std=rs.reduce((a,r)=>a+r.std,0);
+        const no=rs.filter(r=>needsNo(r.kind||"tool")).length;
+        return `<button class="row2" onclick="openPage('pkg','${p.id}')">
+          <span class="bd2"><span class="t">${esc(p.name)}</span>
+            <span class="s">${rs.length?`每車 ${std} 件${no?`　·　${no} 項要對編號`:""}`
+              :"還沒放任何東西，外勤看不到這一包"}</span></span>
+          <span class="q"><b>${rs.length}</b><i>項</i></span>
+          <span class="go">›</span></button>`;}).join("")
+        ||`<div class="empty"><b>還沒有任何包別</b>先建一個包別，再把品項放進去。</div>`}</div>
+    </div>
+
+    ${multi.length?`<div class="card"><div class="hd"><h2>同一樣東西放在多個包別</h2>
+      <span class="lbl" style="margin-left:auto">${multi.length} 項</span></div>
+      <div class="bd"><span class="lbl">這不一定是錯的（例如手電筒上下層都放），
+        但外勤會盤到兩次，待補料也會分開算。確認一下是不是故意的：</span>
+        <div class="chips" style="margin-top:10px">${multi.map(k=>
+          `<span class="chip ro">${esc(k)}</span>`).join("")}</div></div></div>`:""}
 
     <div class="card"><div class="hd"><h2>新增包別</h2></div><div class="bd">
-      <label class="f"><span class="lbl">包別名稱</span>
-        <input type="text" value="${nPkg}" placeholder="例：空調檢測包" onchange="nPkg=this.value"></label>
-      <button class="btn block" onclick="addPkg()">新增包別</button>
-      <div class="lbl" style="margin-top:8px">新包別建立後就能在下面把項目放進去；沒有項目的包別可以刪除</div>
+      <div class="g2">
+        <input type="text" value="${esc(nPkg)}" placeholder="例：空調檢測包" onchange="nPkg=this.value">
+        <button class="btn" onclick="addPkg()">建立</button></div>
+      <div class="lbl" style="margin-top:9px">包別就是車上的一個箱子或一袋工具，
+        外勤盤點時會一包一包對。</div>
     </div></div>
-
-    <div class="card"><div class="hd"><h2>新增盤點項目</h2></div><div class="bd">
-      <label class="f"><span class="lbl">選擇庫存品項</span>
-        ${itemSelect("nr", nRow.item, "setNr('item',this.value)")}</label>
-      <label class="f"><span class="lbl">標配數量（每車）</span>
-        <input type="number" min="0" class="num" value="${nRow.std}" onchange="setNr('std',this.value)"></label>
-      <label class="f"><span class="lbl">放進哪個包別</span>
-        <select onchange="setNr('pkg',this.value)">${pk.map(x=>
-          `<option value="${x.id}" ${x.id===nRow.pkg?"selected":""}>${x.name}</option>`).join("")}</select></label>
-      <div class="lbl" style="margin-bottom:14px">${nRow.item?`標籤：${itemTags((itemOf(nRow.item)||{}).sku)||"（一般工具）"}`
-        :"標籤會自動沿用庫存品項的設定"}　·　要改標籤請到「庫存」分頁</div>
-      <button class="btn block" onclick="addRow()">新增項目</button>
-      <div class="lbl" style="margin-top:8px">
-        只能從庫存總表既有的品項挑選。要盤的東西還不在清單裡的話，
-        請先到「庫存」分頁新增，再回來這裡加入盤點表。</div>
-    </div></div>
-    ${blocks}
+    <div style="height:16px"></div>
   </div>`;
+}
+
+/* ---- 單一包別 ---- */
+function viewPkgPage(id){
+  const p=PKGS().find(x=>x.id===id);
+  if(!p) return `<div class="wrap"><div class="card"><div class="empty">
+    <b>找不到這個包別</b></div></div>
+    <button class="btn ghost block" onclick="closePage()">返回</button></div>`;
+  const rs=RW().filter(r=>r.pkg===id)
+    .sort((a,b)=>a.name.localeCompare(b.name,"zh-Hant"));
+  const std=rs.reduce((a,r)=>a+r.std,0);
+  const free=ITEMS().filter(i=>!rs.some(r=>r.itemId===i.id));
+  return `<div class="wrap wide">
+    <div class="pgtop"><button class="pgback" onclick="closePage()">←</button>
+      <div class="pgt"><b>${esc(p.name)}</b>
+        <span>${rs.length} 項　·　每車 ${std} 件</span></div>
+      <button class="btn ghost sm" onclick="editPkg='${id}';render()">改名</button></div>
+    ${editPkg===id?`<div class="card"><div class="bd">
+      <label class="f"><span class="lbl">包別名稱</span>
+        <input type="text" id="p_name" value="${esc(p.name)}"></label>
+      <div class="g2"><button class="btn" onclick="savePkg('${id}')">儲存</button>
+        <button class="btn ghost" onclick="editPkg=null;render()">取消</button></div>
+    </div></div>`:""}
+
+    <div class="card"><div class="hd"><h2>這一包要帶什麼</h2></div>
+      <div class="bd nopad" style="margin-top:12px">${rs.map(r=>`<div class="prow pkr">
+        <span class="pn">${esc(r.name)}${itemTags(r.name)}</span>
+        <span class="pq"><button class="stp" onclick="rowStd('${r.rid}',-1)">−</button>
+          <input type="number" min="0" inputmode="numeric" class="stdin" value="${r.std}"
+            onchange="rowSetStd('${r.rid}',this.value)">
+          <button class="stp" onclick="rowStd('${r.rid}',1)">＋</button></span>
+        <select class="mvpk" onchange="rowMovePkg('${r.rid}',this.value)">
+          <option value="">移到…</option>
+          ${PKGS().filter(x=>x.id!==id).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}
+        </select>
+        <button class="btn ghost tiny" onclick="rowOut('${r.rid}')">移除</button>
+      </div>`).join("")||`<div class="bd"><span class="lbl">
+        這一包還是空的。從下面加入品項，外勤才盤得到。</span></div>`}</div>
+      <div class="bd" style="border-top:1px solid var(--line2)">
+        <span class="lbl">加入品項</span>
+        <div class="g2" style="margin-top:7px">
+          <select id="d_item">${free.map(i=>
+            `<option value="${i.id}">${esc(i.sku)}</option>`).join("")}</select>
+          <button class="btn ghost" onclick="pkgAdd('${id}')">＋ 加入</button></div>
+        <div class="lbl" style="margin-top:9px">只能挑庫存裡已經有的品項。
+          還沒建立的東西請先到「庫存品項」新增。</div>
+      </div></div>
+
+    ${rs.length?"":`<button class="btn ghost block" style="color:var(--bad)"
+      onclick="delPkg('${id}')">刪除這個包別</button>`}
+    <div style="height:16px"></div>
+  </div>`;
+}
+async function pkgAdd(pid){
+  const sel=document.getElementById("d_item"); if(!sel||!sel.value) return toast("沒有可以加入的品項");
+  await guard(async()=>{
+    await rpc("mgr_row_add",{p_token:token,p_pkg:pid,p_item:sel.value,p_std:1,
+      p_valuable:false,p_consumable:false});
+    await reload(); render();
+  },"已加入，標配先設成 1");
 }
 async function addPkg(){
   const n=(nPkg||"").trim();
@@ -3420,7 +4167,7 @@ async function delPkg(id){
   if(n)return toast(`這個包別還有 ${n} 項，請先移除或搬到別的包別`);
   if(!confirm(`刪除包別「${pkgName(id)}」？`))return;
   await guard(async()=>{ await rpc("mgr_pkg_delete",{p_token:token,p_id:id});
-    editPkg=null; await reload(); render(); },"已刪除包別");
+    editPkg=null; page=null; await reload(); render(); },"已刪除包別");
 }
 async function addRow(){
   const it=itemOf(nRow.item);
@@ -3480,7 +4227,7 @@ async function whStart(){
 }
 function whSet(id,v){ const n=v.trim(); if(n==="") delete whForm.val[id]; else whForm.val[id]=n; whCount(); }
 function whToggle(id){ whForm.chk[id]=!whForm.chk[id]; render(); }
-function whSetQ(v){ whForm.q=v; render(); }
+function whSetQ(v){ whForm.q=v; }
 function whCount(){
   const el=document.getElementById("whprog"); if(!el) return;
   el.textContent=whDone()+" / "+(whForm.items.length+whForm.units.length);
@@ -3499,25 +4246,34 @@ function whDiffs(){
   return out;
 }
 function whMiss(){ return whForm.units.filter(u=>!whForm.chk[u.id]); }
+/* 有編號的儀器擺在哪：跟著品項的擺放位置 */
+function whLocOf(name){
+  const it=(whForm.items||[]).find(i=>i.name===name)||ITEMS().find(i=>i.sku===name);
+  return (it&&it.loc)||"未設定";
+}
 
 function viewWH(){
   if(whForm) return viewWHForm();
   const sheets=(WH&&WH.sheets)||[];
   return `<div class="wrap wide">
-    <div class="card"><div class="hd"><h2>倉庫盤點</h2>
-      <span class="lbl" style="margin-left:auto">${sheets.length?`最近 ${sheets.length} 次`:"還沒有紀錄"}</span></div>
-      <div class="bd">
+    ${sheets.length?`<div class="numrow" style="margin-bottom:13px">
+      <div><i>上次盤點</i><b style="font-size:17px">${esc(sheets[0].date.slice(5).replace("-","/"))}</b></div>
+      <div><i>盤了</i><b>${sheets[0].n}<s>項</s></b></div>
+      <div><i>對不上</i><b${sheets[0].diff?' style="color:var(--bad)"':''}>${sheets[0].diff}</b></div>
+    </div>`:""}
+    <div class="card"><div class="bd">
         <div class="lbl" style="margin-bottom:11px">
-          清點公司倉庫的實際數量，不用拍照。數量對不上的，系統會自動產生盤盈／盤虧紀錄並留下你的名字。</div>
+          清點公司倉庫的實際數量，不用拍照。數字留白代表沒盤到，不會當成 0。
+          對不上的系統會自動產生盤盈／盤虧並留下你的名字。</div>
         <button class="btn block" ${whBusy?"disabled":""} onclick="whStart()">
-          ${whBusy?"載入中…":"開始盤點"}</button>
+          ${whBusy?"載入中…":sheets.length?"開始這一次盤點":"開始第一次盤點"}</button>
       </div></div>
 
     ${sheets.map(sh=>{
       const open=whOpenId===sh.id;
       return `<div class="card">
         <div class="hd" style="cursor:pointer" onclick="whOpenId='${open?"":sh.id}';render()">
-          <h2>${esc(sh.date)}</h2>
+          <h2>${esc(sh.date.slice(5).replace("-","/"))}　${wdayOf(sh.date)}</h2>
           <span class="lbl" style="margin-left:auto">${esc(sh.person)}　·　盤 ${sh.n} 項</span>
           <span class="ipill ${sh.diff?"bad":"ok"}">${sh.diff?sh.diff+" 項對不上":"全對"}</span>
           <span class="uexp">${open?"▾":"▸"}</span></div>
@@ -3539,7 +4295,8 @@ function viewWH(){
               只會刪掉這張盤點單。已經產生的盤盈／盤虧出入庫要自己到「出入庫」刪，
               免得庫存數字又被動一次。</div></div>
         </div>`:""}</div>`;}).join("")}
-    ${sheets.length?"":`<div class="card"><div class="empty">還沒有倉庫盤點紀錄。</div></div>`}
+    ${sheets.length?"":`<div class="card"><div class="empty">
+      <b>還沒有倉庫盤點紀錄</b>建議每週盤一次，對不上的才抓得到是誰、什麼時候少的。</div></div>`}
     <div style="height:18px"></div>
   </div>`;
 }
@@ -3567,13 +4324,18 @@ function viewWHForm(){
       數量<b>留白＝這次沒盤到</b>，不會被當成 0，也不會產生盤虧。只填你真的數過的。</div>
 
     <div class="mvf"><input class="mvsearch" value="${esc(f.q)}" placeholder="搜尋品項或編號…"
-      oninput="whSetQ(this.value)"></div>
+      id="whsearch" autocomplete="off"
+      oncompositionstart="lsComposing=true" oncompositionend="lsComposing=false;liveSearch(this,'whsearch',whSetQ)"
+      oninput="liveSearch(this,'whsearch',whSetQ)"></div>
 
     ${f.units.length?`<div class="card"><div class="hd"><h2>有編號的（打勾＝有看到）</h2>
       <span class="lbl" style="margin-left:auto">${f.units.length} 台${miss?`　·　${miss} 台沒勾`:""}</span></div>
       <div class="bd nopad">
-        ${Object.keys(byItem).sort((a,b)=>a.localeCompare(b,"zh-Hant")).map(nm=>`
-          <div class="whgrp">${esc(nm)}</div>
+        ${Object.keys(byItem).sort((a,b)=>{
+            const la=whLocOf(a), lb=whLocOf(b), d=locRank(la)-locRank(lb);
+            return d!==0?d:a.localeCompare(b,"zh-Hant");}).map(nm=>`
+          <div class="whgrp"><span class="whloc">${esc(whLocOf(nm)==="未設定"?"—":whLocOf(nm))}</span>${esc(nm)}
+            <span class="lbl" style="margin-left:auto">${byItem[nm].length} 台</span></div>
           ${byItem[nm].map(u=>`<label class="upk ${f.chk[u.id]?"on":""}" style="margin:0;border-radius:0;border-left:0;border-right:0;border-top:0">
             <input type="checkbox" ${f.chk[u.id]?"checked":""} onchange="whToggle('${u.id}')">
             <span class="uno">${esc(u.no)}</span>
@@ -3718,8 +4480,13 @@ function viewMonthly(){
   const st=monthlyStats(mPeriod), ms=st.ms;          // 統計期間：KPI 與排行
   const stT=monthlyStats(mTrend),  msT=stT.ms;       // 趨勢期間：趨勢圖與逐月明細
   const hist=allMonths();
-  if(!ms.length) return `<div class="wrap wide"><div class="card">
-    <div class="empty">還沒有資料。送出幾張盤點單、登錄一些出入庫之後，這裡就會出現月度趨勢。</div></div></div>`;
+  if(!ms.length) return `<div class="wrap wide">
+    ${hist.length?`<div class="pmain pbar">
+      <div class="pmk">統計期間<span>整頁的數字都看這段</span></div>
+      <div class="pmrow">${periodBar(mPeriod,"setMPeriod",MPRESETS)}</div></div>`:""}
+    <div class="card"><div class="empty">${hist.length
+      ?"<b>這段期間沒有資料</b>換一個統計期間，或自訂區間把起訖月份選好。"
+      :"還沒有資料。送出幾張盤點單、登錄一些出入庫之後，這裡就會出現月度趨勢。"}</div></div></div>`;
   const last=ms[ms.length-1];
   const oneMonth=ms.length===1;
   // 期間合計
@@ -3738,13 +4505,6 @@ function viewMonthly(){
   const key=r=>M.rate?(r.cfg?r.tot/(r.cfg*ms.length):0):r.tot;
   const cnt=r=>r.tot;
   const den=r=>r.cfg*ms.length;
-
-  /* KPI */
-  const kpi=[["遺失","lost",1],["損壞","dmg",1],["耗材","consum",0],["採購","buy",0]].map(([k,id,bad])=>{
-    const t=trend(A[k],P?P[k]:null,bad);
-    return `<div><div class="lbl">${oneMonth?last:"這段期間"} ${k}</div>
-      <div class="fig">${A[k]}<span style="font-size:13px;margin-left:7px;color:${bad?t.c:"var(--muted)"}">${t.t}</span></div></div>`;
-  }).join("");
 
   /* 排行 */
   const sorted=rows.slice().sort((a,b)=>key(b)-key(a)||cnt(b)-cnt(a));
@@ -3799,14 +4559,6 @@ function viewMonthly(){
   /* 遺失專屬 */
   let extra="";
   if(mTab==="lost"){
-    const vv=lostByVeh(ms), vmx=Math.max.apply(null,Object.values(vv).concat([1]));
-    const vtot=Object.values(vv).reduce((a,b)=>a+b,0);
-    extra+=`<div class="card"><div class="hd"><h2>遺失發生在哪台車</h2></div><div class="bd">
-      <p class="sub" style="font-size:13px;color:var(--muted);margin:0 0 12px">
-        ${periodLabel(mPeriod)} 共 ${vtot} 件遺失的車別分布。集中在特定車輛時，通常是習慣或流程問題，不是工具本身。</p>
-      ${Object.keys(vv).sort().map(k=>`<div class="mrveh"><div class="c">${k}</div>
-        <div class="mrbar"><i style="width:${vv[k]?Math.max(3,vv[k]/vmx*100).toFixed(0):0}%"></i></div>
-        <div class="v">${vv[k]} 件</div></div>`).join("")}</div></div>`;
     const byRate=shown.slice().sort((a,b)=>(b.cfg?b.tot/b.cfg:0)-(a.cfg?a.tot/a.cfg:0));
     const byCnt=shown.slice().sort((a,b)=>b.tot-a.tot);
     const sts=rows.filter(r=>r.streak>=3);
@@ -3825,20 +4577,24 @@ function viewMonthly(){
   }
 
   return `<div class="wrap wide">
+    <div class="pmain pbar">
+      <div class="pmk">統計期間<span>整頁的數字都看這段</span></div>
+      <div class="pmrow">${periodBar(mPeriod,"setMPeriod",MPRESETS)}
+        <b class="pmnow">${periodLabel(mPeriod)}</b></div>
+    </div>
     <div class="card">
-      <div class="pbar">
-        <span class="pbk">統計期間</span>
-        ${periodBar(mPeriod,"setMPeriod",MPRESETS)}
-        <span class="pnow">${periodLabel(mPeriod)}</span>
-      </div>
       <div class="mrtabs" role="tablist">
-        ${[["lost","遺失",A.遺失],["dmg","損壞",A.損壞],["consum","耗材",A.耗材],["buy","採購",A.採購]].map(([k,t,n])=>
-          `<button role="tab" aria-selected="${mTab===k}" onclick="setMTab('${k}')">${t}<span class="n">${n} 件</span></button>`).join("")}
+        ${[["lost","遺失",A.遺失,1],["dmg","損壞",A.損壞,1],
+           ["consum","耗材",A.耗材,0],["buy","採購",A.採購,0]].map(([k,t,n,bad])=>{
+          const tr=trend(n,P?P[{lost:"遺失",dmg:"損壞",consum:"耗材",buy:"採購"}[k]]:null,bad);
+          return `<button role="tab" aria-selected="${mTab===k}" onclick="setMTab('${k}')">${t}
+            <span class="n">${n} 件<i style="font-style:normal;margin-left:5px;color:${
+              bad?tr.c:"var(--faint)"}">${tr.t}</i></span></button>`;}).join("")}
       </div>
-      <div class="stats">${kpi}</div>
-      <div class="foot"><span class="lbl">上面四個數字與下面的排行，都是「統計期間」這段時間的合計　·　${
-        prevMs.length?`箭頭是跟前一段同樣長度的期間相比（${prevMs[0]}${prevMs.length>1?" ~ "+prevMs[prevMs.length-1]:""}）`
-                     :"沒有更早的資料可以比較"}　·　耗材屬正常消耗，不計入遺失</span></div>
+      <div class="foot"><span class="lbl">${
+        prevMs.length?`箭頭＝跟前一段同樣長度的期間相比（${prevMs[0]}${
+          prevMs.length>1?" ~ "+prevMs[prevMs.length-1]:""}）`:"沒有更早的資料可以比較"}
+        　·　耗材屬正常消耗，不計入遺失</span></div>
     </div>
 
     <div class="card"><div class="hd"><h2>${M.t}</h2>
@@ -3889,6 +4645,7 @@ function setMTab(k){mTab=k;render();}
 function setMCell(k){mCell=k;render();}
 
 function exportMonthly(fmt){
+  RPT_PRINT=(fmt==="print");
   const hist=allMonths();
   const st=monthlyStats(mPeriod), ms=st.ms;            // 排行用統計期間
   const stT=monthlyStats(mTrend),  msT=stT.ms;         // 逐月明細用趨勢期間
@@ -3910,8 +4667,9 @@ function exportMonthly(fmt){
     .map(r=>({c:M.rate?[r.sku,cnt(r),den(r)||"—",rate(r)]:[r.sku,cnt(r)]}));
 
   // 二、逐月明細（趨勢期間）
-  const w1=Math.max(10,Math.floor(50/Math.max(1,msT.length)));
-  const mCols=[{t:"品項",w:100-w1*msT.length-14,px:140},{t:"合計",w:14,px:48,n:1}]
+  /* 品項欄至少 22%，剩下平均分給月份；12 個月也不會把品項擠成一字一行 */
+  const w1=Math.max(4,Math.min(10,Math.floor((100-22-9)/Math.max(1,msT.length))));
+  const mCols=[{t:"品項",w:100-w1*msT.length-9,px:140},{t:"合計",w:9,px:48,n:1}]
     .concat(msT.map(m=>({t:m.slice(5)+"月",w:w1,px:44,n:1})));
   const mRows=rowsT.slice().sort((a,b)=>b.tot-a.tot)
     .map(r=>({c:[r.sku,r.tot].concat(r.series.map(v=>v||""))}));
@@ -4036,15 +4794,16 @@ function viewVehicles(){
     const last=S.records.find(r=>r.vehicle===v);
     const cnt=S.records.filter(r=>r.vehicle===v).length;
     const on=(S.vehicleOn||{})[v]!==false, nt=vehNote(v);
-    return `<tr class="${on?"":"voff"}">
-      <td class="num" style="font-size:17px;font-weight:600">${v}${on?"":`<div class="lbl">不納入</div>`}</td>
-      <td style="color:var(--muted);font-size:13px">
-        ${on?(used?`${cnt} 張盤點單　最近 ${last.date}`:"尚未使用")
-           :`不列入標配與車上數量${nt?`　·　${esc(nt)}`:""}`}
-        <div style="margin-top:5px">
-          <label class="vsw"><input type="checkbox" ${on?"checked":""}
-            onchange="vehActive('${esc(v)}',this.checked)"><span>納入驗屋盤點</span></label></div></td>
-      <td class="n">${used?`<span class="lbl">不可刪除</span>`:`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪除</button>`}</td></tr>`;}).join("");
+    return `<div class="prow${on?"":" voff"}">
+      <span style="flex:none;width:34px;font-size:18px;font-weight:700">${v}</span>
+      <span class="bd2" style="flex:1;min-width:0">
+        <span class="s" style="display:block;font-size:12.5px;color:var(--muted)">${
+          on?(used?`${cnt} 張盤點單　·　最近 ${last.date.slice(5).replace("-","/")}`:"尚未使用")
+            :`不列入標配與車上數量${nt?`　·　${esc(nt)}`:""}`}</span></span>
+      <label class="sw"><input type="checkbox" ${on?"checked":""}
+        onchange="vehActive('${esc(v)}',this.checked)"><i></i></label>
+      ${used?"":`<button class="btn ghost tiny" onclick="delVehicle('${v}')">刪</button>`}
+    </div>`;}).join("");
   return `<div class="wrap wide">
     ${sect("veh","車輛",`${VEH().length} 台納入　${VEH().join(" ")}${
         VEHALL().length>VEH().length?`　·　${VEHALL().length-VEH().length} 台不納入`:""}`,`
@@ -4052,8 +4811,7 @@ function viewVehicles(){
         跟別的部門共用、沒放驗屋工具的車（例如固定放甲醛工具的），
         把「納入驗屋盤點」關掉就不會列入標配、車上數量、盤點與待補料。
         車輛管理系統那邊不受影響。</div></div>
-      <div class="tw"><table><colgroup><col style="width:70px"><col><col style="width:80px"></colgroup>
-        <tr><th>車別</th><th>使用狀況</th><th></th></tr>${vlist}</table></div>
+      <div class="bd nopad">${vlist}</div>
       <div class="bd" style="border-top:1px solid var(--line2)">
         <div class="lbl" style="margin-bottom:9px">新增車輛</div>
         <label class="f"><span class="lbl">車輛代號（3 字以內）</span>
@@ -4260,6 +5018,12 @@ const EQ=()=>((ISO&&ISO.equipment)||[]);
 const eqById=id=>EQ().find(e=>e.id===id);
 /* ISO 只列管量測儀器。「儀器」要編號但免校，不進校驗計畫與儀器一覽。 */
 const EQM=()=>EQ().filter(e=>(e.kind||"meas")==="meas");
+/* 儀器：要編號、一般免校，也可以在 ISO 建檔 */
+const EQI=()=>EQ().filter(e=>e.kind==="inst");
+const eqItemsOf=k=>k==="inst"
+  ? ((S&&S.items)||[]).filter(i=>i.kind==="inst").map(i=>({id:i.id,name:i.sku,abbr:i.abbr||""}))
+      .sort((a,b)=>a.name.localeCompare(b.name,"zh-Hant"))
+  : (ISO.meas_items||[]);
 const calsOf=id=>((ISO&&ISO.cals)||[]).filter(c=>c.equip_id===id);
 const fixesOf=id=>((ISO&&ISO.fixes)||[]).filter(f=>f.equip_id===id);
 const stopsOf=id=>((ISO&&ISO.stops)||[]).filter(s=>s.equip_id===id);
@@ -4333,19 +5097,21 @@ function viewISO(){
   if(eqOpen)     return `<div class="wrap wide">${viewEqDetail()}</div>`;
   if(cardOpen)   return `<div class="wrap wide">${viewCardDetail()}</div>`;
   return `${lightbox?lbHTML():""}<div class="wrap wide">
-    <div class="isoreg noprint">ISO 設備管理　·　<b>${esc(regName(REG))}</b>
-      <span>儀器、履歷與表單都只看這一區，換區請按上面的區域鈕</span></div>
-    <div class="iseg noprint">
+    <div class="iseg noprint" style="margin-top:0">
       <button aria-pressed="${isoTab==="eq"}" onclick="isoGo('eq')">量測儀器</button>
+      <button aria-pressed="${isoTab==="inst"}" onclick="isoGo('inst')">儀器</button>
       <button aria-pressed="${isoTab==="card"}" onclick="isoGo('card')">設備履歷</button>
       <button aria-pressed="${isoTab==="print"}" onclick="isoGo('print')">列印表單</button>
     </div>
-    ${isoTab==="eq"?viewEqList():isoTab==="card"?viewCardList():viewPrintMenu()}</div>`;
+    ${isoTab==="eq"?viewEqList("meas"):isoTab==="inst"?viewEqList("inst")
+      :isoTab==="card"?viewCardList():viewPrintMenu()}</div>`;
 }
 
 /* ---------- 儀器清單 ---------- */
-function viewEqList(){
-  const all=EQM(), q=isoQ.trim();
+function viewEqList(kind){
+  kind=kind||"meas";
+  const isI=kind==="inst", KN=isI?"儀器":"量測儀器";
+  const all=isI?EQI():EQM(), q=isoQ.trim();
   const nWarn=all.filter(e=>calState(e)[0]==="warn").length;
   const nBad =all.filter(e=>calState(e)[0]==="bad").length;
   const nOff =all.filter(e=>["stop","scrap","lost"].includes(e.status)).length;
@@ -4362,7 +5128,7 @@ function viewEqList(){
   const pend=(ISO.scraps||[]).filter(s=>!s.appr_at);
 
   return `<div class="card">
-    <div class="hd"><h2>量測儀器</h2>
+    <div class="hd"><h2>${KN}</h2>
       <span class="num" style="margin-left:auto;font-size:12px;color:var(--muted)">共 ${all.length} 台</span></div>
     <div class="bd" style="padding:12px 14px">
       ${over.length?`<div class="warnbox"><b>校驗逾期 ${over.length} 台</b><br>
@@ -4373,7 +5139,9 @@ function viewEqList(){
 
       <div style="display:flex;gap:8px;margin-bottom:11px;flex-wrap:wrap">
         <input type="text" id="eq_q" value="${esc(isoQ)}" placeholder="搜尋編號或名稱"
-          oninput="isoQ=this.value;clearTimeout(window._eqT);window._eqT=setTimeout(render,250)"
+          autocomplete="off"
+          oncompositionstart="lsComposing=true" oncompositionend="lsComposing=false;liveSearch(this,'eq_q',v=>isoQ=v)"
+          oninput="liveSearch(this,'eq_q',v=>isoQ=v)"
           style="flex:1;min-width:150px">
         <select onchange="isoLoc=this.value;render()" style="width:auto">
           <option value="">全部位置</option>
@@ -4383,27 +5151,20 @@ function viewEqList(){
       </div>
       <div class="iseg">
         <button aria-pressed="${isoFilt==="all"}"  onclick="isoFilt='all';render()">全部</button>
-        <button aria-pressed="${isoFilt==="warn"}" onclick="isoFilt='warn';render()">快到期 ${nWarn}</button>
-        <button aria-pressed="${isoFilt==="bad"}"  onclick="isoFilt='bad';render()">已逾期 ${nBad}</button>
+        ${isI?"":`<button aria-pressed="${isoFilt==="warn"}" onclick="isoFilt='warn';render()">快到期 ${nWarn}</button>
+        <button aria-pressed="${isoFilt==="bad"}"  onclick="isoFilt='bad';render()">已逾期 ${nBad}</button>`}
         <button aria-pressed="${isoFilt==="off"}"  onclick="isoFilt='off';render()">停用報廢 ${nOff}</button>
       </div>
 
-      ${list.length?`<div class="ilist">${list.map(e=>{
-        const [c,txt]=calState(e); const st=EQST[e.status]||["",""];
-        const dim=["scrap","lost"].includes(e.status);
-        return `<button class="eqrow ${dim?"dim":""}" onclick="eqOpen='${e.id}';window.scrollTo(0,0);render()">
-          <span class="eno">${esc(e.no)}</span>
-          <span class="enm">${esc(e.item_name)}${e.status!=="use"?` <span class="ipill ${st[1]}">${st[0]}</span>`:""}</span>
-          <span class="eloc">${esc(locName(e.loc_code))}</span>
-          <span class="ipill ${c}">${esc(txt)}</span></button>`;}).join("")}</div>`
+      ${list.length?`<div class="ilist">${eqGroups(list,!!q||isoFilt!=="all"||!!isoLoc)}</div>`
         : `<div style="text-align:center;color:var(--muted);padding:22px 0;font-size:14px">
-             ${all.length?"沒有符合條件的儀器":"還沒有登記任何量測儀器"}</div>`}
+             ${all.length?"沒有符合條件的儀器":`還沒有登記任何${KN}`}</div>`}
 
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn sm amber" onclick="eqNew()">＋ 新增儀器</button>
+        <button class="btn sm amber" onclick="eqNew('${kind}')">＋ 新增${KN}</button>
       </div>
-      ${(ISO.meas_items||[]).length?"":`<div class="note" style="margin-top:12px">
-        還沒有任何品項被標成「量測儀器」。請先到<b>庫存</b>頁，把要管的品項分類改成量測儀器，才能在這裡登編號。</div>`}
+      ${eqItemsOf(kind).length?"":`<div class="note" style="margin-top:12px">
+        還沒有任何品項被標成「${KN}」。請先到<b>庫存</b>頁，把要管的品項分類改成${KN}，才能在這裡登編號。</div>`}
     </div></div>`;
 }
 
@@ -4520,17 +5281,53 @@ function isoDel(fn,id,what){ if(!confirm(`刪除${what}？`))return;
   isoDo(()=>rpc(fn,{p_token:token,p_id:id}),"已刪除"); }
 
 /* ---------- 儀器：新增／編輯 ---------- */
-function eqNew(){
-  if(!(ISO.meas_items||[]).length) return toast("請先到「庫存」把品項分類改成量測儀器");
-  eqEdit={id:null,item_id:ISO.meas_items[0].id,no:"",spec:"",brand:"",tol:"",
-    cal_type:"out",cal_org:"",cal_months:12,buy_date:isoToday(),keeper:"驗屋部",
-    owner_name:"",loc_code:"",note:"",_model:""};
+/* 同一種儀器收成一列，點開才看每一支編號（跟庫存品項一樣） */
+let eqGrpOpen={};
+function eqGroups(list,forceOpen){
+  const g={};
+  list.forEach(e=>{ (g[e.item_id]=g[e.item_id]||{id:e.item_id,name:e.item_name,us:[]}).us.push(e); });
+  return Object.values(g).sort((a,b)=>a.name.localeCompare(b.name,"zh-Hant")).map(G=>{
+    const open=forceOpen||!!eqGrpOpen[G.id];
+    const us=G.us.slice().sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+    const bad=us.filter(e=>calState(e)[0]==="bad").length;
+    const warn=us.filter(e=>calState(e)[0]==="warn").length;
+    // 跟上面「停用報廢」篩選同一個定義：停用、報廢、遺失待查都不算在用
+    const live=us.filter(e=>!["stop","scrap","lost"].includes(e.status));
+    const home=live.filter(e=>!e.loc_code).length, onCar=live.length-home;
+    return `<div class="eqg${open?" open":""}">
+      <button class="eqgh" onclick="eqGrpOpen['${G.id}']=!eqGrpOpen['${G.id}'];render()">
+        <span class="sx">${open?"▾":"▸"}</span>
+        <span class="eqgn"><b>${esc(G.name)}</b>
+          <i>公司 ${home}　·　車上 ${onCar}${live.length<us.length?`　·　停用報廢 ${us.length-live.length}`:""}</i></span>
+        ${bad?`<span class="ipill bad">逾期 ${bad}</span>`:""}
+        ${warn?`<span class="ipill warn">快到期 ${warn}</span>`:""}
+        <span class="eqgc"><b>${us.length}</b><i>台</i></span>
+      </button>
+      ${open?`<div class="eqgu">${us.map(e=>{
+        const [c,txt]=calState(e); const st=EQST[e.status]||["",""];
+        const dim=["scrap","lost"].includes(e.status);
+        return `<button class="eqrow ${dim?"dim":""}" onclick="eqOpen='${e.id}';window.scrollTo(0,0);render()">
+          <span class="eno">${esc(e.no)}</span>
+          <span class="enm">${e.status!=="use"?`<span class="ipill ${st[1]}">${st[0]}</span>`:""}</span>
+          <span class="eloc">${esc(locName(e.loc_code))}</span>
+          <span class="ipill ${c}">${esc(txt)}</span></button>`;}).join("")}</div>`:""}
+    </div>`;}).join("");
+}
+function eqNew(kind){
+  kind=kind||"meas";
+  const its=eqItemsOf(kind), KN=kind==="inst"?"儀器":"量測儀器";
+  if(!its.length) return toast(`請先到「庫存」把品項分類改成${KN}`);
+  eqEdit={id:null,item_id:its[0].id,no:"",spec:"",brand:"",tol:"",
+    cal_type:kind==="inst"?"none":"out",cal_org:"",cal_months:kind==="inst"?0:12,
+    buy_date:isoToday(),keeper:"驗屋部",
+    owner_name:"",loc_code:"",note:"",_model:"",_kind:kind};
   const ms=eqModels(eqEdit.item_id);
   if(ms.length===1) applyModel(ms[0].key);          // 只有一種機型就自動帶
   eqPhoto={}; eqNoSuggest(); window.scrollTo(0,0); render();
 }
 function eqEditOpen(id){ const e=eqById(id); if(!e)return;
-  eqEdit=Object.assign({},e,{buy_date:dOnly(e.buy_date),loc_code:e.loc_code||"",
+  eqEdit=Object.assign({},e,{_kind:e.kind==="inst"?"inst":"meas",
+    buy_date:dOnly(e.buy_date),loc_code:e.loc_code||"",
     _model:[e.brand||"",e.spec||"",e.tol||"",e.cal_type||"out",e.cal_org||"",e.cal_months||0].join("|")});
   eqPhoto={}; window.scrollTo(0,0); render(); }
 function setEq(k,v){ if(eqEdit) eqEdit[k]=v; }
@@ -4538,7 +5335,8 @@ function eqItemChange(v){
   eqEdit.item_id=v; eqEdit._model="";
   // 換品項一定要把上一個品項帶進來的欄位清掉，
   // 不然會把別台儀器的廠牌和容許誤差值留在表單上，直接印到履歷表就錯了
-  Object.assign(eqEdit,{brand:"",spec:"",tol:"",cal_type:"out",cal_org:"",cal_months:12});
+  const isI=eqEdit._kind==="inst";
+  Object.assign(eqEdit,{brand:"",spec:"",tol:"",cal_type:isI?"none":"out",cal_org:"",cal_months:isI?0:12});
   const ms=eqModels(v);
   if(!eqEdit.id && ms.length===1) applyModel(ms[0].key);   // 只有一種機型就自動帶
   eqNoSuggest();
@@ -4580,10 +5378,10 @@ function applyModel(k){
   render();
 }
 function viewEqForm(){
-  const E=eqEdit, items=ISO.meas_items||[];
+  const E=eqEdit, isI=E._kind==="inst", items=eqItemsOf(isI?"inst":"meas");
   const ab=(items.find(i=>i.id===E.item_id)||{}).abbr||"";
   return `<button class="btn sm ghost" style="margin-bottom:11px" onclick="eqEdit=null;eqPhoto=null;render()">← 取消</button>
-  <div class="card"><div class="hd"><h2>${E.id?"編輯儀器":"新增量測儀器"}</h2></div><div class="bd">
+  <div class="card"><div class="hd"><h2>${E.id?"編輯儀器":isI?"新增儀器":"新增量測儀器"}</h2></div><div class="bd">
     <label class="f"><span class="lbl">品項</span>
       <select onchange="eqItemChange(this.value)" ${E.id?"":""}>
         ${items.map(i=>`<option value="${i.id}" ${E.item_id===i.id?"selected":""}>${esc(i.name)}</option>`).join("")}
@@ -5350,10 +6148,38 @@ function pfScrap(id){
 }
 
 /* ===================== 導覽 ===================== */
+let hdrMenu=false, resOK=false, rSort="veh";
+
+/* ===================================================================
+   導覽：原本 9 個底部頁籤擠在 390px 上，收成 5 類
+   tab 還是「畫面代號」，所以舊的 go("stock") 之類全部照常能用
+   =================================================================== */
+const SCREEN={
+  restock:["待補料","day"],   result:["盤點結果","day"],
+  move:   ["登錄出入庫","mv"], movelog:["出入庫紀錄","mv"],
+  stock:  ["庫存品項","inv"],  items:["包別與標配","inv"],  wh:["倉庫盤點","inv"],
+  month:  ["月報表","rep"],    iso:  ["ISO 設備","rep"],
+  veh:    ["設定","set"]
+};
+const GROUPS={ day:["restock","result"], mv:["move","movelog"],
+               inv:["stock","items","wh"], rep:["month","iso"], set:["veh"] };
 const TABS={field:[["count","☑","盤點"]],
-  admin:[["restock","⚑","待補料"],["stock","▤","庫存"],["wh","▣","倉庫盤點"],
-         ["items","☑","項目"],["move","⇅","出入庫"],["result","▦","結果"],
-         ["month","◷","月報"],["iso","◎","ISO"],["veh","⚙","設定"]]};
+  admin:[["day","▣","今天"],["mv","⇅","出入庫"],["inv","▤","庫存"],
+         ["rep","◷","報表"],["set","⚙","設定"]]};
+let lastIn={};
+const groupOf=k=>(SCREEN[k]||[])[1]||"day";
+function goGroup(g){ go(lastIn[g]||GROUPS[g][0]); }
+function screenTitle(){ return (SCREEN[tab]||["設備管理"])[0]; }
+/* 次分頁 */
+function subBar(){
+  if(role==="field") return "";
+  const ks=GROUPS[groupOf(tab)]||[];
+  if(ks.length<2) return "";
+  return `<div class="subbar noprint">${ks.map(k=>{
+    const n=(k==="result")?alertsOpen().length:0;
+    return `<button aria-pressed="${tab===k}" onclick="go('${k}')">${SCREEN[k][0]}${
+      n?`<i class="sbb">${n}</i>`:""}</button>`;}).join("")}</div>`;
+}
 function render(){
   if(UPGRADING) return;
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
@@ -5361,26 +6187,28 @@ function render(){
   if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 設備盤點系統</h1><div class="sub">${REG?regName(REG):"請先選擇區域"}</div></div>`;
     nv.className="tabs hide"; app.innerHTML=viewGate(); return; }
   const canSwitch=role==="field"?REGIONS.map(r=>r.code):(myRegions.length?myRegions:[REG]);
-  hdr.innerHTML=`<div><h1>${role==="field"?"設備盤點":`設備管理${me?" · "+me.name:""}`}</h1>
-    <div class="sub">${role==="field"?RW().length+" 項標配":VEH().join(" ")}</div></div>
-    <div class="regsw">${REGIONS.map(r=>{
-      const ok=canSwitch.includes(r.code);
-      return `<button aria-pressed="${REG===r.code}" ${ok?"":"disabled"}
-        title="${ok?"":"你沒有這一區的權限"}" onclick="hdrRegion('${r.code}')">${esc(r.name||r.code)}</button>`;}).join("")}</div>
-    <button class="sw" onclick="switchRole()"><span class="swlong">切換身分</span><span class="swshort">切換</span></button>`;
+  hdr.innerHTML=`
+    <div class="htitle"><h1>${role==="field"?"設備盤點":screenTitle()}</h1>
+      <div class="sub">${role==="field"?RW().length+" 項標配"
+        :(me?esc(me.name)+"　·　":"")+VEH().length+" 台車"}</div></div>
+    <select class="regsel" onchange="hdrRegion(this.value)" aria-label="切換區域">
+      ${REGIONS.map(r=>{const ok=canSwitch.includes(r.code);
+        return `<option value="${r.code}" ${REG===r.code?"selected":""} ${ok?"":"disabled"}
+          >${esc(r.name||r.code)}</option>`;}).join("")}</select>
+    <button class="hmenu" aria-expanded="${hdrMenu}" onclick="hdrMenu=!hdrMenu;render()">⋮</button>
+    ${hdrMenu?`<div class="hmpanel">
+      ${role!=="field"?`<button onclick="hdrMenu=false;reload().then(render)">重新整理</button>`:""}
+      <button onclick="hdrMenu=false;switchRole()">切換身分</button>
+    </div>`:""}`;
   const t=TABS[role];
   if(t.length>1){ nv.className="tabs"; nv.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
     nv.innerHTML=t.map(([k,i,l])=>{
-      const n=(k==="result")?alertsOpen().length:0;
-      return `<button aria-selected="${tab===k}" onclick="go('${k}')"
+      const n=(k==="day")?alertsOpen().length:0;
+      return `<button aria-selected="${groupOf(tab)===k}" onclick="goGroup('${k}')"
         ><span class="ic">${i}${n?`<i class="nbadge">${n>9?"9+":n}</i>`:""}</span>${l}</button>`;}).join("");
     document.body.classList.remove("norole");
   } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
-  app.innerHTML = role==="field" ? viewField()
-    : tab==="move" ? viewMove() : tab==="result" ? viewResult()
-    : tab==="veh" ? viewVehicles() : tab==="iso" ? viewISO() : tab==="items" ? viewItems()
-    : tab==="month" ? viewMonthly() : tab==="wh" ? viewWH()
-    : tab==="stock" ? viewStock() : viewRestock();
+  app.innerHTML = role==="field" ? viewField() : (subBar()+screenHTML());
   restoreSearch();
   saveDraftSoon();
 }
@@ -5390,8 +6218,27 @@ function goEq(id){
   window.scrollTo(0,0); render();
   if(!ISO) isoKick();
 }
-function go(k){tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;openSku=null;unitEdit=null;
-  if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;}
+function screenHTML(){
+  switch(tab){
+    case "move":    return viewMoveForm();
+    case "movelog": return viewMoveLog();
+    case "result":  return viewResult();
+    case "veh":     return viewVehicles();
+    case "iso":     return viewISO();
+    case "items":   return viewItems();
+    case "month":   return viewMonthly();
+    case "wh":      return viewWH();
+    case "stock":   return viewStock();
+    default:        return viewRestock();
+  }
+}
+function go(k){
+  if(!SCREEN[k]&&GROUPS[k]) k=lastIn[k]||GROUPS[k][0];   // 傳群組代號也通
+  tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;openSku=null;unitEdit=null;
+  page=null;ed=null;nw=null;plan=null;retY=null;lastEd=null;   // 換頁就把編輯中的子頁收掉
+  if(SCREEN[k]) lastIn[groupOf(k)]=k;
+  if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;
+    calNew=null;fixNew=null;stopNew=null;scrapNew=null;logNew=null;inspNew=null;inspSet=null;}
   if(k!=="wh") whForm=null;
   window.scrollTo(0,0);render();
   if(k==="iso"&&!ISO) isoKick();
