@@ -2830,6 +2830,13 @@ function locRank(l){const i=LOCS().indexOf(l);return i<=0?9999:i;}
    （標配說每台車帶 1 個，但實際上空著的車不該被編出假編號）
    =================================================================== */
 let plan=null;   /* {d, kind, veh:{}, wh, abbr, busy} */
+/* 分配表關掉（不管是確定還是取消）：回到庫存清單原本捲到的位置，剛改的那一列閃一下 */
+function planClose(){
+  const y=planY; plan=null; planY=null; render();
+  window.scrollTo(0,y||0); requestAnimationFrame(()=>window.scrollTo(0,y||0));
+  setTimeout(()=>{lastEd=null;},50);
+}
+let planY=null;
 
 async function planOpen(itemId, kind, abbr){
   await guard(async()=>{
@@ -2868,7 +2875,7 @@ function viewPlan(){
           量測儀器要在「ISO」分頁一台一台建，才能填廠牌、容許誤差值與校驗週期，
           所以這裡不會自動產號。確認改成量測儀器後，請到 ISO 分頁登記每一台。</div>
           <button class="btn block" style="margin-top:13px" onclick="planSave()">確認改成量測儀器</button>
-          <button class="btn ghost block" style="margin-top:9px" onclick="plan=null;render()">取消</button>`
+          <button class="btn ghost block" style="margin-top:9px" onclick="planClose()">取消</button>`
         :`
         <div class="lbl" style="margin-bottom:11px">
           下面是照<b>標配</b>算出來的建議值。實際上沒放東西的車請改成 0，
@@ -2914,7 +2921,7 @@ function viewPlan(){
 
         <button class="btn block" ${total===0&&!locked.length?"disabled":""} onclick="planSave()">
           ${isNew?`確認，產生 ${total} 個編號`:`重新分配，產生 ${total} 個編號`}</button>
-        <button class="btn ghost block" style="margin-top:9px" onclick="plan=null;render()">取消</button>`}
+        <button class="btn ghost block" style="margin-top:9px" onclick="planClose()">取消</button>`}
       </div></div></div>`;
 }
 
@@ -2927,7 +2934,7 @@ async function planSave(){
   await guard(async()=>{
     const made=await rpc("mgr_unit_apply",{p_token:token,p_item:P.d.item_id,
       p_kind:P.kind, p_plan:{wh:P.wh, veh:P.veh}, p_abbr:(P.abbr||"").trim()||null});
-    plan=null; ISO=null; await reload(); render();
+    ISO=null; await reload(); planClose();
     toast(P.kind==="meas"?"已改成量測儀器，請到 ISO 分頁登記每一台"
          :`已產生 ${made} 個編號`);
   });
@@ -3136,7 +3143,7 @@ function stockRow(it){
     </div>`).join("")
       :`<div class="urow"><span class="lbl">還沒有編號。採購入庫時系統會自動產號。</span></div>`}
       <div class="urow"><button class="btn ghost tiny" onclick="unitNew('${it.id}')">＋ 手動補一個</button>
-        <button class="btn ghost tiny" onclick="planOpen('${it.id}')">重新分配各車數量</button></div>
+        <button class="btn ghost tiny" onclick="planY=window.scrollY;lastEd='${it.id}';planOpen('${it.id}')">重新分配各車數量</button></div>
     </div>`:""}
   </div>`;
 }
@@ -3202,7 +3209,7 @@ async function edSave(){
         p_safety:Math.max(0,parseInt(e.safe)||0)});
       await rpc("mgr_item_tags",{p_token:token,p_id:e.id,p_kind:null,
         p_valuable:!!e.valuable,p_abbr:e.abbr||null});
-      await reload(); ed=null; page=null;
+      await reload(); ed=null; page=null; planY=retY; retY=null;
       await planOpen(e.id, e.kind, e.abbr);
     });
     return;
@@ -6264,7 +6271,7 @@ function screenHTML(){
 function go(k){
   if(!SCREEN[k]&&GROUPS[k]) k=lastIn[k]||GROUPS[k][0];   // 傳群組代號也通
   tab=k;openRec=null;lightbox=null;editSku=null;editRow=null;editPkg=null;pickLoc=null;openSku=null;unitEdit=null;
-  page=null;ed=null;nw=null;plan=null;retY=null;lastEd=null;   // 換頁就把編輯中的子頁收掉
+  page=null;ed=null;nw=null;plan=null;planY=null;retY=null;lastEd=null;   // 換頁就把編輯中的子頁收掉
   if(SCREEN[k]) lastIn[groupOf(k)]=k;
   if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;
     calNew=null;fixNew=null;stopNew=null;scrapNew=null;logNew=null;inspNew=null;inspSet=null;}
