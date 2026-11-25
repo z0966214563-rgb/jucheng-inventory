@@ -841,7 +841,7 @@ const BUCKET="fleet-photos";
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="fleet";
-const APP_VER=11;
+const APP_VER=13;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -1204,7 +1204,7 @@ const vehOf=c=>VEH().find(v=>v.code===c);
 async function boot(){
   S=blankState(); render();
   try{
-    REGIONS=await rpc("region_list");
+    REGIONS=(await rpc("region_list")||[]).filter(r=>r.fleet!==false);   // 甲醛這類部門區不在車輛管理系統裡
   }catch(e){
     document.getElementById("app").innerHTML=
       `<div class="wrap"><div class="card"><div class="bd">
@@ -2620,8 +2620,53 @@ const SCRNAME={fleet:"車輛總覽",service:"保養",trips:"出車紀錄",card:"
 const TABS={driver:[["trip","▣","出車登記"]], card:[["card","◎","悠遊卡"]],
   admin:[["fleet","▤","車輛"],["service","⚑","保養"],["trips","▦","出車紀錄"],
          ["card","◎","悠遊卡"],["set","⚙","設定"]]};
+/* ===================================================================
+   打字中重畫不換掉輸入框：
+   以前每次重畫整個畫面都換新，打字打到一半（尤其中文注音停下來選字時）
+   遇到搜尋延遲重畫、照片上傳狀態更新，輸入框被換掉，鍵盤收起來、組字中斷。
+   現在：正在打字的那個輸入框原封不動留著，只換掉它周圍的內容。
+   =================================================================== */
+function setApp(app,html){
+  const a=document.activeElement;
+  const typing=a&&a!==document.body&&app.contains(a)&&/^(INPUT|TEXTAREA)$/.test(a.tagName)
+    &&!/^(checkbox|radio|file|button|submit|date|month|time|range|color)$/i.test(a.type||"");
+  if(!typing){ app.innerHTML=html; return; }
+  const path=[]; let n=a;
+  while(n&&n!==app){ path.unshift(Array.prototype.indexOf.call(n.parentNode.childNodes,n)); n=n.parentNode; }
+  const tmp=document.createElement(app.tagName); tmp.innerHTML=html;
+  // 新畫面裡同一個位置，必須也是同一種輸入框，才沿用
+  let m=tmp, okPath=true, l=app;
+  for(const i of path){ m=m&&m.childNodes[i]; l=l&&l.childNodes[i];
+    if(!m||!l||m.nodeType!==1||m.tagName!==l.tagName){ okPath=false; break; } }
+  const same=x=>x.getAttribute("oninput")||x.getAttribute("onchange")||x.getAttribute("name")||"";
+  if(!okPath||(m.id||"")!==(a.id||"")||same(m)!==same(a)){ app.innerHTML=html; return; }
+  const sync=(el,src,skip)=>{
+    for(const at of Array.from(el.attributes)) if(!src.hasAttribute(at.name)&&!(skip&&skip.includes(at.name))) el.removeAttribute(at.name);
+    for(const at of Array.from(src.attributes)) if(!(skip&&skip.includes(at.name))&&el.getAttribute(at.name)!==at.value) el.setAttribute(at.name,at.value);
+  };
+  let live=app, nw=tmp;
+  for(let d=0;d<path.length;d++){
+    const i=path[d], keep=live.childNodes[i], kids=Array.from(nw.childNodes), nk=kids[i];
+    while(keep.previousSibling) live.removeChild(keep.previousSibling);
+    while(keep.nextSibling) live.removeChild(keep.nextSibling);
+    for(let j=0;j<i;j++) live.insertBefore(kids[j],keep);
+    for(let j=i+1;j<kids.length;j++) live.appendChild(kids[j]);
+    if(d<path.length-1) sync(keep,nk); else sync(keep,nk,["value"]);
+    live=keep; nw=nk;
+  }
+}
+// 開始組字（注音選字）時，取消還沒跑的搜尋重畫，等選完字再說
+document.addEventListener("compositionstart",()=>{
+  ["_lsT","_sqt","_mqt","_pq_rs","_pq_mv","_pq_nr"].forEach(k=>clearTimeout(window[k]));
+},true);
 function render(){
   if(UPGRADING) return;
+  // 打完字點下一格時，前一格的 change 會先觸發重畫；等焦點移到下一格之後再畫，下一格才不會被換掉
+  const ev=window.event;
+  if(ev&&ev.type==="change"&&ev.target&&/^(INPUT|TEXTAREA)$/.test(ev.target.tagName)
+     &&!/^(checkbox|radio|file|button|submit|date|month|time|range|color)$/i.test(ev.target.type||"")){
+    clearTimeout(window._rdT); window._rdT=setTimeout(render,0); return; }
+  clearTimeout(window._rdT);
   const app=document.getElementById("app"), hdr=document.getElementById("hdr"), nv=document.getElementById("nav");
   document.body.classList.toggle("norole",!role);
   if(!role){ hdr.innerHTML=`<div><h1>鉅誠驗屋 · 車輛管理</h1><div class="sub">${REG?regName(REG):"請先選擇區域"}</div></div>`;
@@ -2648,12 +2693,12 @@ function render(){
         n?`<i class="nbadge">${n>9?"9+":n}</i>`:""}</span>${l}</button>`;}).join("");
     document.body.classList.remove("norole");
   } else { nv.className="tabs hide"; document.body.classList.add("norole"); }
-  app.innerHTML = role==="driver" ? viewTrip()
+  setApp(app, role==="driver" ? viewTrip()
     : role==="card" ? viewCardEntry()
     : tab==="service" ? viewService() : tab==="trips" ? viewTrips()
     : tab==="card" ? viewCardAdmin()
     : tab==="cardnew" ? viewCardEntry()
-    : tab==="set" ? viewSettings() : viewFleet();
+    : tab==="set" ? viewSettings() : viewFleet());
 }
 function go(k){ tab=k; openRec=null; lightbox=null; editV=null; hdrMenu=false; addOpen=false;
   tVeh=null; svVeh=null; openSvc=null;
