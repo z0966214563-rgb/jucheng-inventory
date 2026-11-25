@@ -56,6 +56,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;overflow-x:hidden}
+@supports (overflow:clip){ html,body{overflow-x:clip} }   /* clip 才不會讓「固定在上方」的列失效 */
 html{-webkit-text-size-adjust:100%}
 body{font-family:var(--tc);background:var(--paper);color:var(--ink);
   font-size:15.5px;line-height:1.6;padding-bottom:86px;
@@ -1036,6 +1037,13 @@ select{padding-right:30px!important;text-overflow:ellipsis}
 .k-base .edge{background:#6B7488}
 .k-base .tag{background:#E9ECF2;color:#4A5262;border-color:#C3CAD8}
 .ipill.todo{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-line)}
+
+/* ---- 儀器表單：上方固定一列「取消／標題／儲存」 ---- */
+.eqtop{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
+  background:var(--paper);padding:8px 0 10px;margin-bottom:4px}
+.eqtop .eqtt{flex:1;min-width:0;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eqtop .btn{flex:none;padding:9px 18px}
+header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫面 */
 </style>
 
 <header class="top" id="hdr"></header>
@@ -5436,9 +5444,17 @@ function eqEditOpen(id){ const e=eqById(id); if(!e)return;
     // 剛入庫、還沒建檔：儀器預設免校；只有一種機型就直接帶
     if(e.kind==="inst"){ eqEdit.cal_type="none"; eqEdit.cal_months=0; }
     const ms=eqModels(e.item_id); if(ms.length===1) applyModel(ms[0].key);
+    if(!String(eqEdit.owner_name||"").trim()){ eqEdit.owner_name=eqOwnerGuess(e.item_id); eqEdit._ownerAuto=!!eqEdit.owner_name; }
   }
   eqPhoto={}; window.scrollTo(0,0); render(); }
-function setEq(k,v){ if(eqEdit) eqEdit[k]=v; }
+function setEq(k,v){ if(eqEdit){ eqEdit[k]=v; if(k==="owner_name") eqEdit._ownerAuto=false; } }
+/* 負責人員自動帶：同一種儀器已經填過的人 → 這一區設定的負責人員 → 其他儀器最常填的人 → 目前登入的管理者 */
+function eqOwnerGuess(itemId){
+  const pick=list=>{ const c={}; list.forEach(x=>{const n=String(x.owner_name||"").trim(); if(n) c[n]=(c[n]||0)+1;});
+    return Object.keys(c).sort((a,b)=>c[b]-c[a])[0]||""; };
+  return pick(EQ().filter(x=>x.item_id===itemId)) || ((S&&S.toolOwner)||"")
+      || pick(EQ()) || ((me&&me.name)||"");
+}
 function eqItemChange(v){
   eqEdit.item_id=v; eqEdit._model="";
   // 換品項一定要把上一個品項帶進來的欄位清掉，
@@ -5488,8 +5504,12 @@ function applyModel(k){
 function viewEqForm(){
   const E=eqEdit, isI=E._kind==="inst", items=eqItemsOf(isI?"inst":"meas");
   const ab=(items.find(i=>i.id===E.item_id)||{}).abbr||"";
-  return `<button class="btn sm ghost" style="margin-bottom:11px" onclick="eqEdit=null;eqPhoto=null;render()">← 取消</button>
-  <div class="card"><div class="hd"><h2>${E._todo?`補建檔：${esc(E.no)}`:E.id?"編輯儀器":isI?"新增儀器":"新增量測儀器"}</h2></div><div class="bd">
+  /* 儲存放上面：資料常常是自動帶入的，不用滑到底才能存；底下的儲存鍵也保留 */
+  return `<div class="eqtop">
+    <button class="btn sm ghost" onclick="eqEdit=null;eqPhoto=null;render()">← 取消</button>
+    <span class="eqtt">${E._todo?`補建檔：${esc(E.no)}`:E.id?"編輯儀器":isI?"新增儀器":"新增量測儀器"}</span>
+    <button class="btn sm" onclick="eqSave()">儲存</button></div>
+  <div class="card"><div class="bd">
     <label class="f"><span class="lbl">品項</span>
       <select onchange="eqItemChange(this.value)" ${E.id?"":""}>
         ${items.map(i=>`<option value="${i.id}" ${E.item_id===i.id?"selected":""}>${esc(i.name)}</option>`).join("")}
@@ -5532,7 +5552,8 @@ function viewEqForm(){
     </div>
     <div class="g2">
       <label class="f"><span class="lbl">負責人員</span>
-        <input type="text" value="${esc(E.owner_name)}" oninput="setEq('owner_name',this.value)"></label>
+        <input type="text" value="${esc(E.owner_name)}" oninput="setEq('owner_name',this.value)">
+        ${E._ownerAuto?`<span style="font-size:12px;color:var(--muted)">自動帶入，可以改</span>`:""}</label>
       <label class="f"><span class="lbl">目前位置</span>
         <select onchange="setEq('loc_code',this.value)">
           <option value="" ${!E.loc_code?"selected":""}>公司庫存</option>
