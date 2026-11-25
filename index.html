@@ -1044,6 +1044,10 @@ select{padding-right:30px!important;text-overflow:ellipsis}
 .eqtop .eqtt{flex:1;min-width:0;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .eqtop .btn{flex:none;padding:9px 18px}
 header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫面 */
+.eqrow.flash{animation:flash 1.6s ease-out}
+.eqpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;
+  background:var(--sunk);border:1.5px solid var(--line);border-radius:var(--r2);padding:9px 11px;max-height:260px;overflow:auto}
+.eqpick .ck{margin:0}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -5078,6 +5082,15 @@ function viewVehicles(){
 let ISO=null, isoBusy=false, isoTab="eq";
 let isoQ="", isoLoc="", isoFilt="all";
 let eqOpen=null, eqEdit=null, eqPhoto=null;
+/* 從清單點進一台、再回清單：回到原本捲到的位置，剛看的那台閃一下 */
+let isoBackY=null, isoFlash=null;
+function eqGo(id){ isoBackY=window.scrollY; isoFlash=id; eqOpen=id; window.scrollTo(0,0); render(); }
+function isoBackTo(){
+  const y=isoBackY; isoBackY=null; render();
+  window.scrollTo(0,y||0); requestAnimationFrame(()=>window.scrollTo(0,y||0));
+  setTimeout(()=>{isoFlash=null;},60);
+}
+function eqBack(){ eqOpen=null; isoBackTo(); }
 let calNew=null, fixNew=null, stopNew=null, scrapNew=null;
 let cardOpen=null, cardEdit=null, logNew=null, inspNew=null, inspSet=null;
 let printWhat=null, printYear=null, isoUrls={};
@@ -5264,7 +5277,7 @@ function viewEqDetail(){
   const [c,txt]=calState(e), st=EQST[e.status]||["",""];
   const cals=calsOf(e.id), fixes=fixesOf(e.id), stops=stopsOf(e.id), scr=scrapsOf(e.id);
   const open=scr.find(s=>!s.appr_at);
-  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="eqOpen=null;render()">← 回儀器清單</button>
+  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="eqBack()">← 回儀器清單</button>
   <div class="card">
     <div class="hd"><h2 class="num">${esc(e.no)}</h2>
       <span style="font-size:13px;color:var(--muted)">${esc(e.item_name)}</span>
@@ -5415,7 +5428,7 @@ function eqGroups(list,forceOpen){
       ${open?`<div class="eqgu">${us.map(e=>{
         const [c,txt]=calState(e); const st=EQST[e.status]||["",""];
         const dim=["scrap","lost"].includes(e.status);
-        return `<button class="eqrow ${dim?"dim":""}" onclick="eqOpen='${e.id}';window.scrollTo(0,0);render()">
+        return `<button class="eqrow ${dim?"dim":""}${isoFlash===e.id?" flash":""}" onclick="eqGo('${e.id}')">
           <span class="eno">${esc(e.no)}</span>
           <span class="enm">${e.status!=="use"?`<span class="ipill ${st[1]}">${st[0]}</span>`:""}${
             eqTodo(e)?`<span class="ipill todo">待建檔</span>`:""}</span>
@@ -5445,9 +5458,14 @@ function eqEditOpen(id){ const e=eqById(id); if(!e)return;
     if(e.kind==="inst"){ eqEdit.cal_type="none"; eqEdit.cal_months=0; }
     const ms=eqModels(e.item_id); if(ms.length===1) applyModel(ms[0].key);
     if(!String(eqEdit.owner_name||"").trim()){ eqEdit.owner_name=eqOwnerGuess(e.item_id); eqEdit._ownerAuto=!!eqEdit.owner_name; }
+    // 購買日期：用採購入庫那一天（通常就是今天），找不到就帶今天；都可以手動改
+    if(!eqEdit.buy_date){
+      const m=(S.moves||[]).find(x=>x.unitNo===e.no&&x.reason==="採購入庫");
+      eqEdit.buy_date=(m&&m.date)||isoToday(); eqEdit._dateAuto=true;
+    }
   }
   eqPhoto={}; window.scrollTo(0,0); render(); }
-function setEq(k,v){ if(eqEdit){ eqEdit[k]=v; if(k==="owner_name") eqEdit._ownerAuto=false; } }
+function setEq(k,v){ if(eqEdit){ eqEdit[k]=v; if(k==="owner_name") eqEdit._ownerAuto=false; if(k==="buy_date") eqEdit._dateAuto=false; } }
 /* 負責人員自動帶：同一種儀器已經填過的人 → 這一區設定的負責人員 → 其他儀器最常填的人 → 目前登入的管理者 */
 function eqOwnerGuess(itemId){
   const pick=list=>{ const c={}; list.forEach(x=>{const n=String(x.owner_name||"").trim(); if(n) c[n]=(c[n]||0)+1;});
@@ -5546,7 +5564,7 @@ function viewEqForm(){
     </div>
     <div class="g2">
       <label class="f"><span class="lbl">購買日期</span>
-        <input type="date" value="${dOnly(E.buy_date)}" onchange="setEq('buy_date',this.value)"></label>
+        <input type="date" value="${dOnly(E.buy_date)}" onchange="setEq('buy_date',this.value)">${E._dateAuto?`<span style="font-size:12px;color:var(--muted)">自動帶入${(S.moves||[]).some(x=>x.unitNo===E.no&&x.reason==="採購入庫")?"入庫那天":"今天"}，可以改</span>`:""}</label>
       <label class="f"><span class="lbl">保管單位</span>
         <input type="text" value="${esc(E.keeper)}" oninput="setEq('keeper',this.value)"></label>
     </div>
@@ -5580,8 +5598,10 @@ async function eqSave(){
       loc_code:E.loc_code||"",note:E.note||""};
     if(cert) p.cert_photo=cert;
     const id=await rpc("eq_save",{p_token:token,p:p});
-    eqEdit=null; eqPhoto=null; eqOpen=id;
-  },"已儲存");
+    // 補建檔：存完直接回清單原位，接著補下一台；一般編輯：回這台的頁面
+    eqEdit=null; eqPhoto=null; eqOpen=(E._todo&&isoBackY!=null)?null:id;
+  },E._todo?`${E.no} 已建檔`:"已儲存");
+  if(E._todo&&!eqOpen) isoBackTo();
 }
 function eqDel(id){ const e=eqById(id); if(!e)return;
   if(!confirm(`刪除 ${e.no}？\n沒有校驗紀錄的儀器才能刪。`))return;
@@ -5765,19 +5785,23 @@ function scrapOk(id){
 
 /* ---------- 設備履歷卡 ---------- */
 const curYM=()=>isoToday().slice(0,7);
+/* 履歷卡的套裝內容：預設就是放在這裡的量測儀器與儀器（停用、報廢、遺失的不算） */
+function cardEquip(c){
+  if(c.kind!=="veh"&&c.kind!=="stock") return [];
+  return EQ().filter(e=>(e.kind==="meas"||e.kind==="inst")
+      && !["stop","scrap","lost"].includes(e.status)
+      && (c.kind==="veh"?e.loc_code===c.veh_code:!e.loc_code))
+    .sort((a,b)=>a.no.localeCompare(b.no,"zh-Hant",{numeric:true}));
+}
 function packText(c){
   if(c.pack_note) return c.pack_note;
-  if(c.kind==="veh"){
-    const parts=(S.pkgs||[]).map(p=>{const n=RW().filter(r=>r.pkg===p.id).length;
-      return n?`${p.name}（${n} 項）`:null;}).filter(Boolean);
-    const eqs=EQ().filter(e=>e.loc_code===c.veh_code&&e.status!=="scrap").map(e=>e.no);
-    return parts.join("、")+(eqs.length?`；儀器 ${eqs.join("、")}`:"");
-  }
-  if(c.kind==="stock"){
-    const eqs=EQ().filter(e=>!e.loc_code&&e.status!=="scrap").map(e=>e.no);
-    return `庫存品項 ${(S.items||[]).length} 項`+(eqs.length?`；儀器 ${eqs.join("、")}`:"");
-  }
-  return "";
+  const es=cardEquip(c);
+  const m=es.filter(e=>e.kind==="meas").map(e=>e.no), i=es.filter(e=>e.kind==="inst").map(e=>e.no);
+  const out=[];
+  if(m.length) out.push(`量測儀器 ${m.join("、")}`);
+  if(i.length) out.push(`儀器 ${i.join("、")}`);
+  if(!out.length&&(c.kind==="veh"||c.kind==="stock")) return c.kind==="veh"?"（這台車上目前沒有量測儀器或儀器）":"（公司庫存目前沒有量測儀器或儀器）";
+  return out.join("；");
 }
 const inspDone=c=>logsOf(c.id).some(l=>l.kind==="insp"&&l.ym===curYM());
 
@@ -5802,7 +5826,7 @@ function viewCardList(){
             <div class="meta">${c.kind==="custom"?"自訂":nEq+" 台儀器"} ·
               ${lg.length?"最後紀錄 "+dOnly(last.log_date):"尚無紀錄"}</div>
           </div>
-          <button class="btn tiny ghost" onclick="cardOpen='${c.id}';window.scrollTo(0,0);render()">開啟</button>
+          <button class="btn tiny ghost" onclick="isoBackY=window.scrollY;cardOpen='${c.id}';window.scrollTo(0,0);render()">開啟</button>
         </div>`;}).join("")}
       <div style="padding:12px 0 2px"><button class="btn sm ghost" onclick="cardNew()">＋ 新增一張履歷卡</button></div>
     </div></div>`;
@@ -5819,7 +5843,7 @@ function viewCardDetail(){
   if(inspSet===c.id) return viewInspSet(c);
   if(inspNew)        return viewInspRun(c);
   const lg=logsOf(c.id);
-  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="cardOpen=null;render()">← 回履歷清單</button>
+  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="cardOpen=null;isoBackTo()">← 回履歷清單</button>
   <div class="card"><div class="hd"><h2>${esc(c.name)} 設備履歷與維修紀錄</h2></div><div class="bd">
     <table class="kv">
       <tr><th>設備名稱</th><td>${esc(c.name)}</td><th>機器編號</th><td class="num">${c.kind==="veh"?"車-"+esc(c.veh_code):"—"}</td></tr>
@@ -5871,6 +5895,14 @@ function viewCardDetail(){
       </div>
       <label class="f"><span class="lbl">保養維護記錄</span>
         <textarea rows="3" oninput="logNew.content=this.value">${esc(logNew.content)}</textarea></label>
+      ${(()=>{const es=cardEquip(c); if(!es.length) return "";
+        const n=es.filter(e=>logNew.eq&&logNew.eq[e.id]).length;
+        return `<div class="f"><span class="lbl">同時寫進這些儀器的「量具修護記錄」（${n}/${es.length} 台）</span>
+          <div class="eqpick">${es.map(e=>`<label class="ck"><input type="checkbox" ${logNew.eq&&logNew.eq[e.id]?"checked":""}
+              onchange="logNew.eq['${e.id}']=this.checked;render()"><span><b>${esc(e.no)}</b>　${esc(e.item_name)}</span></label>`).join("")}</div>
+          <div style="margin-top:6px;display:flex;gap:7px">
+            <button type="button" class="btn tiny ghost" onclick="${es.map(e=>`logNew.eq['${e.id}']=true;`).join("")}render()">全選</button>
+            <button type="button" class="btn tiny ghost" onclick="logNew.eq={};render()">全不選</button></div></div>`;})()}
       ${shotBox("log","照片（選填）")}
       <div style="display:flex;gap:8px">
         <button class="btn amber sm" onclick="logSave('${c.id}')">儲存</button>
@@ -5883,11 +5915,16 @@ function viewCardDetail(){
     </div>
   </div></div>`;
 }
-function logOpen(){ logNew={log_date:isoToday(),content:"",person:(me&&me.name)||""}; eqPhoto={}; render(); }
+function logOpen(){
+  const c=cardById(cardOpen);
+  const ids={}; (c?cardEquip(c):[]).forEach(e=>ids[e.id]=true);   // 預設套裝內容全部勾
+  logNew={log_date:isoToday(),content:"",person:(me&&me.name)||"",eq:ids}; eqPhoto={}; render(); }
 async function logSave(cardId){
   if(!logNew||!logNew.content.trim()) return toast("請填保養維護記錄");
   await isoDo(async()=>{ const ph=await isoUp("log","log");
-    await rpc("log_add",{p_token:token,p:Object.assign({card_id:cardId},logNew,ph?{photo:ph}:{})});
+    const ids=Object.keys(logNew.eq||{}).filter(k=>logNew.eq[k]);
+    const body={card_id:cardId,log_date:logNew.log_date,content:logNew.content,person:logNew.person,equip_ids:ids};
+    await rpc("log_add",{p_token:token,p:Object.assign(body,ph?{photo:ph}:{})});
     logNew=null; eqPhoto=null; },"已新增保養紀錄");
 }
 function cardDel(id){ const c=cardById(id); if(!c)return;
