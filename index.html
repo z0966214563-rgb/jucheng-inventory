@@ -1135,7 +1135,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=23;
+const APP_VER=24;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -5383,9 +5383,9 @@ function viewEqDetail(){
         <tr><th>負責人員</th><td>${esc(e.owner_name)||"—"}</td><th>目前位置</th><td>${esc(locName(e.loc_code))}</td></tr>
         <tr><th>下次校驗</th><td colspan="3"><span class="ipill ${c}">${esc(txt)}</span>
           ${docsOf(e,"cert").length?""
-            :`　<span style="color:var(--alert);font-size:12.5px">尚未上傳原廠校驗證明</span>`}</td></tr>
+            :`　<span style="color:var(--alert);font-size:12.5px">尚未上傳原廠校驗／檢驗／購買證明</span>`}</td></tr>
       </table>
-      <div class="noprint" style="margin-top:13px">${docBox(e,"cert")}${docBox(e,"buy")}</div>
+      <div class="noprint" style="margin-top:13px">${docBox(e,"cert")}</div>
       <div style="margin-top:11px;display:flex;gap:7px;flex-wrap:wrap" class="noprint">
         ${eqTodo(e)?`<button class="btn tiny" onclick="eqEditOpen('${e.id}')">補建檔（規格、校驗）</button>`
           :`<button class="btn tiny ghost" onclick="eqEditOpen('${e.id}')">編輯基本資料</button>`}
@@ -5473,9 +5473,10 @@ function shotBox(slot,label){
   </label>`;
 }
 /* ---------- 儀器的證明文件：原廠校驗／檢驗證明、原廠購買證明（照片或 PDF，可多份） ---------- */
-const DOCK={cert:"原廠校驗／檢驗證明",buy:"原廠購買證明"};
+const DOCK={cert:"原廠校驗／檢驗／購買證明",buy:"原廠校驗／檢驗／購買證明"};
 let docBusy={};
-const docsOf=(e,k)=>((e&&e.docs)||[]).filter(d=>d.k===k);
+/* 校驗、檢驗、購買證明都算同一個欄位（以前分開傳的購買證明也一起列出來） */
+const docsOf=(e,k)=>((e&&e.docs)||[]);
 function docBox(e,k,note){
   const list=docsOf(e,k), busy=docBusy[e.id+":"+k];
   return `<div class="f docbox"><span class="lbl">${DOCK[k]}${list.length?`（${list.length} 份）`:""}</span>
@@ -5744,8 +5745,8 @@ function viewEqForm(){
         <input type="text" class="roin" readonly value="${esc(locName(E.loc_code))}">
         <span style="font-size:12px;color:var(--muted)">要調動請用「出入庫」，才會留下紀錄</span></label>
     </div>
-    ${E.id?docBox(E,"cert","上傳之後，這台在購入一年內才能被選為內校的標準件。沒有證明也還是可以選，只是稽核時沒有依據。")
-          +docBox(E,"buy","發票、收據、出貨單都可以")
+    ${E.id?docBox(E,"cert","原廠的校驗報告、檢驗證明、購買發票或收據都放這裡。購入一年內、有這些證明的儀器，"
+          +"就能當內校的標準件去校其他儀器，稽核時有依據。")
       :`<div class="note">證明文件要先存檔之後才能上傳</div>`}
     <div style="font-size:12.5px;color:var(--muted);margin:-4px 0 12px">證明一選好就直接上傳，不用按儲存</div>
     <label class="f"><span class="lbl">備註</span>
@@ -5810,7 +5811,7 @@ function calBody(){
           </div>
           ${C.std_id&&!(cands.find(x=>x.id===C.std_id)||{}).cert_photo?
             `<div style="margin-top:9px;font-size:12.5px;color:#7A2318">
-              這台標準件還沒有上傳原廠校驗證明，稽核時沒有依據可以證明它準。</div>`:""}`
+              這台標準件還沒有上傳原廠校驗／檢驗／購買證明，稽核時沒有依據可以證明它準。</div>`:""}`
         :`<div style="font-size:13px;color:#7A2318">目前沒有可用的標準件 ──
             同品項裡沒有購入未滿一年的儀器。請先購入新儀器登記進來，或改用外校。</div>`}
       </div>`:`<label class="f"><span class="lbl">校驗單位</span>
