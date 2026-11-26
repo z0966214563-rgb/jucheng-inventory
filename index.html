@@ -1084,6 +1084,15 @@ header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫
 .lbview.z img{max-width:none;max-height:none;cursor:zoom-out}
 .lbbar2{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .lbbar2 .btn.ghost{background:#fff}
+.kv2 th{width:34%;white-space:nowrap}
+.kv2 td{word-break:break-all}
+table.pf.rec th{width:28%;text-align:left;padding-left:8px}
+table.pf.rec td{text-align:left;padding-left:8px}
+.recph{margin-top:10px;text-align:center}
+.recph img{max-width:100%;max-height:120mm;object-fit:contain;border:1px solid #999}
+.okbox{margin-top:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 12px;
+  border:1.5px solid var(--line);border-radius:var(--r2);background:var(--sunk)}
+.okbox.done{background:#EEF8F1;border-color:#9BC9A8}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -1143,7 +1152,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=25;
+const APP_VER=27;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -1721,7 +1730,7 @@ async function hdrRegion(k){
   if(role==="field"&&hasProgress()) clearDraft();
   draft=null; resume=null;
   // ISO 的資料是一次抓一區的，換區一定要丟掉重抓，不然畫面會留著上一區的儀器與履歷
-  ISO=null; isoUrls={}; eqOpen=null; eqEdit=null; cardOpen=null; cardEdit=null;
+  ISO=null; isoUrls={}; eqOpen=null; eqEdit=null; cardOpen=null; cardEdit=null; recOpen=null;
   printWhat=null; lostPick=null; openSku=null; unitEdit=null; mvClearUnits();
   WH=null; whForm=null; whOpenId=null; ALERTS=null;
   resetView();
@@ -1962,7 +1971,7 @@ function resetView(){
   rVeh=null; rDate=null; openRec=null; lightbox=null;
   eqGrpOpen={}; isoQ=""; isoLoc=""; isoFilt="all";
   rsOpen=false; hdrMenu=false; baseDone=false;
-  calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null;
+  calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null; recOpen=null;
   if(typeof mv==="object"){ mv.vehicle=""; mv.units={}; }
   if(typeof rs==="object"){ rs.vehicle=""; }
 }
@@ -5195,6 +5204,7 @@ function isoBackTo(){
 }
 function eqBack(){ eqOpen=null; isoBackTo(); }
 let calNew=null, fixNew=null, stopNew=null, scrapNew=null;
+let recOpen=null;   // 單筆校驗／修護紀錄的詳細頁：{t:'cal'|'fix', id}
 let cardOpen=null, cardEdit=null, logNew=null, inspNew=null, inspSet=null;
 let printWhat=null, printYear=null, isoUrls={};
 
@@ -5284,7 +5294,7 @@ async function saveToolOwner(v){
   },"已設定一般工具的負責人員");
 }
 function isoGo(t){ isoTab=t; eqOpen=null; cardOpen=null; eqEdit=null; printWhat=null;
-  calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null;
+  calNew=null; fixNew=null; stopNew=null; scrapNew=null; logNew=null; inspNew=null; inspSet=null; recOpen=null;
   window.scrollTo(0,0); render(); }
 
 /* ---------- 主畫面 ---------- */
@@ -5298,6 +5308,7 @@ function viewISOin(){
   if(stopNew)  return `<div class="wrap wide">${stopBody()}</div>`;
   if(scrapNew) return `<div class="wrap wide">${scrapBody()}</div>`;
   if(eqEdit)     return `<div class="wrap wide">${viewEqForm()}</div>`;
+  if(recOpen)    return `<div class="wrap wide">${viewRec()}</div>`;
   if(eqOpen)     return `<div class="wrap wide">${viewEqDetail()}</div>`;
   if(cardOpen)   return `<div class="wrap wide">${viewCardDetail()}</div>`;
   return `<div class="wrap wide">
@@ -5429,10 +5440,11 @@ function viewEqDetail(){
           <span style="flex:0 0 42px;font-size:12.5px">${CALW[c2.way]||""}</span>
           <span class="enm" style="font-size:13px">${esc(c2.err)||"—"}　<span class="ipill ${c2.result==="ok"?"ok":"bad"}">${CALR[c2.result]||""}</span>
             ${c2.std_no?`<br><span style="font-size:11.5px;color:var(--muted)">標準件 ${esc(c2.std_no)}（${esc(c2.std_read)} / ${esc(c2.got_read)}）</span>`:""}
-            ${c2.action?`<br><span style="font-size:11.5px;color:var(--muted)">${esc(c2.action)}</span>`:""}</span>
-          <span style="flex:0 0 46px;display:flex;gap:4px">
-            ${c2.photo?`<button class="btn tiny ghost" onclick="showIso('${c2.photo}')">看</button>`:""}
-            <button class="btn tiny ghost" onclick="isoDel('eq_cal_delete','${c2.id}','這筆校驗紀錄')">✕</button></span>
+            ${c2.action?`<br><span style="font-size:11.5px;color:var(--muted)">${esc(c2.action)}</span>`:""}
+            ${c2.doc_no?`<br><span class="num" style="font-size:11.5px;color:var(--ink2)">${esc(c2.doc_no)}</span>`:""}
+            ${c2.ok_by?"":`<span class="ipill warn" style="margin-left:5px">待主管確認</span>`}</span>
+          <span style="flex:0 0 auto;display:flex;gap:4px">
+            <button class="btn tiny ghost" onclick="recGo('cal','${c2.id}')">詳細</button></span>
         </div>`).join("")}</div>`:`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有校驗紀錄</div>`}
       ${e.status==="scrap"?"":`<button class="btn sm amber noprint" style="margin-top:10px" onclick="calOpen('${e.id}')">＋ 新增校驗紀錄</button>`}
 
@@ -5440,10 +5452,10 @@ function viewEqDetail(){
       ${fixes.length?`<div class="ilist">${fixes.map(f=>`<div class="eqrow" style="cursor:default">
           <span class="eno" style="flex:0 0 78px">${dOnly(f.fix_date)}</span>
           <span class="enm" style="font-size:13px">${esc(f.content)}
-            ${f.doc_no?`<br><span style="font-size:11.5px;color:var(--muted)">${esc(f.doc_no)}</span>`:""}</span>
-          <span style="flex:0 0 46px;display:flex;gap:4px">
-            ${f.photo?`<button class="btn tiny ghost" onclick="showIso('${f.photo}')">看</button>`:""}
-            <button class="btn tiny ghost" onclick="isoDel('eq_fix_delete','${f.id}','這筆修護紀錄')">✕</button></span>
+            ${f.doc_no?`<br><span class="num" style="font-size:11.5px;color:var(--ink2)">${esc(f.doc_no)}</span>`:""}
+            ${f.ok_by?"":`<span class="ipill warn" style="margin-left:5px">待主管確認</span>`}</span>
+          <span style="flex:0 0 auto;display:flex;gap:4px">
+            <button class="btn tiny ghost" onclick="recGo('fix','${f.id}')">詳細</button></span>
         </div>`).join("")}</div>`:`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有修護紀錄</div>`}
       ${e.status==="scrap"?"":`<button class="btn sm ghost noprint" style="margin-top:10px" onclick="fixOpen('${e.id}')">＋ 新增修護紀錄</button>`}
 
@@ -5857,8 +5869,7 @@ function calBody(){
       <label class="f"><span class="lbl">處理情形</span>
         <textarea rows="2" oninput="setCal('action',this.value)">${esc(C.action)}</textarea></label>
       <div class="g2">
-        <label class="f"><span class="lbl">校驗紀錄編號</span>
-          <input type="text" value="${esc(C.doc_no)}" oninput="setCal('doc_no',this.value)"></label>
+        ${recNoBox("校",e,C.cal_date)}
         <label class="f"><span class="lbl">校驗人員</span>
           <input type="text" value="${esc(C.person)}" oninput="setCal('person',this.value)"></label>
       </div>
@@ -5871,9 +5882,22 @@ async function calSave(){
   if(C.way==="in"&&!C.std_id) return toast("內校一定要選標準件");
   await isoDo(async()=>{
     const ph=await isoUp("cal","cal");
-    await rpc("eq_cal_add",{p_token:token,p:Object.assign({},C,ph?{photo:ph}:{})});
+    await rpc("eq_cal_add",{p_token:token,p:Object.assign({},C,{doc_no:""},ph?{photo:ph}:{})});
     calNew=null; eqPhoto=null;
   },"已新增校驗紀錄");
+}
+
+/* ---------- 紀錄編號：校-儀器編號-年-流水號／修-儀器編號-年-流水號（存檔時由系統給號） ---------- */
+function recNoNext(pre,e,date){
+  const base=`${pre}-${e.no}-${String(date||isoToday()).slice(0,4)}-`;
+  const used=calsOf(e.id).concat(fixesOf(e.id)).map(x=>String(x.doc_no||""))
+    .filter(n=>n.indexOf(base)===0).map(n=>parseInt(n.slice(base.length).replace(/\D/g,""),10)||0);
+  return base+String((used.length?Math.max.apply(null,used):0)+1).padStart(2,"0");
+}
+function recNoBox(pre,e,date){
+  return `<label class="f"><span class="lbl">${pre==="校"?"校驗":"修護"}紀錄編號</span>
+    <input type="text" class="roin" readonly value="${esc(recNoNext(pre,e,date))}">
+    <span style="font-size:12px;color:var(--muted)">系統自動編號，存檔時確定</span></label>`;
 }
 
 /* ---------- 修護紀錄 ---------- */
@@ -5887,9 +5911,8 @@ function fixBody(){
     <div class="bd">
       <div class="g2">
         <label class="f"><span class="lbl">日期</span>
-          <input type="date" value="${F.fix_date}" onchange="setFix('fix_date',this.value)"></label>
-        <label class="f"><span class="lbl">文件編號</span>
-          <input type="text" value="${esc(F.doc_no)}" oninput="setFix('doc_no',this.value)"></label>
+          <input type="date" value="${F.fix_date}" onchange="setFix('fix_date',this.value);render()"></label>
+        ${recNoBox("修",e,F.fix_date)}
       </div>
       <label class="f"><span class="lbl">修護內容</span>
         <textarea rows="3" oninput="setFix('content',this.value)">${esc(F.content)}</textarea></label>
@@ -6261,6 +6284,90 @@ const pfHead=(no,ver)=>`<div class="fh"><span>表單編號：${no}</span>
 const pfSig=`<div class="sig"><span>審核：____________</span><span>製表：____________</span></div>`;
 const CO='<div style="text-align:center;font-size:12px;margin-bottom:2px">囍悅家居有限公司</div>';
 
+/* ---------- 單筆校驗／修護紀錄：詳細頁＋列印 ---------- */
+const recGet=(t,id)=>((t==="cal"?(ISO&&ISO.cals):(ISO&&ISO.fixes))||[]).find(x=>x.id===id);
+let recBackY=0;
+function recGo(t,id){ recBackY=window.scrollY; recOpen={t,id}; window.scrollTo(0,0); render(); }
+function recBack(){ recOpen=null; render(); const y=recBackY; window.scrollTo(0,y); requestAnimationFrame(()=>window.scrollTo(0,y)); }
+const fmtTs=x=>x?String(x).slice(0,16).replace("T"," "):"";
+const okTxt=r=>r.ok_by?`${r.ok_by}（${fmtTs(okLocal(r.ok_at))} 系統確認）`:"";
+function okLocal(ts){ if(!ts) return ""; const d=new Date(ts); if(isNaN(d)) return String(ts);
+  const p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+async function recOk(undo){
+  const t=recOpen.t, id=recOpen.id;
+  if(undo&&!confirm("撤回你的主管確認？")) return;
+  await isoDo(()=>rpc("rec_confirm",{p_token:token,p_kind:t,p_id:id,p_undo:!!undo}),undo?"已撤回確認":"已確認");
+}
+function recRows(t,r,e){
+  const row=(a,b)=>`<tr><th>${a}</th><td>${b}</td></tr>`;
+  const head=row("紀錄編號",`<b class="num">${esc(r.doc_no)||"—"}</b>`)
+    +row("儀器",`${esc(e.no)}　${esc(e.item_name)}${e.spec?"／"+esc(e.spec):""}`)
+    +row("廠牌／容許誤差",`${esc(e.brand)||"—"}　／　${esc(e.tol)||"—"}`);
+  if(t==="cal") return head
+    +row("校驗日期",`<span class="num">${dOnly(r.cal_date)}</span>`)
+    +row("校驗方式",r.way==="in"?"內校（本公司）":"外校")
+    +(r.way==="in"
+      ?row("標準件",r.std_no?`${esc(r.std_no)}`:"—")
+        +row("標準件讀值／受校讀值",`${esc(r.std_read)||"—"}　／　${esc(r.got_read)||"—"}`)
+      :row("校驗單位",esc(r.org)||"—"))
+    +row(r.way==="in"?"差異":"實測誤差值",esc(r.err)||"—")
+    +row("判定",CALR[r.result]||"")
+    +row("處理情形",esc(r.action)||(r.result==="ok"?"合格，無須處理":"—"))
+    +row("校驗人員",esc(r.person)||"—");
+  return head
+    +row("修護日期",`<span class="num">${dOnly(r.fix_date)}</span>`)
+    +row("修護內容",esc(r.content)||"—")
+    +row("維護人",esc(r.person)||"—");
+}
+function viewRec(){
+  const r=recGet(recOpen.t,recOpen.id); const e=r&&eqById(r.equip_id);
+  if(!r||!e){ recOpen=null; return viewEqDetail(); }
+  const t=recOpen.t, nm=t==="cal"?"校驗紀錄":"修護紀錄", u=r.photo&&isoUrls[r.photo];
+  return `<button class="btn sm ghost noprint" style="margin-bottom:11px" onclick="recBack()">← 回 ${esc(e.no)}</button>
+  <div class="card"><div class="hd"><h2>${nm}</h2>
+      <span class="num" style="margin-left:auto;font-size:13px;color:var(--ink2)">${esc(r.doc_no)}</span></div>
+    <div class="bd">
+      <table class="kv kv2">${recRows(t,r,e)}</table>
+      <div class="lbl" style="margin:14px 0 6px">照片</div>
+      ${r.photo?(u?`<img src="${u}" alt="" style="width:100%;max-height:420px;object-fit:contain;background:#fff;
+          border:1.5px solid var(--line);border-radius:var(--r2);cursor:zoom-in" onclick="showIso('${r.photo}')">`
+          :`<button class="btn tiny ghost" onclick="showIso('${r.photo}')">看照片</button>`)
+        :`<div style="color:var(--muted);font-size:13.5px">這筆沒有拍照</div>`}
+      <div class="okbox${r.ok_by?" done":""}">
+        <span class="lbl" style="margin:0">主管確認</span>
+        ${r.ok_by?`<b>${esc(r.ok_by)}</b><span class="num" style="font-size:12.5px;color:var(--muted)">${esc(okLocal(r.ok_at))}</span>
+            ${me&&me.name===r.ok_by?`<button class="btn tiny ghost" style="margin-left:auto" onclick="recOk(true)">撤回</button>`:""}`
+          :(me&&String(r.person||"").trim()===me.name
+            ?`<span style="font-size:13px;color:var(--muted)">尚未確認・這筆是你做的，要請另一位主管確認</span>`
+            :`<span style="font-size:13px;color:var(--alert)">尚未確認</span>
+              <button class="btn tiny amber" style="margin-left:auto" onclick="recOk(false)">主管確認</button>`)}
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap" class="noprint">
+        <button class="btn sm amber" onclick="printWhat='r${t}:${r.id}';window.scrollTo(0,0);render()">列印這筆${nm}</button>
+        <button class="btn sm ghost" onclick="recDel()">刪除</button>
+      </div>
+    </div></div>`;
+}
+async function recDel(){
+  const t=recOpen.t, nm=t==="cal"?"校驗紀錄":"修護紀錄";
+  if(!confirm(`刪除這筆${nm}？`)) return;
+  const id=recOpen.id;
+  await isoDo(async()=>{ await rpc(t==="cal"?"eq_cal_delete":"eq_fix_delete",{p_token:token,p_id:id}); recOpen=null; },"已刪除");
+  window.scrollTo(0,recBackY);
+}
+function pfRec(t,id){
+  const r=recGet(t,id); const e=r&&eqById(r.equip_id); if(!r||!e) return "";
+  const u=r.photo&&isoUrls[r.photo];
+  return `<div class="iso-form">
+    <div class="fh"><span>紀錄編號：${esc(r.doc_no)||"—"}</span><span>${esc(regName(REG))}</span>
+      <span>列印：${isoToday()}</span></div>
+    ${CO}<div class="ft">${t==="cal"?"量 測 儀 器 校 驗 紀 錄":"量 具 修 護 紀 錄"}</div>
+    <table class="pf rec">${recRows(t,r,e)}</table>
+    ${u?`<div class="recph"><img src="${u}" alt=""></div>`:""}
+    <div class="sig"><span>${t==="cal"?"校驗人員":"維護人"}：${esc(r.person)||"____________"}</span>
+      <span>主管確認：${r.ok_by?esc(okTxt(r)):"____________"}</span></div></div>`;
+}
 function viewPrint(){
   const [k,arg]=String(printWhat).split(":");
   let body="";
@@ -6270,6 +6377,8 @@ function viewPrint(){
   else if(k==="0501") body=pf0501(arg);
   else if(k==="0502") body=pf0502(arg);
   else if(k==="scrap")body=pfScrap(arg);
+  else if(k==="rcal") body=pfRec("cal",arg);
+  else if(k==="rfix") body=pfRec("fix",arg);
   return `<div class="wrap wide">
     <div class="noprint" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn sm ghost" onclick="printWhat=null;render()">← 返回</button>
@@ -6339,7 +6448,7 @@ function pf1602(id){
           c.std_no?`（標準件 ${esc(c.std_no)}：${esc(c.std_read)} / ${esc(c.got_read)}）`:""}</td>
         <td class="mo">${esc(c.doc_no)||"—"}</td></tr>`).join("")}
       ${Array(Math.max(0,3-cals.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
-    </table>${pfSig}</div>`;
+    </table></div>`;
 }
 function planMonths(e,Y){
   const out={}; if(e.cal_type==="none"||!e.cal_months) return out;
@@ -6367,7 +6476,7 @@ function pf1603(Y){
           <td>${e.cal_months} 個月</td></tr>`;}).join("")}
       ${list.length?"":'<tr><td colspan="16" style="height:40px">尚未登記需校驗的量測儀器</td></tr>'}
       <tr><td class="hd l" colspan="3">備　註</td><td class="l" colspan="13">計劃：○　　實施：⊕</td></tr>
-    </table>${pfSig}</div>`;
+    </table></div>`;
 }
 function pf0501(cardId){
   const c=cardById(cardId); if(!c) return "";
@@ -6643,7 +6752,7 @@ function go(k){
   page=null;ed=null;nw=null;plan=null;planY=null;retY=null;lastEd=null;   // 換頁就把編輯中的子頁收掉
   if(SCREEN[k]) lastIn[groupOf(k)]=k;
   if(k!=="iso"){eqOpen=null;eqEdit=null;cardOpen=null;cardEdit=null;printWhat=null;
-    calNew=null;fixNew=null;stopNew=null;scrapNew=null;logNew=null;inspNew=null;inspSet=null;}
+    calNew=null;fixNew=null;stopNew=null;scrapNew=null;logNew=null;inspNew=null;inspSet=null;recOpen=null;}
   if(k!=="wh") whForm=null;
   window.scrollTo(0,0);render();
   if(k==="iso"&&!ISO) isoKick();
