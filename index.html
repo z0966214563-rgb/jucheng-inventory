@@ -1076,6 +1076,14 @@ header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫
   border-radius:var(--r2);padding:12px;text-align:center;color:var(--muted);background:var(--sunk);
   font-size:13.5px;cursor:pointer}
 .docadd.busy{cursor:wait;color:var(--ink2)}
+.lb.lbfull{flex-direction:column;padding:10px 10px 12px;gap:10px}
+.lbview{flex:1;width:100%;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;
+  -webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom}
+.lbview img{max-width:100%;max-height:100%;object-fit:contain;background:#fff;cursor:zoom-in;display:block}
+.lbview.z{display:block}
+.lbview.z img{max-width:none;max-height:none;cursor:zoom-out}
+.lbbar2{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.lbbar2 .btn.ghost{background:#fff}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -1135,7 +1143,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=24;
+const APP_VER=25;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -4173,10 +4181,15 @@ function shotList(r){
 }
 function lbHTML(){
   if(lightbox&&lightbox.url){
-    return `<div class="lb" onclick="lbClose()">
-      <div class="lbbox" onclick="event.stopPropagation()">
-        <img src="${lightbox.url}">
-        <div class="lbbar"><button class="btn ghost sm" onclick="lbClose()">關閉</button></div>
+    const z=!!lightbox.zoom;
+    return `<div class="lb lbfull" onclick="lbClose()">
+      <div class="lbview${z?" z":""}" onclick="event.stopPropagation()">
+        <img src="${lightbox.url}" alt="" onclick="lightbox.zoom=!lightbox.zoom;render()">
+      </div>
+      <div class="lbbar2" onclick="event.stopPropagation()">
+        <button class="btn sm" onclick="lightbox.zoom=!lightbox.zoom;render()">${z?"縮回整張":"放大到原尺寸"}</button>
+        <a class="btn ghost sm" href="${lightbox.url}" target="_blank" rel="noopener">開原圖</a>
+        <button class="btn ghost sm" onclick="lbClose()">關閉</button>
       </div></div>`;
   }
   const r=S.records.find(x=>x.id===lightbox.rid); if(!r)return "";
@@ -5231,12 +5244,15 @@ function calState(e){
   if(d<=30)return ["warn","剩 "+d+" 天"];
   return ["",dOnly(e.next_cal)];
 }
-// 標準件：同品項、購入未滿一年、未報廢、不是自己
-function stdCands(e,onDate){
+// 標準件：同品項、購入未滿一年、未報廢、不是自己、有上傳原廠校驗／檢驗／購買證明
+function stdYoung(e,onDate){
   const d=onDate||isoToday();
   return EQ().filter(x=>x.id!==e.id && x.item_id===e.item_id && x.status!=="scrap"
     && x.buy_date && isoDays(d,dOnly(x.buy_date))<=365 && isoDays(d,dOnly(x.buy_date))>=0);
 }
+function stdCands(e,onDate){ return stdYoung(e,onDate).filter(x=>!!x.cert_photo); }
+/* 購入未滿一年、但還沒上傳證明的 → 不能當標準件，提醒去補 */
+function stdNoProof(e,onDate){ return stdYoung(e,onDate).filter(x=>!x.cert_photo); }
 const stdLeft=(x,onDate)=>365-isoDays(onDate||isoToday(),dOnly(x.buy_date));
 
 async function isoLoad(){
@@ -5449,9 +5465,10 @@ function viewEqDetail(){
 
 /* ---------- 照片：ISO 文件要看得清楚，不能用盤點那種縮圖 ---------- */
 function shrinkBig(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
-  img.onload=()=>{const m=1400,sc=Math.min(1,m/Math.max(img.width,img.height));
-    const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
-    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.75));};
+  img.onload=()=>{const m=2400,sc=Math.min(1,m/Math.max(img.width,img.height));
+    const c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+    const x=c.getContext("2d"); x.imageSmoothingQuality="high"; x.drawImage(img,0,0,c.width,c.height);
+    cb(c.toDataURL("image/jpeg",0.88));};
   img.src=fr.result;};fr.readAsDataURL(f);}
 function isoShot(inp,slot){ if(!inp.files[0])return;
   shrinkBig(inp.files[0],d=>{ eqPhoto=eqPhoto||{}; eqPhoto[slot]=d; render(); }); }
@@ -5502,9 +5519,10 @@ function shrinkP(f){ return new Promise((ok,no)=>{ const t=setTimeout(()=>no(new
   const fr=new FileReader(); fr.onerror=()=>{clearTimeout(t);no(new Error("讀不到檔案"));};
   fr.onload=()=>{ const img=new Image();
     img.onerror=()=>{clearTimeout(t);no(new Error("讀不出這張圖（iPhone 的 HEIC 請改成直接拍照，或先截圖再選）"));};
-    img.onload=()=>{ clearTimeout(t); const m=1600,sc=Math.min(1,m/Math.max(img.width,img.height));
-      const c=document.createElement("canvas"); c.width=img.width*sc; c.height=img.height*sc;
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height); ok(c.toDataURL("image/jpeg",0.8)); };
+    img.onload=()=>{ clearTimeout(t); const m=3200,sc=Math.min(1,m/Math.max(img.width,img.height));
+      const c=document.createElement("canvas"); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+      const x=c.getContext("2d"); x.imageSmoothingQuality="high"; x.drawImage(img,0,0,c.width,c.height);
+      ok(c.toDataURL("image/jpeg",0.9)); };
     img.src=fr.result; };
   fr.readAsDataURL(f); }); }
 function eqPatchDocs(id,docs){
@@ -5522,8 +5540,12 @@ async function docPick(inp,id,k){
       if(!isPdf&&!isImg){ bad.push(`${f.name}：只能放照片或 PDF`); continue; }
       if(isPdf&&f.size>10*1024*1024){ bad.push(`${f.name}：PDF 超過 10MB`); continue; }
       try{
-        const data=isPdf?await readURL(f):await shrinkP(f);
-        const path=`${slugOf(REG)}/iso/${k}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${isPdf?"pdf":"jpg"}`;
+        // 證明要看得清楚：JPG／PNG 8MB 以內直接傳原檔，一點都不壓；其他才轉成高畫質 JPG
+        const raw=!isPdf&&/^image\/(jpeg|png|webp)$/.test(f.type||"")&&f.size<=8*1024*1024;
+        if(!isPdf&&!raw&&f.size>40*1024*1024){ bad.push(`${f.name}：照片超過 40MB`); continue; }
+        const data=(isPdf||raw)?await readURL(f):await shrinkP(f);
+        const ext=isPdf?"pdf":raw?({"image/png":"png","image/webp":"webp"}[f.type]||"jpg"):"jpg";
+        const path=`${slugOf(REG)}/iso/${k}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
         await uploadPhoto(path,isPdf?data.replace(/^data:[^;]*;/,"data:application/pdf;"):data);
         const docs=await rpc("eq_doc_add",{p_token:token,p_id:id,p_kind:k,p_path:path,
           p_name:(f.name||"").replace(/\.[^.]+$/,"").slice(0,40),p_type:isPdf?"pdf":"img"});
@@ -5784,7 +5806,7 @@ function calOpen(id){ const e=eqById(id); if(!e)return;
 function setCal(k,v){ if(calNew) calNew[k]=v; }
 function calBody(){
   const e=eqById(calNew.equip_id), C=calNew;
-  const cands=stdCands(e,C.cal_date);
+  const cands=stdCands(e,C.cal_date), nop=stdNoProof(e,C.cal_date);
   const bad=C.tol&&false;
   return `<div class="card"><div class="hd"><h2 class="num">${esc(e.no)} · 新增校驗紀錄</h2>
       <button class="btn tiny ghost" style="margin-left:auto" onclick="calNew=null;eqPhoto=null;render()">取消</button></div>
@@ -5798,10 +5820,10 @@ function calBody(){
         </div></label>
 
       ${C.way==="in"?`<div style="border:1px solid var(--amber-d);background:#FFF9EC;border-radius:3px;padding:11px 12px;margin-bottom:13px">
-        <span class="lbl" style="display:block;margin-bottom:6px">標準件（只列出購入未滿一年的同類儀器）</span>
+        <span class="lbl" style="display:block;margin-bottom:6px">標準件（只列出購入未滿一年、有上傳原廠證明的同類儀器）</span>
         ${cands.length?`<select onchange="setCal('std_id',this.value);render()" style="margin-bottom:8px">
             <option value="">請選擇</option>
-            ${cands.map(x=>`<option value="${x.id}" ${C.std_id===x.id?"selected":""}>${esc(x.no)} · ${dOnly(x.buy_date)} 購入（剩 ${stdLeft(x,C.cal_date)} 天）${x.cert_photo?"":" ⚠無原廠證明"}</option>`).join("")}
+            ${cands.map(x=>`<option value="${x.id}" ${C.std_id===x.id?"selected":""}>${esc(x.no)} · ${dOnly(x.buy_date)} 購入（剩 ${stdLeft(x,C.cal_date)} 天）</option>`).join("")}
           </select>
           <div class="g2">
             <label class="f" style="margin-bottom:0"><span class="lbl">標準件讀值</span>
@@ -5809,11 +5831,13 @@ function calBody(){
             <label class="f" style="margin-bottom:0"><span class="lbl">受校儀器讀值</span>
               <input type="text" value="${esc(C.got_read)}" oninput="setCal('got_read',this.value)"></label>
           </div>
-          ${C.std_id&&!(cands.find(x=>x.id===C.std_id)||{}).cert_photo?
-            `<div style="margin-top:9px;font-size:12.5px;color:#7A2318">
-              這台標準件還沒有上傳原廠校驗／檢驗／購買證明，稽核時沒有依據可以證明它準。</div>`:""}`
+`
         :`<div style="font-size:13px;color:#7A2318">目前沒有可用的標準件 ──
-            同品項裡沒有購入未滿一年的儀器。請先購入新儀器登記進來，或改用外校。</div>`}
+            同品項裡沒有購入未滿一年、又有上傳原廠證明的儀器。${nop.length?"":"請先購入新儀器登記進來，或改用外校。"}</div>`}
+        ${nop.length?`<div style="margin-top:9px;font-size:12.5px;color:#7A2318">
+            ${nop.map(x=>`<button type="button" class="btn tiny ghost" style="margin:0 4px 4px 0"
+              onclick="calNew=null;eqPhoto=null;eqOpen='${x.id}';render();window.scrollTo(0,0)">${esc(x.no)}</button>`).join("")}<br>
+            這${nop.length>1?"幾":""}台購入未滿一年，但還沒上傳原廠校驗／檢驗／購買證明，不能當標準件。點編號去補上傳。</div>`:""}
       </div>`:`<label class="f"><span class="lbl">校驗單位</span>
         <input type="text" value="${esc(C.org)}" oninput="setCal('org',this.value)"></label>`}
 
