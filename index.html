@@ -1093,6 +1093,11 @@ table.pf.rec td{text-align:left;padding-left:8px}
 .okbox{margin-top:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 12px;
   border:1.5px solid var(--line);border-radius:var(--r2);background:var(--sunk)}
 .okbox.done{background:#EEF8F1;border-color:#9BC9A8}
+.sym{display:inline-block;width:12px;height:12px;border:1.4px solid #111;border-radius:50%;position:relative;
+  vertical-align:middle;font-size:0;line-height:0;box-sizing:border-box;margin:0 1px}
+.sym.x::before{content:"";position:absolute;left:50%;top:1px;bottom:1px;border-left:1.3px solid #111;transform:translateX(-50%)}
+.sym.x::after{content:"";position:absolute;top:50%;left:1px;right:1px;border-top:1.3px solid #111;transform:translateY(-50%)}
+.sym.d::after{content:"";position:absolute;inset:2px;border:1.3px solid #111;border-radius:50%}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -6450,32 +6455,63 @@ function pf1602(id){
       ${Array(Math.max(0,3-cals.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
     </table></div>`;
 }
-function planMonths(e,Y){
-  const out={}; if(e.cal_type==="none"||!e.cal_months) return out;
-  const base=dOnly(e.last_cal)||dOnly(e.buy_date); if(!base) return out;
-  const d=new Date(base+"T00:00:00"); if(d.getFullYear()>Y) return out;
-  let g=0;
-  while(d.getFullYear()<Y && g++<900) d.setMonth(d.getMonth()+e.cal_months);
-  while(d.getFullYear()===Y && g++<900){ out[d.getMonth()+1]=true; d.setMonth(d.getMonth()+e.cal_months); }
+/* ---------- 年度校驗計畫（QP-16-03） ----------
+   ○ 計劃：年初就固定 ── 「今年以前最後一次校驗日」往後推一個週期，每個週期一個 ○
+   ⊕ 實施：今年實際校驗的月份（準時校就畫在 ○ 那一格，等於在 ○ 裡打十字）
+   ◎ 新購：今年買進來、有上傳原廠證明，購入那個月視為已校；沒證明的購入月份畫 ○（還欠一次校驗）
+   今年報廢的照樣列出（報廢之後的月份不排），明年印今年的表才不會少一台 */
+const ymIdx=d=>{ const s=dOnly(d); return s?parseInt(s.slice(0,4),10)*12+parseInt(s.slice(5,7),10)-1:null; };
+function scrapDate(e){ const r=scrapsOf(e.id).find(x=>x.appr_at); return r?dOnly(r.appr_at):""; }
+function planInfo(e,Y){
+  const out={plan:{},done:{},nb:0,nbOk:false,note:""};
+  const y0=Y*12, y1=Y*12+11;
+  const cals=calsOf(e.id).map(c=>dOnly(c.cal_date)).filter(Boolean).sort();
+  cals.forEach(d=>{ const i=ymIdx(d); if(i>=y0&&i<=y1) out.done[i-y0+1]=true; });
+  const sd=scrapDate(e), sIdx=sd?ymIdx(sd):null;
+  if(sIdx!=null&&sIdx>=y0&&sIdx<=y1) out.note=`${sd.slice(5).replace("-","/")} 報廢`;
+  const bIdx=ymIdx(e.buy_date);
+  const isNew=bIdx!=null&&bIdx>=y0&&bIdx<=y1&&!cals.some(d=>ymIdx(d)<bIdx);
+  if(isNew){
+    out.nb=bIdx-y0+1; out.nbOk=!!e.cert_photo;
+    out.note=(out.note?out.note+"；":"")+`${dOnly(e.buy_date).slice(5).replace("-","/")} 新購${out.nbOk?"":"，未上傳原廠證明"}`;
+    if(!out.nbOk) out.plan[out.nb]=true;          // 沒證明：購入月份還欠一次校驗
+  }
+  if(e.cal_type==="none"||!e.cal_months) return out;
+  const prior=cals.filter(d=>ymIdx(d)<y0).pop();
+  const base=prior?ymIdx(prior):bIdx;
+  if(base==null||base>y1) return out;
+  let i=base, g=0;
+  do{ i+=e.cal_months; }while(i<y0&&g++<900);
+  for(;i<=y1&&g++<900;i+=e.cal_months){
+    if(sIdx!=null&&i>sIdx) break;                // 報廢之後不排
+    out.plan[i-y0+1]=true;
+  }
   return out;
 }
 function pf1603(Y){
-  const list=EQM().filter(e=>e.status!=="scrap"&&e.cal_type!=="none");
+  const list=EQM().filter(e=>{
+    if(e.cal_type==="none") return false;
+    const b=ymIdx(e.buy_date); if(b!=null&&b>Y*12+11) return false;       // 明年才買的不列
+    if(e.status!=="scrap") return true;
+    const sd=scrapDate(e); return !sd||ymIdx(sd)>=Y*12;                    // 今年（含）以後才報廢的照列
+  });
+  // 符號用線條畫，不靠字型：○ ⊕ ◎ 在各家電腦、手機印出來大小才會一樣（文字留著給複製用）
+  const SY={"○":'<span class="sym">○</span>',"⊕":'<span class="sym x">⊕</span>',"◎":'<span class="sym d">◎</span>'};
+  const cell=(P,m)=>`${P.nb===m&&P.nbOk?SY["◎"]:""}${P.plan[m]&&P.done[m]?SY["⊕"]:P.plan[m]?SY["○"]:P.done[m]?SY["⊕"]:""}`;
   return `<div class="iso-form">${pfHead("QP-16-03")}
     <div class="ft">${Y} 年 度 量 測 儀 器 校 驗 計 畫 表</div>
     <table class="pf">
-      <tr><th rowspan="2" style="width:11%">量具編號</th><th rowspan="2" style="width:19%">量具名稱</th>
-          <th rowspan="2" style="width:10%">使用單位</th><th colspan="12">月　份</th>
-          <th rowspan="2" style="width:9%">校驗週期</th></tr>
+      <tr><th rowspan="2" style="width:10%">量具編號</th><th rowspan="2" style="width:15%">量具名稱</th>
+          <th rowspan="2" style="width:8%">使用單位</th><th colspan="12">月　份</th>
+          <th rowspan="2" style="width:7%">校驗週期</th><th rowspan="2" style="width:13%">備　註</th></tr>
       <tr>${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<th>${m}</th>`).join("")}</tr>
-      ${list.map(e=>{
-        const pl=planMonths(e,Y), done={};
-        calsOf(e.id).forEach(c=>{const d=dOnly(c.cal_date); if(d.slice(0,4)===String(Y)) done[parseInt(d.slice(5,7),10)]=true;});
+      ${list.map(e=>{ const P=planInfo(e,Y);
         return `<tr><td class="mo">${esc(e.no)}</td><td class="l">${esc(e.item_name)}</td><td>${esc(e.keeper)}</td>
-          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<td class="mo">${pl[m]?"○":""}${done[m]?"⊕":""}</td>`).join("")}
-          <td>${e.cal_months} 個月</td></tr>`;}).join("")}
-      ${list.length?"":'<tr><td colspan="16" style="height:40px">尚未登記需校驗的量測儀器</td></tr>'}
-      <tr><td class="hd l" colspan="3">備　註</td><td class="l" colspan="13">計劃：○　　實施：⊕</td></tr>
+          ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<td class="mo pm">${cell(P,m)}</td>`).join("")}
+          <td>${e.cal_months} 個月</td><td class="l" style="font-size:10.5px">${esc(P.note)}</td></tr>`;}).join("")}
+      ${list.length?"":'<tr><td colspan="17" style="height:40px">尚未登記需校驗的量測儀器</td></tr>'}
+      <tr><td class="hd l" colspan="3">備　註</td><td class="l" colspan="14">
+        計劃：${SY["○"]}　　實施：${SY["⊕"]}（準時校驗即在 ${SY["○"]} 內打十字）　　新購：${SY["◎"]}（以原廠證明視為已校）</td></tr>
     </table></div>`;
 }
 function pf0501(cardId){
