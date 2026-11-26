@@ -1157,7 +1157,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=27;
+const APP_VER=28;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -2418,12 +2418,12 @@ const MKIND={"遺失":["lost","遺失"],"損壞":["dmg","損壞"],"遺失或損�
   "工具製作完成入庫":["buy","製作完成"],
   "盤虧調整":["adj","盤點調整"],"盤盈調整":["adj","盤點調整"],
   "採購入庫":["buy","採購"],"車輛多出繳回":["ret","車輛繳回"],
-  "期初建檔":["base","期初建檔"]};
+  "期初建檔":["base","期初建檔"],"報廢":["scrap","報廢"]};
 const kindOf=r=>(MKIND[r]||["etc",r])[0];
 const shortOf=r=>(MKIND[r]||["etc",r])[1];
 const MCATS={out:[["all","全部",""],["lost","遺失","var(--bad)"],["dmg","損壞","var(--amber)"],
     ["adj","盤點調整","var(--purple)"],["make","工具製作領料","#0E8A8A"],
-    ["person","個人用品","#8A93A5"],["etc","其他","#8A93A5"]],
+    ["person","個人用品","#8A93A5"],["scrap","報廢","var(--bad)"],["etc","其他","#8A93A5"]],
   in:[["all","全部",""],["buy","採購／製作","var(--blue)"],["ret","車輛繳回","var(--ok)"],
     ["adj","盤點調整","var(--purple)"],["base","期初建檔","#6B7488"]]};
 const WDAY=["日","一","二","三","四","五","六"];
@@ -5252,7 +5252,11 @@ const locName=c=>c?c+" 車":"公司庫存";
 
 function calState(e){
   if(e.status==="scrap") return ["grey","報廢"];
+  if(e.status==="lost")  return ["grey","遺失中"];
+  if(e.status==="out")   return ["grey","已出庫"];
   if(e.cal_type==="none") return ["grey","免校"];
+  if(e.status==="fix")   return ["grey","送修中（修好要重新校驗）"];
+  if(e.status==="stop")  return ["grey","停用中（復用前要重新校驗）"];
   if(!e.next_cal) return ["grey","未排"];
   const d=isoDays(dOnly(e.next_cal),isoToday());
   if(d<0)  return ["bad","逾期 "+(-d)+" 天"];
@@ -5262,7 +5266,7 @@ function calState(e){
 // 標準件：同品項、購入未滿一年、未報廢、不是自己、有上傳原廠校驗／檢驗／購買證明
 function stdYoung(e,onDate){
   const d=onDate||isoToday();
-  return EQ().filter(x=>x.id!==e.id && x.item_id===e.item_id && x.status!=="scrap"
+  return EQ().filter(x=>x.id!==e.id && x.item_id===e.item_id && x.status==="use"
     && x.buy_date && isoDays(d,dOnly(x.buy_date))<=365 && isoDays(d,dOnly(x.buy_date))>=0);
 }
 function stdCands(e,onDate){ return stdYoung(e,onDate).filter(x=>!!x.cert_photo); }
@@ -5348,6 +5352,9 @@ function viewEqList(kind){
   const nTodo=all.filter(eqTodo).length;
   const over=all.filter(e=>calState(e)[0]==="bad");
   const pend=(ISO.scraps||[]).filter(s=>!s.appr_at);
+  const ids=new Set(all.map(e=>e.id));
+  const unOk=(ISO.cals||[]).filter(c=>!c.ok_by&&ids.has(c.equip_id)).length
+            +(ISO.fixes||[]).filter(f=>!f.ok_by&&ids.has(f.equip_id)).length;
 
   return `<div class="card">
     <div class="hd"><h2>${KN}</h2>
@@ -5356,6 +5363,7 @@ function viewEqList(kind){
       ${over.length?`<div class="warnbox"><b>校驗逾期 ${over.length} 台</b><br>
         ${over.slice(0,4).map(e=>`${esc(e.no)}（應於 ${dOnly(e.next_cal)} 前完成${CALW[e.cal_type]||""}）`).join("<br>")}
         ${over.length>4?`<br>…另外 ${over.length-4} 台`:""}</div>`:""}
+      ${unOk?`<div class="note"><b>有 ${unOk} 筆校驗／修護紀錄待主管確認</b>　打開儀器 → 紀錄的「詳細」→「主管確認」</div>`:""}
       ${pend.length?`<div class="note"><b>有 ${pend.length} 張報廢呈報單等待核准</b>　${
         pend.slice(0,3).map(s=>{const e=eqById(s.equip_id);return e?esc(e.no):"";}).join("、")}</div>`:""}
 
@@ -5414,18 +5422,20 @@ function viewEqDetail(){
         <tr><th>購買日期</th><td class="num">${dOnly(e.buy_date)||"—"}</td><th>保管單位</th><td>${esc(e.keeper)}</td></tr>
         <tr><th>負責人員</th><td>${esc(e.owner_name)||"—"}</td><th>目前位置</th><td>${esc(locName(e.loc_code))}</td></tr>
         <tr><th>下次校驗</th><td colspan="3"><span class="ipill ${c}">${esc(txt)}</span>
-          ${docsOf(e,"cert").length?""
+          ${docsOf(e,"cert").length||["scrap","out"].includes(e.status)?""
             :`　<span style="color:var(--alert);font-size:12.5px">尚未上傳原廠校驗／檢驗／購買證明</span>`}</td></tr>
       </table>
-      <div class="noprint" style="margin-top:13px">${docBox(e,"cert")}</div>
+      ${["scrap","out"].includes(e.status)&&!docsOf(e,"cert").length?""
+        :`<div class="noprint" style="margin-top:13px">${docBox(e,"cert")}</div>`}
       <div style="margin-top:11px;display:flex;gap:7px;flex-wrap:wrap" class="noprint">
         ${eqTodo(e)?`<button class="btn tiny" onclick="eqEditOpen('${e.id}')">補建檔（規格、校驗）</button>`
           :`<button class="btn tiny ghost" onclick="eqEditOpen('${e.id}')">編輯基本資料</button>`}
         ${e.status==="use"?`<button class="btn tiny ghost" onclick="stopOpen('${e.id}')">停止使用</button>`:""}
-        ${["stop","fix"].includes(e.status)?`<button class="btn tiny ghost" onclick="isoDo(()=>rpc('eq_resume',{p_token:token,p_id:'${e.id}'}),'已恢復使用')">恢復使用</button>`:""}
+        ${["stop","fix"].includes(e.status)?((e.kind||"meas")==="meas"&&e.cal_type!=="none"
+            ?`<span style="font-size:12.5px;color:var(--muted);align-self:center">重新校驗合格後會自動恢復使用</span>`
+            :`<button class="btn tiny ghost" onclick="isoDo(()=>rpc('eq_resume',{p_token:token,p_id:'${e.id}'}),'已恢復使用')">恢復使用</button>`):""}
         ${e.status==="lost"?`<button class="btn tiny ghost" onclick="eqFound('${e.id}')">找回來了</button>`:""}
         ${["stop","fix","lost"].includes(e.status)&&!open?`<button class="btn tiny ghost" onclick="scrapOpen('${e.id}')">呈報報廢</button>`:""}
-        ${!cals.length?`<button class="btn tiny ghost" onclick="eqDel('${e.id}')">刪除</button>`:""}
       </div>
 
       ${open?`<div class="note" style="margin-top:13px"><b>報廢呈報單等待核准</b>
@@ -5451,7 +5461,7 @@ function viewEqDetail(){
           <span style="flex:0 0 auto;display:flex;gap:4px">
             <button class="btn tiny ghost" onclick="recGo('cal','${c2.id}')">詳細</button></span>
         </div>`).join("")}</div>`:`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有校驗紀錄</div>`}
-      ${e.status==="scrap"?"":`<button class="btn sm amber noprint" style="margin-top:10px" onclick="calOpen('${e.id}')">＋ 新增校驗紀錄</button>`}
+      ${["scrap","lost","out"].includes(e.status)?"":`<button class="btn sm amber noprint" style="margin-top:10px" onclick="calOpen('${e.id}')">＋ 新增校驗紀錄</button>`}
 
       <h3 style="font-size:14px;font-weight:900;margin:22px 0 8px">修護紀錄</h3>
       ${fixes.length?`<div class="ilist">${fixes.map(f=>`<div class="eqrow" style="cursor:default">
@@ -5462,14 +5472,14 @@ function viewEqDetail(){
           <span style="flex:0 0 auto;display:flex;gap:4px">
             <button class="btn tiny ghost" onclick="recGo('fix','${f.id}')">詳細</button></span>
         </div>`).join("")}</div>`:`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有修護紀錄</div>`}
-      ${e.status==="scrap"?"":`<button class="btn sm ghost noprint" style="margin-top:10px" onclick="fixOpen('${e.id}')">＋ 新增修護紀錄</button>`}
+      ${["scrap","lost","out"].includes(e.status)?"":`<button class="btn sm ghost noprint" style="margin-top:10px" onclick="fixOpen('${e.id}')">＋ 新增修護紀錄</button>`}
 
       ${stops.length?`<h3 style="font-size:14px;font-weight:900;margin:22px 0 8px">停用紀錄</h3>
         <div class="ilist">${stops.map(s=>`<div class="eqrow" style="cursor:default">
           <span class="eno" style="flex:0 0 78px">${dOnly(s.stop_date)}</span>
           <span class="enm" style="font-size:13px">${esc(s.reason)}${s.note?"："+esc(s.note):""}
             <br><span style="font-size:11.5px;color:var(--muted)">
-            ${s.resumed_at?"已恢復使用":"仍停用中"}${s.notify?"｜通知 "+esc(s.notify):""}${s.backup?"｜備用 "+esc(s.backup):""}
+            ${s.resumed_at?"已恢復使用":e.status==="scrap"?"之後已報廢":"仍停用中"}${s.notify?"｜通知 "+esc(s.notify):""}${s.backup?"｜備用 "+esc(s.backup):""}
             ${s.reported?"｜已通報送修":""}</span></span>
           <span style="flex:0 0 46px">${s.tag_photo?`<button class="btn tiny ghost" onclick="showIso('${s.tag_photo}')">掛牌</button>`:""}</span>
         </div>`).join("")}</div>`:""}
@@ -5587,6 +5597,11 @@ async function docView(path,t){
   if(t==="pdf"){ const w=window.open(u,"_blank"); if(!w) location.href=u; return; }
   lightbox={url:u}; render();
 }
+/* 履歷卡上系統自動寫的紀錄（儀器停用、遺失、找回、報廢、校驗不合格／恢復）：不能從履歷卡刪 */
+const LOGSRC={stop:"停用",lost:"遺失",found:"找回",scrap:"報廢",cal:"校驗",resume:"恢復使用",fix:"儀器修護"};
+const LOGAUTO=["stop","lost","found","scrap","cal","resume"];
+function logOkUndo(id){ if(!confirm("撤回你的主管簽名？")) return;
+  isoDo(()=>rpc("log_confirm",{p_token:token,p_id:id,p_undo:true}),"已撤回簽名"); }
 function showIso(p){ const u=isoUrls[p]; if(!u) return toast("照片還在載入，請稍後再試");
   lightbox={url:u}; render(); }
 function isoDel(fn,id,what){ if(!confirm(`刪除${what}？`))return;
@@ -5737,7 +5752,7 @@ function viewEqForm(){
     <button class="btn sm" onclick="eqSave()">儲存</button></div>
   <div class="card"><div class="bd">
     <label class="f"><span class="lbl">品項</span>
-      <select onchange="eqItemChange(this.value)" ${E.id?"":""}>
+      <select onchange="eqItemChange(this.value)" ${E.id&&(calsOf(E.id).length||fixesOf(E.id).length)?"disabled":""}>
         ${items.map(i=>`<option value="${i.id}" ${E.item_id===i.id?"selected":""}>${esc(i.name)}</option>`).join("")}
       </select></label>
     ${(()=>{const ms=eqModels(E.item_id); if(!ms.length) return "";
@@ -5748,9 +5763,12 @@ function viewEqForm(){
         </select>
         <span style="font-size:12.5px;color:var(--muted)">選了會把廠牌、規格、容許誤差值、校驗設定一次帶進來，帶進來之後還是可以改</span></label>`;})()}
     <label class="f"><span class="lbl">量具編號</span>
-      <input type="text" id="e_no" value="${esc(E.no)}" oninput="setEq('no',this.value)">
+      ${E.id&&(calsOf(E.id).length||fixesOf(E.id).length)
+        ?`<input type="text" id="e_no" class="roin" readonly value="${esc(E.no)}">
+          <span style="font-size:12.5px;color:var(--muted)">已經有校驗或修護紀錄，編號不能再改（標籤和紀錄才對得起來）</span></label>`
+        :`<input type="text" id="e_no" value="${esc(E.no)}" oninput="setEq('no',this.value)">
       <span style="font-size:12.5px;color:var(--muted)">${ab?`系統依縮寫「${esc(ab)}」自動給號，可以自己改`
-        :`這個品項還沒設縮寫，先用名稱前兩個字。可到「庫存」頁設定縮寫`}</span></label>
+        :`這個品項還沒設縮寫，先用名稱前兩個字。可到「庫存」頁設定縮寫`}</span></label>`}
     <div class="g2">
       <label class="f"><span class="lbl">規格</span><input type="text" value="${esc(E.spec)}" oninput="setEq('spec',this.value)"></label>
       <label class="f"><span class="lbl">廠牌</span><input type="text" value="${esc(E.brand)}" oninput="setEq('brand',this.value)"></label>
@@ -5818,7 +5836,7 @@ function eqFound(id){ const v=prompt("找回來了，現在放在哪？（填車
 /* ---------- 校驗紀錄 ---------- */
 function calOpen(id){ const e=eqById(id); if(!e)return;
   calNew={equip_id:id,cal_date:isoToday(),way:e.cal_type==="in"?"in":"out",std_id:"",
-    std_read:"",got_read:"",err:"",org:e.cal_org||"",result:"ok",action:"",doc_no:"",person:(me&&me.name)||""};
+    std_read:"",got_read:"",err:"",org:e.cal_org||"",result:"ok",action:"",doc_no:"",impact:"",person:(me&&me.name)||""};
   eqPhoto={}; render(); }
 function setCal(k,v){ if(calNew) calNew[k]=v; }
 function calBody(){
@@ -5829,7 +5847,9 @@ function calBody(){
       <button class="btn tiny ghost" style="margin-left:auto" onclick="calNew=null;eqPhoto=null;render()">取消</button></div>
     <div class="bd">
       <label class="f"><span class="lbl">校驗日期</span>
-        <input type="date" value="${C.cal_date}" onchange="setCal('cal_date',this.value);render()"></label>
+        <input type="date" value="${C.cal_date}" max="${isoToday()}" onchange="setCal('cal_date',this.value);render()"></label>
+      ${["fix","stop"].includes(e.status)?`<div class="note">這台目前<b>${e.status==="fix"?"送修中":"停用中"}</b>。
+        這次校驗判定「合格」或「校準」，存檔後會<b>自動恢復使用</b>。</div>`:""}
       <label class="f"><span class="lbl">校驗方式</span>
         <div class="iseg" style="margin:0">
           <button type="button" aria-pressed="${C.way==="in"}" onclick="setCal('way','in');render()">內校</button>
@@ -5869,8 +5889,11 @@ function calBody(){
           ${[["ok","合格"],["adjust","校準"],["fix","維修"],["scrap","報廢"]].map(([k,t])=>
             `<button type="button" aria-pressed="${C.result===k}" onclick="setCal('result','${k}');render()">${t}</button>`).join("")}
         </div></label>
-      ${C.result==="fix"?`<div class="note">存檔後這台的狀態會變成「送修」。</div>`:""}
+      ${C.result==="fix"?`<div class="note">存檔後這台會自動轉為「送修」，留下停用紀錄並寫進履歷卡。
+        <b>修好後要再新增一筆校驗，合格才會恢復使用。</b></div>`:""}
       ${C.result==="scrap"?`<div class="note">存檔後這台會自動轉為「停止使用」，接著要走報廢呈報給執行長核准。</div>`:""}
+      ${C.result!=="ok"?`<label class="f"><span class="lbl">對先前量測結果的影響評估${["fix","scrap"].includes(C.result)?`<span class="req">　必填</span>`:"（選填）"}</span>
+        <textarea rows="3" oninput="setCal('impact',this.value)" placeholder="ISO 9001 7.1.5.2：儀器不準時，要評估之前用它量的結果有沒有受影響。例：誤差仍在驗屋報告判定範圍內，先前報告不受影響／已通知 ${dOnly(e.last_cal)||"上次校驗"} 之後用這台的案件複查">${esc(C.impact||"")}</textarea></label>`:""}
       <label class="f"><span class="lbl">處理情形</span>
         <textarea rows="2" oninput="setCal('action',this.value)">${esc(C.action)}</textarea></label>
       <div class="g2">
@@ -5885,6 +5908,9 @@ function calBody(){
 async function calSave(){
   const C=calNew; if(!C) return;
   if(C.way==="in"&&!C.std_id) return toast("內校一定要選標準件");
+  if(C.cal_date>isoToday()) return toast("校驗日期不能是未來的日子");
+  if(["fix","scrap"].includes(C.result)&&!String(C.impact||"").trim())
+    return toast("判定不合格，請填「對先前量測結果的影響評估」");
   await isoDo(async()=>{
     const ph=await isoUp("cal","cal");
     await rpc("eq_cal_add",{p_token:token,p:Object.assign({},C,{doc_no:""},ph?{photo:ph}:{})});
@@ -5916,7 +5942,7 @@ function fixBody(){
     <div class="bd">
       <div class="g2">
         <label class="f"><span class="lbl">日期</span>
-          <input type="date" value="${F.fix_date}" onchange="setFix('fix_date',this.value);render()"></label>
+          <input type="date" value="${F.fix_date}" max="${isoToday()}" onchange="setFix('fix_date',this.value);render()"></label>
         ${recNoBox("修",e,F.fix_date)}
       </div>
       <label class="f"><span class="lbl">修護內容</span>
@@ -5924,7 +5950,8 @@ function fixBody(){
       <label class="f"><span class="lbl">維護人</span>
         <input type="text" value="${esc(F.person)}" oninput="setFix('person',this.value)"></label>
       ${shotBox("fix","照片")}
-      <div class="note">這一筆會同步寫進這台儀器所在的設備履歷卡（${esc(locName(e.loc_code))}），不用重複填。</div>
+      <div class="note">這一筆會同步寫進這台儀器所在的設備履歷卡（${esc(locName(e.loc_code))}），不用重複填。
+        ${e.status==="fix"&&(e.kind||"meas")==="meas"&&e.cal_type!=="none"?"<br><b>修好之後，請再新增一筆校驗紀錄，合格就會自動恢復使用。</b>":""}</div>
       <button class="btn amber block" onclick="fixSave()">儲存</button>
     </div></div>`;
 }
@@ -5946,7 +5973,9 @@ function stopBody(){
       <div class="note">依程序書 §5.4：停止使用要在設備明顯處<b>懸掛「暫停／停止使用」標示牌</b>、
         通知主管調派備用裝備，並通報送修。掛牌照片拍起來，稽核就不用再解釋。</div>
       <label class="f"><span class="lbl">停用日期</span>
-        <input type="date" value="${T.stop_date}" onchange="setStop('stop_date',this.value)"></label>
+        <input type="date" value="${T.stop_date}" max="${isoToday()}" onchange="setStop('stop_date',this.value)"></label>
+      ${(e.kind||"meas")==="meas"&&e.cal_type!=="none"?`<div class="note" style="margin-top:-4px">量測儀器停用後，
+        <b>要重新校驗合格才能恢復使用</b>（新增校驗紀錄、判定合格就會自動恢復）。</div>`:""}
       <label class="f"><span class="lbl">停用原因</span>
         <div class="iseg" style="margin:0">
           ${["故障","待修","異常"].map(r=>`<button type="button" aria-pressed="${T.reason===r}"
@@ -6093,15 +6122,19 @@ function viewCardDetail(){
       ${lg.map(l=>{const svc=l.kind==="svc";
         return `<tr>
         <td class="num">${dOnly(l.log_date)}</td>
-        <td>${esc(l.content)}${l.kind==="insp"?` <span class="ipill grey">巡檢</span>`:""}${svc?` <span class="tag m">車輛系統</span>`:""}</td>
+        <td>${esc(l.content)}${l.kind==="insp"?` <span class="ipill grey">巡檢</span>`:""}${svc?` <span class="tag m">車輛系統</span>`:""}${
+          LOGSRC[l.src]?` <span class="ipill grey">${LOGSRC[l.src]}</span>`:""}</td>
         <td>${esc(l.person)||"—"}</td>
-        <td>${l.mgr_name?esc(l.mgr_name)+`<br><span style="font-size:11px;color:var(--muted)" class="num">${String(l.mgr_at).slice(0,16).replace("T"," ")}</span>`
-             :`<button class="btn tiny amber noprint" onclick="${svc
+        <td>${l.mgr_name?esc(l.mgr_name)+`<br><span style="font-size:11px;color:var(--muted)" class="num">${String(l.mgr_at).slice(0,16).replace("T"," ")}</span>${
+              !svc&&me&&me.name===l.mgr_name?`<br><button class="btn tiny ghost noprint" onclick="logOkUndo('${l.id}')">撤回</button>`:""}`
+             :(!svc&&me&&String(l.person||"").trim()===me.name
+               ?`<span class="noprint" style="font-size:11.5px;color:var(--muted)">自己做的，請另一位主管簽</span>`
+               :`<button class="btn tiny amber noprint" onclick="${svc
                  ?`isoDo(()=>rpc('svc_confirm',{p_token:token,p_id:'${String(l.id).slice(4)}'}),'已確認')`
-                 :`isoDo(()=>rpc('log_confirm',{p_token:token,p_id:'${l.id}'}),'已確認')`}">確認</button>`}</td>
+                 :`isoDo(()=>rpc('log_confirm',{p_token:token,p_id:'${l.id}'}),'已確認')`}">確認</button>`)}</td>
         <td class="noprint" style="white-space:nowrap">
           ${l.photo?`<button class="btn tiny ghost" onclick="showIso('${l.photo}')">${svc?"發票":"看"}</button>`:""}
-          ${svc?"":`<button class="btn tiny ghost" onclick="isoDel('log_delete','${l.id}','這筆紀錄')">✕</button>`}</td>
+          ${svc||l.mgr_name||LOGAUTO.includes(l.src)?"":`<button class="btn tiny ghost" onclick="isoDel('log_delete','${l.id}','這筆紀錄')">✕</button>`}</td>
       </tr>`;}).join("")}</table>`
       :`<div style="color:var(--muted);font-size:13.5px;padding:6px 0">還沒有保養紀錄</div>`}
 
@@ -6319,6 +6352,8 @@ function recRows(t,r,e){
     +row(r.way==="in"?"差異":"實測誤差值",esc(r.err)||"—")
     +row("判定",CALR[r.result]||"")
     +row("處理情形",esc(r.action)||(r.result==="ok"?"合格，無須處理":"—"))
+    +(r.result!=="ok"||r.impact?row("對先前量測結果的影響評估",esc(r.impact)||"—"):"")
+    +(r.set_status?row("儀器狀態",{fix:"本次判定後轉為送修",stop:"本次判定後轉為停止使用",use:"本次校驗合格，恢復使用"}[r.set_status]||""):"")
     +row("校驗人員",esc(r.person)||"—");
   return head
     +row("修護日期",`<span class="num">${dOnly(r.fix_date)}</span>`)
@@ -6350,7 +6385,8 @@ function viewRec(){
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap" class="noprint">
         <button class="btn sm amber" onclick="printWhat='r${t}:${r.id}';window.scrollTo(0,0);render()">列印這筆${nm}</button>
-        <button class="btn sm ghost" onclick="recDel()">刪除</button>
+        ${r.ok_by?`<span style="font-size:12.5px;color:var(--muted);align-self:center">主管確認過的紀錄不能刪；要刪請 ${esc(r.ok_by)} 先撤回確認</span>`
+          :`<button class="btn sm ghost" onclick="recDel()">刪除</button>`}
       </div>
     </div></div>`;
 }
@@ -6402,7 +6438,7 @@ function pf1601(){
       <tr><th style="width:11%">NO</th><th style="width:28%">量具名稱／規格</th><th style="width:12%">廠牌</th>
         <th style="width:13%">容許誤差值</th><th style="width:13%">校驗單位</th><th style="width:11%">校驗週期</th>
         <th style="width:12%">購買日期</th></tr>
-      ${list.map(e=>`<tr><td class="mo">${esc(e.no)}</td>
+      ${list.map(e=>`<tr><td class="mo">${esc(e.no)}${e.status==="use"?"":`<br><span style="font-size:10px">（${(EQST[e.status]||["",""])[0]}）</span>`}</td>
         <td class="l">${esc(e.item_name)}${e.spec?"／"+esc(e.spec):""}</td>
         <td>${esc(e.brand)||"—"}</td><td>${esc(e.tol)||"—"}</td>
         <td>${e.cal_type==="none"?"—":e.cal_type==="in"?"本公司內校":(esc(e.cal_org)||"—")}</td>
@@ -6450,7 +6486,8 @@ function pf1602(id){
         <td>${c.way==="in"?"本公司內校":(esc(c.org)||"—")}</td><td class="mo">${esc(c.err)||"—"}</td>
         <td>${c.result==="fix"?"✓":""}</td><td>${c.result==="scrap"?"✓":""}</td><td>${c.result==="adjust"?"✓":""}</td>
         <td class="l">${esc(c.action)||(c.result==="ok"?"合格，無須處理":"")}${
-          c.std_no?`（標準件 ${esc(c.std_no)}：${esc(c.std_read)} / ${esc(c.got_read)}）`:""}</td>
+          c.std_no?`（標準件 ${esc(c.std_no)}：${esc(c.std_read)} / ${esc(c.got_read)}）`:""}${
+          c.impact?`<br>影響評估：${esc(c.impact)}`:""}</td>
         <td class="mo">${esc(c.doc_no)||"—"}</td></tr>`).join("")}
       ${Array(Math.max(0,3-cals.length)).fill('<tr><td class="mo">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join("")}
     </table></div>`;
@@ -6476,9 +6513,19 @@ function planInfo(e,Y){
     out.note=(out.note?out.note+"；":"")+`${dOnly(e.buy_date).slice(5).replace("-","/")} 新購${out.nbOk?"":"，未上傳原廠證明"}`;
     if(!out.nbOk) out.plan[out.nb]=true;          // 沒證明：購入月份還欠一次校驗
   }
+  // 停用／送修中：備註寫最近一次停用日期
+  if(["stop","fix"].includes(e.status)){
+    const st=stopsOf(e.id).filter(x=>!x.resumed_at).map(x=>dOnly(x.stop_date)).sort().pop();
+    if(st&&ymIdx(st)<=y1) out.note=(out.note?out.note+"；":"")+`${st.slice(5).replace("-","/")} ${e.status==="fix"?"送修":"停用"}`;
+  }
   if(e.cal_type==="none"||!e.cal_months) return out;
   const prior=cals.filter(d=>ymIdx(d)<y0).pop();
-  const base=prior?ymIdx(prior):bIdx;
+  let base=prior?ymIdx(prior):bIdx;
+  // 今年以前買的、沒有原廠證明、也從來沒校過：一直欠著一次校驗 → 1 月就排 ○
+  if(!prior&&!isNew&&bIdx!=null&&bIdx<y0&&!e.cert_photo){
+    out.plan[1]=true; out.note=(out.note?out.note+"；":"")+"購入後尚未校驗（無原廠證明）";
+    base=y0;
+  }
   if(base==null||base>y1) return out;
   let i=base, g=0;
   do{ i+=e.cal_months; }while(i<y0&&g++<900);
