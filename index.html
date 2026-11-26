@@ -1062,6 +1062,20 @@ header.top{position:relative}   /* 標題列照舊跟著頁面捲走，不佔畫
 .roin{background:var(--sunk)!important;color:var(--ink2)!important}
 .seg.vuse{display:inline-flex;flex-wrap:wrap}
 .seg.vuse button{flex:none;min-width:58px;padding:7px 14px;font-size:13.5px;white-space:nowrap}
+.docgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+.doc{border:1.5px solid var(--line);border-radius:var(--r2);background:var(--card);overflow:hidden;display:flex;flex-direction:column}
+.docv{display:block;width:100%;height:104px;border:0;padding:0;background:#fff;cursor:pointer}
+.docv img{width:100%;height:100%;object-fit:cover;display:block}
+.docpdf{display:flex;align-items:center;justify-content:center;height:100%;font-weight:800;font-size:18px;
+  color:var(--bad);background:#FFF4F2;letter-spacing:.04em}
+.docm{padding:6px 8px 2px;min-width:0}
+.docn{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.docd{display:block;font-size:11.5px;color:var(--muted)}
+.docx{margin:4px 8px 8px;align-self:flex-start}
+.docadd{display:flex;align-items:center;justify-content:center;min-height:104px;border:1.5px dashed var(--line);
+  border-radius:var(--r2);padding:12px;text-align:center;color:var(--muted);background:var(--sunk);
+  font-size:13.5px;cursor:pointer}
+.docadd.busy{cursor:wait;color:var(--ink2)}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -1121,7 +1135,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=22;
+const APP_VER=23;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -1180,7 +1194,7 @@ async function uploadOnce(path,blob){
     const res=await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${encodeURI(path)}`,
       {method:"POST",signal:ctl.signal,
        headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,
-                "x-upsert":"true","Content-Type":"image/jpeg"},body:blob});
+                "x-upsert":"true","Content-Type":(blob&&blob.type)||"image/jpeg"},body:blob});
     if(!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0,80)}`);
     return path;
   }finally{ clearTimeout(t); }
@@ -5228,7 +5242,8 @@ const stdLeft=(x,onDate)=>365-isoDays(onDate||isoToday(),dOnly(x.buy_date));
 async function isoLoad(){
   ISO=await rpc("iso_state",{p_token:token,p_region:REG});
   const ps=[];
-  (ISO.equipment||[]).forEach(e=>{if(e.cert_photo)ps.push(e.cert_photo);});
+  (ISO.equipment||[]).forEach(e=>{if(e.cert_photo)ps.push(e.cert_photo);
+    (e.docs||[]).forEach(d=>{ if(d.p) ps.push(d.p); });});
   (ISO.cals||[]).forEach(c=>{if(c.photo)ps.push(c.photo);});
   (ISO.fixes||[]).forEach(f=>{if(f.photo)ps.push(f.photo);});
   (ISO.stops||[]).forEach(s=>{if(s.tag_photo)ps.push(s.tag_photo);});
@@ -5257,7 +5272,8 @@ function isoGo(t){ isoTab=t; eqOpen=null; cardOpen=null; eqEdit=null; printWhat=
   window.scrollTo(0,0); render(); }
 
 /* ---------- 主畫面 ---------- */
-function viewISO(){
+function viewISO(){ return (lightbox?lbHTML():"")+viewISOin(); }
+function viewISOin(){
   if(!ISO){ return `<div class="wrap"><div class="card"><div class="bd" style="text-align:center;color:var(--muted)">
     ${isoBusy?"讀取中…":"資料尚未載入"}</div></div></div>`; }
   if(printWhat)  return viewPrint();
@@ -5268,7 +5284,7 @@ function viewISO(){
   if(eqEdit)     return `<div class="wrap wide">${viewEqForm()}</div>`;
   if(eqOpen)     return `<div class="wrap wide">${viewEqDetail()}</div>`;
   if(cardOpen)   return `<div class="wrap wide">${viewCardDetail()}</div>`;
-  return `${lightbox?lbHTML():""}<div class="wrap wide">
+  return `<div class="wrap wide">
     <div class="iseg noprint" style="margin-top:0">
       <button aria-pressed="${isoTab==="eq"}" onclick="isoGo('eq')">量測儀器</button>
       <button aria-pressed="${isoTab==="inst"}" onclick="isoGo('inst')">儀器</button>
@@ -5366,9 +5382,10 @@ function viewEqDetail(){
         <tr><th>購買日期</th><td class="num">${dOnly(e.buy_date)||"—"}</td><th>保管單位</th><td>${esc(e.keeper)}</td></tr>
         <tr><th>負責人員</th><td>${esc(e.owner_name)||"—"}</td><th>目前位置</th><td>${esc(locName(e.loc_code))}</td></tr>
         <tr><th>下次校驗</th><td colspan="3"><span class="ipill ${c}">${esc(txt)}</span>
-          ${e.cert_photo?`　<button class="btn tiny ghost" onclick="showIso('${e.cert_photo}')">原廠證明</button>`
+          ${docsOf(e,"cert").length?""
             :`　<span style="color:var(--alert);font-size:12.5px">尚未上傳原廠校驗證明</span>`}</td></tr>
       </table>
+      <div class="noprint" style="margin-top:13px">${docBox(e,"cert")}${docBox(e,"buy")}</div>
       <div style="margin-top:11px;display:flex;gap:7px;flex-wrap:wrap" class="noprint">
         ${eqTodo(e)?`<button class="btn tiny" onclick="eqEditOpen('${e.id}')">補建檔（規格、校驗）</button>`
           :`<button class="btn tiny ghost" onclick="eqEditOpen('${e.id}')">編輯基本資料</button>`}
@@ -5454,6 +5471,81 @@ function shotBox(slot,label){
          text-align:center;color:var(--muted);background:#F7F8FA;font-size:13.5px;cursor:pointer">📷 拍照或選檔
         <input type="file" accept="image/*" class="hide" onchange="isoShot(this,'${slot}')"></label>`}
   </label>`;
+}
+/* ---------- 儀器的證明文件：原廠校驗／檢驗證明、原廠購買證明（照片或 PDF，可多份） ---------- */
+const DOCK={cert:"原廠校驗／檢驗證明",buy:"原廠購買證明"};
+let docBusy={};
+const docsOf=(e,k)=>((e&&e.docs)||[]).filter(d=>d.k===k);
+function docBox(e,k,note){
+  const list=docsOf(e,k), busy=docBusy[e.id+":"+k];
+  return `<div class="f docbox"><span class="lbl">${DOCK[k]}${list.length?`（${list.length} 份）`:""}</span>
+    ${note?`<div style="font-size:12.5px;color:var(--muted);margin:-2px 0 8px">${note}</div>`:""}
+    <div class="docgrid">
+      ${list.map(d=>{ const u=isoUrls[d.p];
+        return `<div class="doc">
+          <button type="button" class="docv" onclick="docView('${esc(d.p)}','${d.t}')" aria-label="打開">${
+            d.t==="pdf"?`<span class="docpdf">PDF</span>`
+            :(u?`<img src="${u}" alt="">`:`<span class="docpdf">照片</span>`)}</button>
+          <div class="docm"><span class="docn">${esc(d.n||(d.t==="pdf"?"PDF 檔":"照片"))}</span>
+            <span class="docd">${esc(d.at||"")}${d.by?" · "+esc(d.by):""}</span></div>
+          <button type="button" class="btn tiny ghost docx" onclick="docDel('${e.id}','${esc(d.p)}','${k}')">刪除</button>
+        </div>`;}).join("")}
+      <label class="docadd${busy?" busy":""}">${busy?"上傳中…":(list.length?"＋ 再加一份":"📷 拍照或選檔（照片、PDF）")}
+        ${busy?"":`<input type="file" accept="image/*,application/pdf" multiple class="hide"
+          onchange="docPick(this,'${e.id}','${k}')">`}</label>
+    </div></div>`;
+}
+function readURL(f){ return new Promise((ok,no)=>{ const fr=new FileReader();
+  fr.onload=()=>ok(fr.result); fr.onerror=()=>no(new Error("讀不到檔案")); fr.readAsDataURL(f); }); }
+function shrinkP(f){ return new Promise((ok,no)=>{ const t=setTimeout(()=>no(new Error("讀不出這張圖")),15000);
+  const fr=new FileReader(); fr.onerror=()=>{clearTimeout(t);no(new Error("讀不到檔案"));};
+  fr.onload=()=>{ const img=new Image();
+    img.onerror=()=>{clearTimeout(t);no(new Error("讀不出這張圖（iPhone 的 HEIC 請改成直接拍照，或先截圖再選）"));};
+    img.onload=()=>{ clearTimeout(t); const m=1600,sc=Math.min(1,m/Math.max(img.width,img.height));
+      const c=document.createElement("canvas"); c.width=img.width*sc; c.height=img.height*sc;
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height); ok(c.toDataURL("image/jpeg",0.8)); };
+    img.src=fr.result; };
+  fr.readAsDataURL(f); }); }
+function eqPatchDocs(id,docs){
+  const e=eqById(id); if(e){ e.docs=docs; const c=docs.find(d=>d.k==="cert"); e.cert_photo=c?c.p:null; }
+  if(eqEdit&&eqEdit.id===id){ eqEdit.docs=docs; const c=docs.find(d=>d.k==="cert"); eqEdit.cert_photo=c?c.p:null; }
+}
+async function docPick(inp,id,k){
+  const files=Array.from(inp.files||[]); inp.value=""; if(!files.length) return;
+  const key=id+":"+k; docBusy[key]=true; render();
+  let n=0; const bad=[];
+  try{
+    for(const f of files){
+      const isPdf=f.type==="application/pdf"||/\.pdf$/i.test(f.name||"");
+      const isImg=/^image\//.test(f.type||"")||/\.(jpe?g|png|gif|webp|heic|heif)$/i.test(f.name||"");
+      if(!isPdf&&!isImg){ bad.push(`${f.name}：只能放照片或 PDF`); continue; }
+      if(isPdf&&f.size>10*1024*1024){ bad.push(`${f.name}：PDF 超過 10MB`); continue; }
+      try{
+        const data=isPdf?await readURL(f):await shrinkP(f);
+        const path=`${slugOf(REG)}/iso/${k}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${isPdf?"pdf":"jpg"}`;
+        await uploadPhoto(path,isPdf?data.replace(/^data:[^;]*;/,"data:application/pdf;"):data);
+        const docs=await rpc("eq_doc_add",{p_token:token,p_id:id,p_kind:k,p_path:path,
+          p_name:(f.name||"").replace(/\.[^.]+$/,"").slice(0,40),p_type:isPdf?"pdf":"img"});
+        eqPatchDocs(id,docs||[]);
+        Object.assign(isoUrls,await signUrls([path]));
+        n++;
+      }catch(e){ bad.push(`${f.name||"檔案"}：${e.message||e}`); }
+    }
+  }finally{ docBusy[key]=false; render(); }
+  if(bad.length) alert("有檔案沒傳上去：\n\n"+bad.join("\n"));
+  else if(n) toast(`${DOCK[k]}已上傳 ${n} 份`);
+}
+async function docDel(id,path,k){
+  if(!confirm(`刪除這份${DOCK[k]}？`)) return;
+  await guard(async()=>{ const docs=await rpc("eq_doc_del",{p_token:token,p_id:id,p_path:path});
+    eqPatchDocs(id,docs||[]); render(); toast("已刪除"); });
+}
+async function docView(path,t){
+  let u=isoUrls[path];
+  if(!u){ Object.assign(isoUrls,await signUrls([path])); u=isoUrls[path]; }
+  if(!u) return toast("檔案打不開，請重新整理後再試");
+  if(t==="pdf"){ const w=window.open(u,"_blank"); if(!w) location.href=u; return; }
+  lightbox={url:u}; render();
 }
 function showIso(p){ const u=isoUrls[p]; if(!u) return toast("照片還在載入，請稍後再試");
   lightbox={url:u}; render(); }
@@ -5652,11 +5744,10 @@ function viewEqForm(){
         <input type="text" class="roin" readonly value="${esc(locName(E.loc_code))}">
         <span style="font-size:12px;color:var(--muted)">要調動請用「出入庫」，才會留下紀錄</span></label>
     </div>
-    <div class="note">上傳<b>原廠校驗／檢驗證明</b>之後，這台在購入一年內才能被選為內校的標準件。
-      沒有證明也還是可以選，只是稽核時沒有依據。</div>
-    ${shotBox("cert","原廠校驗／檢驗證明")}
-    ${E.cert_photo&&!(eqPhoto&&eqPhoto.cert)?`<div style="margin:-4px 0 12px">
-      <button class="btn tiny ghost" onclick="showIso('${E.cert_photo}')">看目前已上傳的證明</button></div>`:""}
+    ${E.id?docBox(E,"cert","上傳之後，這台在購入一年內才能被選為內校的標準件。沒有證明也還是可以選，只是稽核時沒有依據。")
+          +docBox(E,"buy","發票、收據、出貨單都可以")
+      :`<div class="note">證明文件要先存檔之後才能上傳</div>`}
+    <div style="font-size:12.5px;color:var(--muted);margin:-4px 0 12px">證明一選好就直接上傳，不用按儲存</div>
     <label class="f"><span class="lbl">備註</span>
       <textarea rows="2" oninput="setEq('note',this.value)">${esc(E.note||"")}</textarea></label>
     <button class="btn amber block" onclick="eqSave()">儲存</button>
@@ -5665,13 +5756,11 @@ function viewEqForm(){
 async function eqSave(){
   const E=eqEdit; if(!E) return;
   await isoDo(async()=>{
-    const cert=await isoUp("cert","cert");
     const p={id:E.id,region:REG,item_id:E.item_id,no:E.no,spec:E.spec,brand:E.brand,tol:E.tol,
       cal_type:E.cal_type,cal_org:E.cal_org,cal_months:String(E.cal_months||0),
       buy_date:E.buy_date||"",keeper:E.keeper,owner_name:E.owner_name,
       loc_code:E.loc_code||"",note:E.note||""};
     if(E.id&&E.ever!=null) p.ever=String(E.ever);
-    if(cert) p.cert_photo=cert;
     let id;
     try{ id=await rpc("eq_save",{p_token:token,p:p}); }
     catch(err){ if(isClash(err)){ await isoLoad(); eqEditOpen(E.id); } throw err; }
