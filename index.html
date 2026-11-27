@@ -1098,6 +1098,11 @@ table.pf.rec td{text-align:left;padding-left:8px}
 .sym.x::before{content:"";position:absolute;left:50%;top:1px;bottom:1px;border-left:1.3px solid #111;transform:translateX(-50%)}
 .sym.x::after{content:"";position:absolute;top:50%;left:1px;right:1px;border-top:1.3px solid #111;transform:translateY(-50%)}
 .sym.d::after{content:"";position:absolute;inset:2px;border:1.3px solid #111;border-radius:50%}
+.slotw{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
+.slotw.sm{flex:0 0 62px}
+.libbtn{font-size:12px;font-weight:700;color:var(--ink2);border:1.5px solid var(--line);border-radius:999px;
+  padding:3px 9px;background:var(--card);cursor:pointer;white-space:nowrap}
+.slotw.sm .libbtn{font-size:11px;padding:2px 6px}
 </style>
 
 <header class="top" id="hdr"></header>
@@ -1157,7 +1162,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 /* ===================== 版本檢查 ===================== */
 /* 改版步驟：APP_VER 加 1，上傳網頁，再把資料庫的 app_versions.min_ver 拉到同一個數字 */
 const APP_NAME="inventory";
-const APP_VER=28;
+const APP_VER=29;
 let UPGRADING=false;
 function verCheck(cfg){
   const need=(cfg&&cfg.min_ver)|0;
@@ -2042,11 +2047,12 @@ function viewField(){
       :byItem()?`<div style="padding:9px 12px;border-bottom:1px solid var(--line2)" class="lbl">
           逐項拍照模式：每一項都要拍一張，拍完再按「正常」或「異常」。</div>`
       :(()=>{const ph=draft.pkgPhoto[curPkg]||[];
-        const slot=(i,opt)=>`<label class="bigshot ${ph[i]?"has":""} ${opt&&!ph[i]?"opt":""}">
+        const slot=(i,opt)=>`<div class="slotw"><label class="bigshot ${ph[i]?"has":""} ${opt&&!ph[i]?"opt":""}">
           ${ph[i]?`<img src="${ph[i]}"><span class="redo">重拍</span>`
             :`<span class="cam">${opt?"＋":"▣"}</span><span class="ct">${opt?"加拍第二張<br>（選填）":"拍攝本包照片"}</span>`}
           <input type="file" accept="image/*" capture="environment" class="hide" onchange="shootPkg(this,${i})">
-        </label>`;
+        </label><label class="libbtn">📁 從相簿選
+          <input type="file" accept="image/*" class="hide" onchange="shootPkg(this,${i},true)"></label></div>`;
         return `<div class="pkgshot">
         <div class="shots2">${slot(0,false)}${ph.length>0?slot(1,true):""}</div>
         <div class="pkgtip"><b>本包整體照片（至少一張，最多兩張）</b>
@@ -2157,6 +2163,8 @@ function rowHTML(r){
         ${s.photo?`<img src="${s.photo}">`:""}
         <label class="btn ghost sm" style="cursor:pointer">${s.photo?"重拍":"拍這一項"}
           <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)"></label>
+        <label class="btn ghost sm" style="cursor:pointer">📁 從相簿選
+          <input type="file" accept="image/*" class="hide" onchange="shoot('${r.rid}',this,true)"></label>
         ${s.photo?"":`<span class="req">異常項目需拍照</span>`}
       </div>`}`
       :`<div class="lbl">請選擇異常類型</div>`}
@@ -2165,10 +2173,11 @@ function rowHTML(r){
         <button class="btn ghost sm" onclick="setOK('${r.rid}')">改回正常</button></div>
     </div>`;
   }
-  const shotCell = byItem() ? `<label class="shotbtn ${s.photo?"has":""}">
+  const shotCell = byItem() ? `<div class="slotw sm"><label class="shotbtn ${s.photo?"has":""}">
       ${s.photo?`<img src="${s.photo}"><span class="redo">重拍</span>`:`<span class="cam">▣</span>`}
       <input type="file" accept="image/*" capture="environment" class="hide" onchange="shoot('${r.rid}',this)">
-    </label>` : "";
+    </label><label class="libbtn">📁 相簿
+      <input type="file" accept="image/*" class="hide" onchange="shoot('${r.rid}',this,true)"></label></div>` : "";
   const lock = byItem() && !s.photo;
   const needU = needUnit(r);
   const dv = s.status==="abnormal" ? deltaOf(r,s) : null;
@@ -2252,21 +2261,70 @@ function upStat(){
   }
   return {need,done};
 }
-function shrink(f,cb){const fr=new FileReader();fr.onload=()=>{const img=new Image();
+function shrink(f,cb,stamp){const fr=new FileReader();fr.onload=()=>{const img=new Image();
+  img.onerror=()=>toast("讀不出這張照片（iPhone 的 HEIC 格式請改用拍照）");
   img.onload=()=>{const m=photoPx(),q=PXQ[m]||0.72,
       sc=Math.min(1,m/Math.max(img.width,img.height));
-    const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;
-    c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",q));};
+    const c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+    const x=c.getContext("2d"); x.drawImage(img,0,0,c.width,c.height);
+    if(stamp){ // 照片左下角壓字，管理端、報表一眼看得出來
+      const fs=Math.max(14,Math.round(Math.min(c.width,c.height)*0.045)), pad=Math.round(fs*0.45);
+      x.font=`700 ${fs}px sans-serif`; const w=x.measureText(stamp).width;
+      x.fillStyle="rgba(200,40,30,.88)"; x.fillRect(0,c.height-fs-pad*2,w+pad*2,fs+pad*2);
+      x.fillStyle="#fff"; x.textBaseline="middle"; x.fillText(stamp,pad,c.height-pad-fs/2);
+      window.__stamp=stamp; }
+    cb(c.toDataURL("image/jpeg",q));};
   img.src=fr.result;};fr.readAsDataURL(f);}
-function shoot(rid,inp){ if(!inp.files[0])return;
-  shrink(inp.files[0],d=>{const x=st(rid);x.photo=d;
+/* ---------- 從相簿選照片 ----------
+   拍照本來就是現場拍的；從相簿選的照片，讀它的拍攝日期（EXIF），
+   不是今天拍的、或看不出拍攝日，就在照片左下角壓上紅字，管理端審核時一眼看得出來 */
+function parseExifDate(v){
+  if(v.byteLength<4||v.getUint16(0)!==0xFFD8) return null;
+  let o=2;
+  while(o+10<v.byteLength){
+    const mk=v.getUint16(o); if((mk&0xFF00)!==0xFF00) break;
+    const len=v.getUint16(o+2);
+    if(mk===0xFFE1&&v.getUint32(o+4)===0x45786966){
+      const t=o+10, le=v.getUint16(t)===0x4949;
+      const u16=p=>v.getUint16(t+p,le), u32=p=>v.getUint32(t+p,le);
+      const str=(p,n)=>{let r="";for(let i=0;i<n&&t+p+i<v.byteLength;i++){const c=v.getUint8(t+p+i);if(!c)break;r+=String.fromCharCode(c);}return r;};
+      const find=(ifd,tag)=>{const n=u16(ifd);for(let i=0;i<n;i++){const e=ifd+2+i*12;if(u16(e)===tag)return e;}return -1;};
+      const ifd0=u32(4); let dt="";
+      const ex=find(ifd0,0x8769);
+      if(ex>=0){const d=find(u32(ex+8),0x9003); if(d>=0) dt=str(u32(d+8),19);}
+      if(!dt){const d=find(ifd0,0x0132); if(d>=0) dt=str(u32(d+8),19);}
+      return /^\d{4}:\d\d:\d\d/.test(dt)?dt.slice(0,10).replace(/:/g,"-"):null;
+    }
+    o+=2+len;
+  }
+  return null;
+}
+function photoDay(f){ return new Promise(ok=>{
+  const done=d=>{ if(!d&&f.lastModified){ const t=new Date(f.lastModified);
+      const p=n=>String(n).padStart(2,"0"); d=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())}`; }
+    ok(d||null); };
+  const fr=new FileReader();
+  fr.onload=()=>{ let d=null; try{ d=parseExifDate(new DataView(fr.result)); }catch(e){} done(d); };
+  fr.onerror=()=>done(null);
+  fr.readAsArrayBuffer(f.slice(0,262144)); }); }
+async function libStamp(f){
+  const d=await photoDay(f);
+  const t=new Date(), p2=n=>String(n).padStart(2,"0");
+  if(d===`${t.getFullYear()}-${p2(t.getMonth()+1)}-${p2(t.getDate())}`) return "";   // 手機本地的今天
+  return d?`非當日照片・拍攝 ${d.slice(5).replace("-","/")}`:"相簿照片・拍攝日不明";
+}
+async function shoot(rid,inp,lib){ if(!inp.files[0])return;
+  const f=inp.files[0], stamp=lib?await libStamp(f):"";
+  shrink(f,d=>{const x=st(rid);x.photo=d;
     if(byItem()&&x.status==="pending")x.status="ok";
-    bgKick("item:"+rid,"item-"+rid,d); render();});}
-function shootPkg(inp,idx){ if(!inp.files[0]||!pkgRows(curPkg).length)return;
-  const pid=curPkg, i=idx||0;
-  shrink(inp.files[0],d=>{ const a=draft.pkgPhoto[pid]||(draft.pkgPhoto[pid]=[]);
+    bgKick("item:"+rid,"item-"+rid,d); render();},stamp);
+  if(stamp) toast("這張不是今天拍的，照片上會標註「"+stamp.split("・")[0]+"」");}
+async function shootPkg(inp,idx,lib){ if(!inp.files[0]||!pkgRows(curPkg).length)return;
+  const pid=curPkg, i=idx||0, f=inp.files[0], stamp=lib?await libStamp(f):"";
+  shrink(f,d=>{ const a=draft.pkgPhoto[pid]||(draft.pkgPhoto[pid]=[]);
     a[i]=d; if(a.length>2)a.length=2;
-    bgKick(`pkg:${pid}:${i}`,`pkg-${pid}-${i}`,d); render();});}
+    bgKick(`pkg:${pid}:${i}`,`pkg-${pid}-${i}`,d); render();},stamp);
+  if(stamp) toast("這張不是今天拍的，照片上會標註「"+stamp.split("・")[0]+"」");}
 function removePkgPhoto(idx){ const a=draft.pkgPhoto[curPkg]; if(!a)return;
   a.splice(idx,1);
   // 位置會往前移，乾脆把這個包別的上傳紀錄重排
